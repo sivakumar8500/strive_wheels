@@ -36,4 +36,13 @@ abstract class AppColors {
   // Separator & Border Colors
   static const Color dividerLight = Color(0x66FFFFFF);
   static const Color dividerDark = Color(0x33FFFFFF);
+
+  // Onboarding Colors
+  static const Color onboardingBgLight = Color(0xFFF8F9FD);
+  static const Color onboardingBgDark = Color(0xFF0F172A);
+  static const Color onboardingTextPrimaryLight = Color(0xFF1E293B);
+  static const Color onboardingTextSecondaryLight = Color(0xFF64748B);
+  static const Color indicatorActive = Color(0xFF0038A8);
+  static const Color indicatorInactiveLight = Color(0xFFCBD5E1);
+  static const Color indicatorInactiveDark = Color(0xFF334155);
 }

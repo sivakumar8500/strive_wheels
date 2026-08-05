@@ -7,4 +7,10 @@ abstract class AppStrings {
   static const String backedBy = 'Backed by';
   static const String infinitumTechniques = 'Infinitum';
   static const String infinitumSubtext = 'Techniques Pvt Ltd';
+
+  // Onboarding Strings
+  static const String onboardingTitle1 = 'Make connects\nwith explore';
+  static const String onboardingSubtitle1 = 'To your dream trip';
+  static const String onboardingTitle2 = 'Explore the\nworld easily';
+  static const String onboardingSubtitle2 = 'To your desire';
 }
