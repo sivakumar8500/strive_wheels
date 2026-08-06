@@ -18,11 +18,12 @@ void main() {
     expect(find.text(AppStrings.onboardingTitle1), findsOneWidget);
   });
 
-  testWidgets('App subsequent launch displays SplashPage',
+  testWidgets('App subsequent launch displays SplashPage and navigates to LoginPage',
       (WidgetTester tester) async {
     await initDependencyInjection();
     await tester.pumpWidget(const WheelsUserApp(isFirstTime: false));
     expect(find.text(AppStrings.appName), findsOneWidget);
     await tester.pumpAndSettle(const Duration(seconds: 4));
+    expect(find.text(AppStrings.welcomeBack), findsOneWidget);
   });
 }

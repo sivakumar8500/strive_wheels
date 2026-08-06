@@ -5,6 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../login/presentation/bloc/login_bloc.dart';
+import '../../../login/presentation/pages/login_page.dart';
 import '../bloc/splash_bloc.dart';
 import '../bloc/splash_event.dart';
 import '../bloc/splash_state.dart';
@@ -34,7 +37,14 @@ class _SplashPageState extends State<SplashPage> {
     return BlocListener<SplashBloc, SplashState>(
       listener: (context, state) {
         if (state is SplashCompleted) {
-          // Navigation logic after splash screen completes
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => BlocProvider<LoginBloc>(
+                create: (_) => sl<LoginBloc>(),
+                child: const LoginPage(),
+              ),
+            ),
+          );
         }
       },
       child: Scaffold(
