@@ -115,3 +115,7 @@ class BookVehicleNowEvent extends BookingEvent {
   @override
   int get hashCode => vehicleId.hashCode ^ vehicleName.hashCode;
 }
+
+class ResetVehicleResultsEvent extends BookingEvent {
+  const ResetVehicleResultsEvent();
+}

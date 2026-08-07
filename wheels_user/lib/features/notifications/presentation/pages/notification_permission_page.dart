@@ -28,9 +28,14 @@ class NotificationPermissionPage extends StatelessWidget {
       backgroundColor: backgroundColor,
       body: SafeArea(
         child: BlocConsumer<NotificationBloc, NotificationState>(
+          listenWhen: (previous, current) =>
+              (!previous.isPermissionGranted && current.isPermissionGranted) ||
+              (!previous.isSkipped && current.isSkipped) ||
+              (current.errorMessage != null &&
+                  current.errorMessage != previous.errorMessage),
           listener: (context, state) {
             if (state.isPermissionGranted || state.isSkipped) {
-              Navigator.of(context).push(
+              Navigator.of(context).pushReplacement(
                 MaterialPageRoute(
                   builder: (_) => BlocProvider<ContactsBloc>(
                     create: (_) => sl<ContactsBloc>(),

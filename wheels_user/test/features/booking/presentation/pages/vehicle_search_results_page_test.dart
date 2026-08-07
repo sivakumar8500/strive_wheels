@@ -3,17 +3,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:wheels_user/core/di/injection_container.dart';
 import 'package:wheels_user/features/booking/domain/entities/vehicle_option_entity.dart';
 import 'package:wheels_user/features/booking/presentation/bloc/booking_bloc.dart';
 import 'package:wheels_user/features/booking/presentation/bloc/booking_event.dart';
 import 'package:wheels_user/features/booking/presentation/bloc/booking_state.dart';
 import 'package:wheels_user/features/booking/presentation/pages/vehicle_search_results_page.dart';
+import 'package:wheels_user/features/trip_overview/presentation/bloc/trip_overview_bloc.dart';
+import 'package:wheels_user/features/trip_overview/presentation/bloc/trip_overview_event.dart';
+import 'package:wheels_user/features/trip_overview/presentation/bloc/trip_overview_state.dart';
+import 'package:wheels_user/features/vehicle_details/presentation/bloc/vehicle_details_bloc.dart';
+import 'package:wheels_user/features/vehicle_details/presentation/bloc/vehicle_details_event.dart';
+import 'package:wheels_user/features/vehicle_details/presentation/bloc/vehicle_details_state.dart';
 
 class MockBookingBloc extends MockBloc<BookingEvent, BookingState>
     implements BookingBloc {}
 
+class MockTripOverviewBloc
+    extends MockBloc<TripOverviewEvent, TripOverviewState>
+    implements TripOverviewBloc {}
+
+class MockVehicleDetailsBloc
+    extends MockBloc<VehicleDetailsEvent, VehicleDetailsState>
+    implements VehicleDetailsBloc {}
+
 void main() {
   late MockBookingBloc mockBloc;
+  late MockTripOverviewBloc mockTripOverviewBloc;
+  late MockVehicleDetailsBloc mockVehicleDetailsBloc;
 
   const tVehicles = [
     VehicleOptionEntity(
@@ -41,10 +58,26 @@ void main() {
       vehicleId: 'v1',
       vehicleName: 'Mercedes E-Class',
     ));
+    registerFallbackValue(const ResetVehicleResultsEvent());
+    registerFallbackValue(const LoadBookingDataEvent());
   });
 
   setUp(() {
     mockBloc = MockBookingBloc();
+    mockTripOverviewBloc = MockTripOverviewBloc();
+    mockVehicleDetailsBloc = MockVehicleDetailsBloc();
+
+    if (!sl.isRegistered<TripOverviewBloc>()) {
+      sl.registerFactory<TripOverviewBloc>(() => mockTripOverviewBloc);
+    }
+    if (!sl.isRegistered<VehicleDetailsBloc>()) {
+      sl.registerFactory<VehicleDetailsBloc>(() => mockVehicleDetailsBloc);
+    }
+
+    when(() => mockTripOverviewBloc.state)
+        .thenReturn(const TripOverviewState(isLoading: true));
+    when(() => mockVehicleDetailsBloc.state)
+        .thenReturn(const VehicleDetailsState(isLoading: true));
   });
 
   Widget buildTestWidget() {
@@ -73,6 +106,22 @@ void main() {
     expect(find.text('Tempo Traveler / Van'), findsOneWidget);
     expect(find.text('₹450'), findsOneWidget);
     expect(find.text('₹850'), findsOneWidget);
+  });
+
+  testWidgets('tapping back button fires ResetVehicleResultsEvent and LoadBookingDataEvent', (tester) async {
+    when(() => mockBloc.state).thenReturn(const BookingState(
+      isLoading: false,
+      availableVehicles: tVehicles,
+      isShowingVehicleResults: true,
+    ));
+
+    await tester.pumpWidget(buildTestWidget());
+
+    await tester.tap(find.byKey(const Key('back_to_location_picker')));
+    await tester.pump();
+
+    verify(() => mockBloc.add(const ResetVehicleResultsEvent())).called(1);
+    verify(() => mockBloc.add(const LoadBookingDataEvent())).called(1);
   });
 
   testWidgets('tapping Book Now button fires BookVehicleNowEvent', (tester) async {

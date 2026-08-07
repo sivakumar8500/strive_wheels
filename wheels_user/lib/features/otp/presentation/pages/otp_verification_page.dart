@@ -41,9 +41,13 @@ class OtpVerificationPage extends StatelessWidget {
       backgroundColor: backgroundColor,
       body: SafeArea(
         child: BlocConsumer<OtpBloc, OtpState>(
+          listenWhen: (previous, current) =>
+              (!previous.isSuccess && current.isSuccess) ||
+              (current.errorMessage != null &&
+                  current.errorMessage != previous.errorMessage),
           listener: (context, state) {
             if (state.isSuccess) {
-              Navigator.of(context).push(
+              Navigator.of(context).pushReplacement(
                 MaterialPageRoute(
                   builder: (_) => BlocProvider<NotificationBloc>(
                     create: (_) => sl<NotificationBloc>(),

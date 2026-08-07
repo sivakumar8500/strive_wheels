@@ -5,7 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../history/presentation/widgets/ride_history_top_bar.dart';
+import '../../../schedule_ride/presentation/bloc/schedule_ride_bloc.dart';
+import '../../../schedule_ride/presentation/pages/schedule_ride_page.dart';
 import '../bloc/booking_bloc.dart';
 import '../bloc/booking_event.dart';
 import '../bloc/booking_state.dart';
@@ -115,6 +118,16 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
                           context
                               .read<BookingBloc>()
                               .add(SelectRideTypeTabEvent(index));
+                          if (index == 1 || index == 2) {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => BlocProvider<ScheduleRideBloc>(
+                                  create: (_) => sl<ScheduleRideBloc>(),
+                                  child: const ScheduleRidePage(),
+                                ),
+                              ),
+                            );
+                          }
                         },
                       ),
 

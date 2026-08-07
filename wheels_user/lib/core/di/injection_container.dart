@@ -55,7 +55,32 @@ import '../../features/settings/data/repositories/settings_repository_impl.dart'
 import '../../features/settings/domain/repositories/settings_repository.dart';
 import '../../features/settings/domain/usecases/get_settings_usecase.dart';
 import '../../features/settings/presentation/bloc/settings_bloc.dart';
+import '../../features/schedule_ride/data/datasources/schedule_ride_local_datasource.dart';
+import '../../features/schedule_ride/data/repositories/schedule_ride_repository_impl.dart';
+import '../../features/schedule_ride/domain/repositories/schedule_ride_repository.dart';
+import '../../features/schedule_ride/domain/usecases/get_schedule_ride_usecase.dart';
+import '../../features/schedule_ride/presentation/bloc/schedule_ride_bloc.dart';
 import '../../features/splash/presentation/bloc/splash_bloc.dart';
+import '../../features/trip_overview/data/datasources/trip_overview_local_datasource.dart';
+import '../../features/trip_overview/data/repositories/trip_overview_repository_impl.dart';
+import '../../features/trip_overview/domain/repositories/trip_overview_repository.dart';
+import '../../features/trip_overview/domain/usecases/get_trip_overview_usecase.dart';
+import '../../features/trip_overview/presentation/bloc/trip_overview_bloc.dart';
+import '../../features/driver_search/data/datasources/driver_search_local_datasource.dart';
+import '../../features/driver_search/data/repositories/driver_search_repository_impl.dart';
+import '../../features/driver_search/domain/repositories/driver_search_repository.dart';
+import '../../features/driver_search/domain/usecases/get_driver_search_usecase.dart';
+import '../../features/driver_search/presentation/bloc/driver_search_bloc.dart';
+import '../../features/payment_method/data/datasources/payment_method_local_datasource.dart';
+import '../../features/payment_method/data/repositories/payment_method_repository_impl.dart';
+import '../../features/payment_method/domain/repositories/payment_method_repository.dart';
+import '../../features/payment_method/domain/usecases/get_payment_method_usecase.dart';
+import '../../features/payment_method/presentation/bloc/payment_method_bloc.dart';
+import '../../features/vehicle_details/data/datasources/vehicle_details_local_datasource.dart';
+import '../../features/vehicle_details/data/repositories/vehicle_details_repository_impl.dart';
+import '../../features/vehicle_details/domain/repositories/vehicle_details_repository.dart';
+import '../../features/vehicle_details/domain/usecases/get_vehicle_details_usecase.dart';
+import '../../features/vehicle_details/presentation/bloc/vehicle_details_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -334,6 +359,116 @@ Future<void> initDependencyInjection() async {
         getRecentJourneysUseCase: sl(),
         getAvailableVehiclesUseCase: sl(),
       ),
+    );
+  }
+
+  // Vehicle Details Feature
+  if (!sl.isRegistered<VehicleDetailsLocalDataSource>()) {
+    sl.registerLazySingleton<VehicleDetailsLocalDataSource>(
+      () => const VehicleDetailsLocalDataSourceImpl(),
+    );
+  }
+  if (!sl.isRegistered<VehicleDetailsRepository>()) {
+    sl.registerLazySingleton<VehicleDetailsRepository>(
+      () => VehicleDetailsRepositoryImpl(localDataSource: sl()),
+    );
+  }
+  if (!sl.isRegistered<GetVehicleDetailsUseCase>()) {
+    sl.registerLazySingleton<GetVehicleDetailsUseCase>(
+      () => GetVehicleDetailsUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<VehicleDetailsBloc>()) {
+    sl.registerFactory<VehicleDetailsBloc>(
+      () => VehicleDetailsBloc(getVehicleDetailsUseCase: sl()),
+    );
+  }
+
+  // Schedule Ride Feature
+  if (!sl.isRegistered<ScheduleRideLocalDataSource>()) {
+    sl.registerLazySingleton<ScheduleRideLocalDataSource>(
+      () => const ScheduleRideLocalDataSourceImpl(),
+    );
+  }
+  if (!sl.isRegistered<ScheduleRideRepository>()) {
+    sl.registerLazySingleton<ScheduleRideRepository>(
+      () => ScheduleRideRepositoryImpl(localDataSource: sl()),
+    );
+  }
+  if (!sl.isRegistered<GetScheduleRideUseCase>()) {
+    sl.registerLazySingleton<GetScheduleRideUseCase>(
+      () => GetScheduleRideUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<ScheduleRideBloc>()) {
+    sl.registerFactory<ScheduleRideBloc>(
+      () => ScheduleRideBloc(getScheduleRideUseCase: sl()),
+    );
+  }
+
+  // Trip Overview Feature
+  if (!sl.isRegistered<TripOverviewLocalDataSource>()) {
+    sl.registerLazySingleton<TripOverviewLocalDataSource>(
+      () => const TripOverviewLocalDataSourceImpl(),
+    );
+  }
+  if (!sl.isRegistered<TripOverviewRepository>()) {
+    sl.registerLazySingleton<TripOverviewRepository>(
+      () => TripOverviewRepositoryImpl(localDataSource: sl()),
+    );
+  }
+  if (!sl.isRegistered<GetTripOverviewUseCase>()) {
+    sl.registerLazySingleton<GetTripOverviewUseCase>(
+      () => GetTripOverviewUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<TripOverviewBloc>()) {
+    sl.registerFactory<TripOverviewBloc>(
+      () => TripOverviewBloc(getTripOverviewUseCase: sl()),
+    );
+  }
+
+  // Driver Search Feature
+  if (!sl.isRegistered<DriverSearchLocalDataSource>()) {
+    sl.registerLazySingleton<DriverSearchLocalDataSource>(
+      () => const DriverSearchLocalDataSourceImpl(),
+    );
+  }
+  if (!sl.isRegistered<DriverSearchRepository>()) {
+    sl.registerLazySingleton<DriverSearchRepository>(
+      () => DriverSearchRepositoryImpl(localDataSource: sl()),
+    );
+  }
+  if (!sl.isRegistered<GetDriverSearchUseCase>()) {
+    sl.registerLazySingleton<GetDriverSearchUseCase>(
+      () => GetDriverSearchUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<DriverSearchBloc>()) {
+    sl.registerFactory<DriverSearchBloc>(
+      () => DriverSearchBloc(getDriverSearchUseCase: sl()),
+    );
+  }
+
+  // Payment Method Feature
+  if (!sl.isRegistered<PaymentMethodLocalDataSource>()) {
+    sl.registerLazySingleton<PaymentMethodLocalDataSource>(
+      () => const PaymentMethodLocalDataSourceImpl(),
+    );
+  }
+  if (!sl.isRegistered<PaymentMethodRepository>()) {
+    sl.registerLazySingleton<PaymentMethodRepository>(
+      () => PaymentMethodRepositoryImpl(localDataSource: sl()),
+    );
+  }
+  if (!sl.isRegistered<GetPaymentMethodUseCase>()) {
+    sl.registerLazySingleton<GetPaymentMethodUseCase>(
+      () => GetPaymentMethodUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<PaymentMethodBloc>()) {
+    sl.registerFactory<PaymentMethodBloc>(
+      () => PaymentMethodBloc(getPaymentMethodUseCase: sl()),
     );
   }
 }

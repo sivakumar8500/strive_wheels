@@ -28,6 +28,11 @@ class ContactsPermissionPage extends StatelessWidget {
       backgroundColor: backgroundColor,
       body: SafeArea(
         child: BlocConsumer<ContactsBloc, ContactsState>(
+          listenWhen: (previous, current) =>
+              (!previous.isPermissionGranted && current.isPermissionGranted) ||
+              (!previous.isSkipped && current.isSkipped) ||
+              (current.errorMessage != null &&
+                  current.errorMessage != previous.errorMessage),
           listener: (context, state) {
             if (state.isPermissionGranted || state.isSkipped) {
               Navigator.of(context).pushAndRemoveUntil(

@@ -74,6 +74,7 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
       );
 
       if (success) {
+        _timer?.cancel();
         emit(state.copyWith(isSubmitting: false, isSuccess: true));
       } else {
         emit(state.copyWith(

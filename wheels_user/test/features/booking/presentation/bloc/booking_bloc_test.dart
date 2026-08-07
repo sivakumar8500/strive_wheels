@@ -102,6 +102,20 @@ void main() {
   );
 
   blocTest<BookingBloc, BookingState>(
+    'sets isShowingVehicleResults false on ResetVehicleResultsEvent',
+    build: () => bloc,
+    seed: () => const BookingState(isShowingVehicleResults: true),
+    act: (bloc) => bloc.add(const ResetVehicleResultsEvent()),
+    expect: () => [
+      isA<BookingState>().having(
+        (s) => s.isShowingVehicleResults,
+        'isShowingVehicleResults',
+        isFalse,
+      ),
+    ],
+  );
+
+  blocTest<BookingBloc, BookingState>(
     'emits actionMessage on BookVehicleNowEvent',
     build: () => bloc,
     act: (bloc) => bloc.add(const BookVehicleNowEvent(
