@@ -5,7 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/widgets/app_button.dart';
+import 'package:wheels_user/features/home/presentation/bloc/home_bloc.dart';
+import 'package:wheels_user/features/home/presentation/pages/home_page.dart';
 import '../bloc/contacts_bloc.dart';
 import '../bloc/contacts_event.dart';
 import '../bloc/contacts_state.dart';
@@ -26,18 +29,15 @@ class ContactsPermissionPage extends StatelessWidget {
       body: SafeArea(
         child: BlocConsumer<ContactsBloc, ContactsState>(
           listener: (context, state) {
-            if (state.isPermissionGranted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(AppStrings.contactsAllowedSuccessfully),
-                  backgroundColor: AppColors.primaryBlue,
+            if (state.isPermissionGranted || state.isSkipped) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (_) => BlocProvider<HomeBloc>(
+                    create: (_) => sl<HomeBloc>(),
+                    child: const HomePage(),
+                  ),
                 ),
-              );
-            } else if (state.isSkipped) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(AppStrings.contactsPermissionSkipped),
-                ),
+                (route) => false,
               );
             } else if (state.errorMessage != null) {
               ScaffoldMessenger.of(context).showSnackBar(

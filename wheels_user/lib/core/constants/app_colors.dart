@@ -42,6 +42,55 @@ abstract class AppColors {
   static const Color onboardingBgDark = Color(0xFF0F172A);
   static const Color onboardingTextPrimaryLight = Color(0xFF1E293B);
   static const Color onboardingTextSecondaryLight = Color(0xFF64748B);
+  // Home Dashboard Service Colors
+  static const Color bikeServiceBg = Color(0xFFE8F0FE);
+  static const Color bikeServiceIcon = Color(0xFF1A73E8);
+  static const Color autoServiceBg = Color(0xFFE6F4EA);
+  static const Color autoServiceIcon = Color(0xFF137333);
+  static const Color cabServiceBg = Color(0xFFEEF2FF);
+  static const Color cabServiceIcon = Color(0xFF4F46E5);
+  static const Color rentalServiceBg = Color(0xFFFEF7E0);
+  static const Color rentalServiceIcon = Color(0xFFB06000);
+  static const Color parcelServiceBg = Color(0xFFFCE8E6);
+  static const Color parcelServiceIcon = Color(0xFFC5221F);
+  static const Color courierServiceBg = Color(0xFFE6FFFA);
+  static const Color courierServiceIcon = Color(0xFF0D9488);
+  static const Color airportServiceBg = Color(0xFFF3E8FF);
+  static const Color airportServiceIcon = Color(0xFF7E22CE);
+  static const Color corporateServiceBg = Color(0xFFF1F5F9);
+  static const Color corporateServiceIcon = Color(0xFF475569);
+
+  // Home Offer Gradient
+  static const List<Color> offerCardGradient = [
+    Color(0xFF0F4CBA),
+    Color(0xFF002673),
+  ];
+
+  // Surface & Card Colors
+  static const Color cardBgLight = Color(0xFFF3F4F6);
+  static const Color cardBgDark = Color(0xFF1E293B);
+  static const Color serviceTileBgLight = Color(0xFFFFFFFF);
+  static const Color serviceTileBgDark = Color(0xFF1E293B);
+
+  // History & Favourites & Settings Colors
+  static const Color completedGreen = Color(0xFF16A34A);
+  static const Color filterBgLight = Color(0xFFF1F5F9);
+  static const Color filterBgDark = Color(0xFF1E293B);
+  static const Color miniServiceBg = Color(0xFFEEF2FF);
+  static const Color miniServiceIcon = Color(0xFF4F46E5);
+
+  static const Color favouriteHeartBg = Color(0xFFFFE4E6);
+  static const Color favouriteHeartIcon = Color(0xFFF43F5E);
+  static const Color shortcutShelfBgLight = Color(0xFFEBF3FF);
+  static const Color logoutBgLight = Color(0xFFFFE4E6);
+  static const Color logoutText = Color(0xFFDC2626);
+
+  // Booking & Vehicle Search Colors
+  static const Color pickupBlueRing = Color(0xFF0066FF);
+  static const Color destinationRedPin = Color(0xFFDC2626);
+  static const Color rideTypeActiveBg = Color(0xFF0066FF);
+  static const Color rideTypeInactiveBg = Color(0xFFF1F5F9);
+
   static const Color indicatorActive = Color(0xFF0038A8);
   static const Color indicatorInactiveLight = Color(0xFFCBD5E1);
   static const Color indicatorInactiveDark = Color(0xFF334155);

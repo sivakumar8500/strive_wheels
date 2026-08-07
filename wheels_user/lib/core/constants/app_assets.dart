@@ -9,4 +9,5 @@ abstract class AppAssets {
   static const String otpIllustration = 'assets/images/otp_illustration.png';
   static const String notificationIllustration = 'assets/images/notification_illustration.png';
   static const String contactsIllustration = 'assets/images/contacts_illustration.png';
+  static const String mapBackground = 'assets/images/map_background.png';
 }

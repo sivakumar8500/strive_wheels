@@ -3,10 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:wheels_user/core/di/injection_container.dart';
 import 'package:wheels_user/features/contacts/presentation/bloc/contacts_bloc.dart';
 import 'package:wheels_user/features/contacts/presentation/bloc/contacts_event.dart';
 import 'package:wheels_user/features/contacts/presentation/bloc/contacts_state.dart';
 import 'package:wheels_user/features/contacts/presentation/pages/contacts_permission_page.dart';
+import 'package:wheels_user/features/home/presentation/bloc/home_bloc.dart';
+import 'package:wheels_user/features/home/presentation/bloc/home_event.dart';
+import 'package:wheels_user/features/home/presentation/bloc/home_state.dart';
+import 'package:wheels_user/features/home/presentation/pages/home_page.dart';
 
 class MockContactsBloc extends MockBloc<ContactsEvent, ContactsState>
     implements ContactsBloc {}
@@ -63,8 +68,16 @@ void main() {
     verify(() => mockContactsBloc.add(const SkipContactsEvent())).called(1);
   });
 
-  testWidgets('displays SnackBar when contacts permission is granted',
+  testWidgets('navigates to HomePage when contacts permission is granted',
       (WidgetTester tester) async {
+    final mockHomeBloc = MockHomeBloc();
+    when(() => mockHomeBloc.state).thenReturn(const HomeState(isLoading: true));
+
+    if (sl.isRegistered<HomeBloc>()) {
+      sl.unregister<HomeBloc>();
+    }
+    sl.registerFactory<HomeBloc>(() => mockHomeBloc);
+
     whenListen(
       mockContactsBloc,
       Stream.fromIterable([
@@ -75,12 +88,21 @@ void main() {
 
     await tester.pumpWidget(buildTestableWidget());
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('Contacts permission granted successfully!'), findsOneWidget);
+    expect(find.byType(HomePage), findsOneWidget);
   });
 
-  testWidgets('displays SnackBar when contacts permission is skipped',
+  testWidgets('navigates to HomePage when contacts permission is skipped',
       (WidgetTester tester) async {
+    final mockHomeBloc = MockHomeBloc();
+    when(() => mockHomeBloc.state).thenReturn(const HomeState(isLoading: true));
+
+    if (sl.isRegistered<HomeBloc>()) {
+      sl.unregister<HomeBloc>();
+    }
+    sl.registerFactory<HomeBloc>(() => mockHomeBloc);
+
     whenListen(
       mockContactsBloc,
       Stream.fromIterable([
@@ -91,7 +113,11 @@ void main() {
 
     await tester.pumpWidget(buildTestableWidget());
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('Contacts permission skipped.'), findsOneWidget);
+    expect(find.byType(HomePage), findsOneWidget);
   });
 }
+
+class MockHomeBloc extends MockBloc<HomeEvent, HomeState> implements HomeBloc {}
+
