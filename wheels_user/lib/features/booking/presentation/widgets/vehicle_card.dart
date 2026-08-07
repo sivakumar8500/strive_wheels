@@ -70,10 +70,10 @@ class VehicleCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Vehicle Header Illustration / Container with Rating + ETA Badges
+          // 1. Vehicle Header Illustration / Container with A/C + Rating Badges
           Container(
             width: double.infinity,
-            height: 140,
+            height: 160,
             decoration: BoxDecoration(
               color: _getVehicleBg(vehicle.name),
               borderRadius: const BorderRadius.vertical(
@@ -82,45 +82,63 @@ class VehicleCard extends StatelessWidget {
             ),
             child: Stack(
               children: [
-                Center(
-                  child: Icon(
-                    _getVehicleIcon(vehicle.name),
-                    size: 80,
-                    color: _getVehicleIconColor(vehicle.name),
+                Positioned.fill(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Image.asset(
+                      vehicle.imagePath,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Center(
+                          child: Icon(
+                            _getVehicleIcon(vehicle.name),
+                            size: 80,
+                            color: _getVehicleIconColor(vehicle.name),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
 
-                // Top Right Rating & ETA Badges
+                // Top Right A/C & Rating Pill Badges
                 Positioned(
                   top: 12,
                   right: 12,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      // Rating Badge
+                      // A/C Badge (White Pill)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                          horizontal: 10,
+                          vertical: 5,
                         ),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(
-                              Icons.star_rounded,
-                              color: Color(0xFFF59E0B),
+                              Icons.ac_unit_rounded,
+                              color: AppColors.primaryBlue,
                               size: 14,
                             ),
-                            const SizedBox(width: 3),
+                            const SizedBox(width: 4),
                             Text(
-                              vehicle.rating,
+                              'A/C',
                               style: GoogleFonts.inter(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
                                 color: AppColors.onboardingTextPrimaryLight,
                               ),
                             ),
@@ -129,23 +147,43 @@ class VehicleCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
 
-                      // ETA Badge
+                      // Rating Badge (Blue Pill)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                          horizontal: 12,
+                          vertical: 5,
                         ),
                         decoration: BoxDecoration(
                           color: AppColors.primaryBlue,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primaryBlue.withValues(alpha: 0.3),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        child: Text(
-                          vehicle.eta,
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              color: Colors.white,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              vehicle.rating.contains('(')
+                                  ? vehicle.rating.split(' ').first
+                                  : vehicle.rating,
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],

@@ -19,6 +19,7 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     on<SelectRideTypeTabEvent>(_onSelectRideTypeTab);
     on<SelectRecentJourneyEvent>(_onSelectRecentJourney);
     on<SearchVehiclesEvent>(_onSearchVehicles);
+    on<ResetVehicleResultsEvent>(_onResetVehicleResults);
     on<SelectVehicleEvent>(_onSelectVehicle);
     on<BookVehicleNowEvent>(_onBookVehicleNow);
   }
@@ -33,6 +34,7 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
       final vehicles = await getAvailableVehiclesUseCase();
       emit(state.copyWith(
         isLoading: false,
+        isShowingVehicleResults: false,
         recentJourneys: journeys,
         availableVehicles: vehicles,
       ));
@@ -42,6 +44,13 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
         errorMessage: 'Failed to load booking data',
       ));
     }
+  }
+
+  void _onResetVehicleResults(
+    ResetVehicleResultsEvent event,
+    Emitter<BookingState> emit,
+  ) {
+    emit(state.copyWith(isShowingVehicleResults: false));
   }
 
   void _onChangePickupLocation(

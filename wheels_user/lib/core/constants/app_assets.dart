@@ -10,4 +10,8 @@ abstract class AppAssets {
   static const String notificationIllustration = 'assets/images/notification_illustration.png';
   static const String contactsIllustration = 'assets/images/contacts_illustration.png';
   static const String mapBackground = 'assets/images/map_background.png';
+  static const String vehicleMercedes = 'assets/images/vehicle_mercedes.png';
+  static const String vehicleForceTraveler = 'assets/images/vehicle_force_traveler.png';
+  static const String vehicleMiniBus = 'assets/images/vehicle_mini_bus.png';
+  static const String vehicleRangeRover = 'assets/images/vehicle_range_rover.jpg';
 }

@@ -49,6 +49,10 @@ class _LoginPageState extends State<LoginPage> {
       backgroundColor: backgroundColor,
       body: SafeArea(
         child: BlocConsumer<LoginBloc, LoginState>(
+          listenWhen: (previous, current) =>
+              (!previous.isSuccess && current.isSuccess) ||
+              (current.errorMessage != null &&
+                  current.errorMessage != previous.errorMessage),
           listener: (context, state) {
             if (state.isSuccess) {
               final fullPhone = '${state.countryCode}${state.phoneNumber}';
