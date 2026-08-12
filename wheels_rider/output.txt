@@ -1,0 +1,1087 @@
+0001 [00]: import 'package:flutter/material.dart';
+0002 [00]: import 'package:google_fonts/google_fonts.dart';
+0003 [00]: import 'package:flutter_map/flutter_map.dart';
+0004 [00]: import 'package:latlong2/latlong.dart';
+0005 [00]: import 'dart:math' as math;
+0006 [00]: 
+0007 [00]: import '../../../trips/presentation/pages/trips_page.dart';
+0008 [00]: import '../../../earnings/presentation/pages/earnings_page.dart';
+0009 [00]: import '../../../settings/presentation/pages/settings_page.dart';
+0010 [00]: 
+0011 [00]: import '../../../../core/constants/app_colors.dart';
+0012 [00]: 
+0013 [01]: class HomePage extends StatefulWidget {
+0014 [01]:   const HomePage({super.key});
+0015 [01]: 
+0016 [01]:   @override
+0017 [01]:   State<HomePage> createState() => _HomePageState();
+0018 [00]: }
+0019 [00]: 
+0020 [01]: class _HomePageState extends State<HomePage> {
+0021 [01]:   int _currentIndex = 0;
+0022 [01]:   bool _isOnDuty = true;
+0023 [01]:   String _rideType = 'Corporate'; // 'Corporate' or 'Self'
+0024 [01]:   bool _isRideRequestMinimized = false;
+0025 [01]: 
+0026 [01]:   @override
+0027 [02]:   Widget build(BuildContext context) {
+0028 [02]:     final isDark = Theme.of(context).brightness == Brightness.dark;
+0029 [02]: 
+0030 [02]:     return Scaffold(
+0031 [02]:       backgroundColor: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFEFE9E1),
+0032 [02]:       body: Stack(
+0033 [02]:         children: [
+0034 [02]:           // 1. Map Layer
+0035 [02]:           Positioned.fill(
+0036 [02]:             child: FlutterMap(
+0037 [02]:               options: const MapOptions(
+0038 [02]:                 initialCenter: LatLng(37.7800, -122.4050),
+0039 [02]:                 initialZoom: 14.5,
+0040 [02]:               ),
+0041 [02]:               children: [
+0042 [02]:                 TileLayer(
+0043 [02]:                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+0044 [02]:                   userAgentPackageName: 'com.strive.wheels_rider',
+0045 [02]:                 ),
+0046 [02]:                 PolylineLayer(
+0047 [02]:                   polylines: [
+0048 [02]:                     Polyline(
+0049 [02]:                       points: const [
+0050 [02]:                         LatLng(37.7780, -122.4150),
+0051 [02]:                         LatLng(37.7795, -122.4100),
+0052 [02]:                         LatLng(37.7810, -122.4050),
+0053 [02]:                         LatLng(37.7850, -122.3950),
+0054 [02]:                       ],
+0055 [02]:                       color: AppColors.primaryBlue,
+0056 [02]:                       strokeWidth: 4.0,
+0057 [02]:                     ),
+0058 [02]:                   ],
+0059 [02]:                 ),
+0060 [02]:                 MarkerLayer(
+0061 [02]:                   markers: [
+0062 [02]:                     // Start Dot (Location)
+0063 [02]:                     Marker(
+0064 [02]:                       point: const LatLng(37.7780, -122.4150),
+0065 [02]:                       width: 60,
+0066 [02]:                       height: 60,
+0067 [02]:                       child: Container(
+0068 [02]:                         decoration: BoxDecoration(
+0069 [02]:                           shape: BoxShape.circle,
+0070 [02]:                           color: AppColors.primaryBlue.withOpacity(0.3),
+0071 [02]:                         ),
+0072 [02]:                         child: Center(
+0073 [02]:                           child: Container(
+0074 [02]:                             width: 20,
+0075 [02]:                             height: 20,
+0076 [02]:                             decoration: BoxDecoration(
+0077 [02]:                               shape: BoxShape.circle,
+0078 [02]:                               color: AppColors.primaryBlue,
+0079 [02]:                               border: Border.all(color: Colors.white, width: 3),
+0080 [02]:                             ),
+0081 [02]:                           ),
+0082 [02]:                         ),
+0083 [02]:                       ),
+0084 [02]:                     ),
+0085 [02]:                     // Destination Pin
+0086 [02]:                     Marker(
+0087 [02]:                       point: const LatLng(37.7850, -122.3950),
+0088 [02]:                       width: 40,
+0089 [02]:                       height: 40,
+0090 [02]:                       alignment: Alignment.topCenter,
+0091 [02]:                       child: Column(
+0092 [02]:                         children: [
+0093 [02]:                           Container(
+0094 [02]:                             width: 24,
+0095 [02]:                             height: 24,
+0096 [02]:                             decoration: const BoxDecoration(
+0097 [02]:                               color: AppColors.primaryBlue,
+0098 [02]:                               shape: BoxShape.circle,
+0099 [02]:                             ),
+0100 [02]:                             child: const Center(
+0101 [02]:                               child: Icon(Icons.circle, color: Colors.white, size: 8),
+0102 [02]:                             ),
+0103 [02]:                           ),
+0104 [02]:                           Container(
+0105 [02]:                             width: 4,
+0106 [02]:                             height: 16,
+0107 [02]:                             color: AppColors.primaryBlue,
+0108 [02]:                           ),
+0109 [02]:                           Container(
+0110 [02]:                             width: 8,
+0111 [02]:                             height: 4,
+0112 [02]:                             decoration: BoxDecoration(
+0113 [02]:                               color: Colors.black.withOpacity(0.3),
+0114 [02]:                               borderRadius: BorderRadius.circular(100),
+0115 [02]:                             ),
+0116 [02]:                           )
+0117 [02]:                         ],
+0118 [02]:                       ),
+0119 [02]:                     ),
+0120 [02]:                   ],
+0121 [02]:                 ),
+0122 [02]:               ],
+0123 [02]:             ),
+0124 [02]:           ),
+0125 [02]: 
+0126 [02]:           // 2. Center "You're online" Badge
+0127 [02]:           Positioned(
+0128 [02]:             top: MediaQuery.of(context).size.height * 0.42,
+0129 [02]:             left: 0,
+0130 [02]:             right: 0,
+0131 [02]:             child: Center(
+0132 [02]:               child: Container(
+0133 [02]:                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+0134 [02]:                 decoration: BoxDecoration(
+0135 [02]:                   color: const Color(0xFF10A142),
+0136 [02]:                   borderRadius: BorderRadius.circular(20),
+0137 [02]:                   boxShadow: [
+0138 [02]:                     BoxShadow(
+0139 [02]:                       color: Colors.black.withOpacity(0.15),
+0140 [02]:                       blurRadius: 10,
+0141 [02]:                       offset: const Offset(0, 4),
+0142 [02]:                     ),
+0143 [02]:                   ],
+0144 [02]:                 ),
+0145 [02]:                 child: Row(
+0146 [02]:                   mainAxisSize: MainAxisSize.min,
+0147 [02]:                   children: [
+0148 [02]:                     const Icon(Icons.sensors, color: Colors.white, size: 18),
+0149 [02]:                     const SizedBox(width: 8),
+0150 [02]:                     Text(
+0151 [02]:                       "You're online",
+0152 [02]:                       style: GoogleFonts.inter(
+0153 [02]:                         color: Colors.white,
+0154 [02]:                         fontWeight: FontWeight.w600,
+0155 [02]:                         fontSize: 14,
+0156 [02]:                       ),
+0157 [02]:                     ),
+0158 [02]:                   ],
+0159 [02]:                 ),
+0160 [02]:               ),
+0161 [02]:             ),
+0162 [02]:           ),
+0163 [02]: 
+0164 [02]:           // 3. Floating Action Buttons (GPS and Filters)
+0165 [02]:           Positioned(
+0166 [02]:             top: MediaQuery.of(context).padding.top + 180,
+0167 [02]:             left: 16,
+0168 [02]:             child: _buildFloatingButton(Icons.my_location, isDark),
+0169 [02]:           ),
+0170 [02]:           Positioned(
+0171 [02]:             top: MediaQuery.of(context).padding.top + 180,
+0172 [02]:             right: 16,
+0173 [02]:             child: _buildFloatingButton(Icons.tune, isDark),
+0174 [02]:           ),
+0175 [02]: 
+0176 [02]:           // 4. Top Dashboard Card
+0177 [02]:           Positioned(
+0178 [02]:             top: MediaQuery.of(context).padding.top + 16,
+0179 [02]:             left: 16,
+0180 [02]:             right: 16,
+0181 [02]:             child: Container(
+0182 [02]:               padding: const EdgeInsets.all(16),
+0183 [02]:               decoration: BoxDecoration(
+0184 [02]:                 color: isDark ? AppColors.surfaceDark : Colors.white,
+0185 [02]:                 borderRadius: BorderRadius.circular(24),
+0186 [02]:                 boxShadow: [
+0187 [02]:                   BoxShadow(
+0188 [02]:                     color: Colors.black.withOpacity(0.08),
+0189 [02]:                     blurRadius: 15,
+0190 [02]:                     offset: const Offset(0, 4),
+0191 [02]:                   ),
+0192 [02]:                 ],
+0193 [02]:               ),
+0194 [02]:               child: Column(
+0195 [02]:                 mainAxisSize: MainAxisSize.min,
+0196 [02]:                 children: [
+0197 [02]:                   Row(
+0198 [02]:                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+0199 [02]:                     children: [
+0200 [02]:                       // Profile Section
+0201 [02]:                       Expanded(
+0202 [02]:                         flex: 3,
+0203 [02]:                         child: Row(
+0204 [02]:                           children: [
+0205 [02]:                             Stack(
+0206 [02]:                               clipBehavior: Clip.none,
+0207 [02]:                               children: [
+0208 [02]:                                 CircleAvatar(
+0209 [02]:                                   radius: 20,
+0210 [02]:                                   backgroundColor: Colors.grey.shade200,
+0211 [02]:                                   backgroundImage: const AssetImage('assets/images/login.png'), // Placeholder
+0212 [02]:                                 ),
+0213 [02]:                                 Positioned(
+0214 [02]:                                   bottom: 0,
+0215 [02]:                                   right: -2,
+0216 [02]:                                   child: Container(
+0217 [02]:                                     width: 12,
+0218 [02]:                                     height: 12,
+0219 [02]:                                     decoration: BoxDecoration(
+0220 [02]:                                       color: const Color(0xFF10A142),
+0221 [02]:                                       shape: BoxShape.circle,
+0222 [02]:                                       border: Border.all(color: Colors.white, width: 2),
+0223 [02]:                                     ),
+0224 [02]:                                   ),
+0225 [02]:                                 ),
+0226 [02]:                               ],
+0227 [02]:                             ),
+0228 [02]:                             const SizedBox(width: 8),
+0229 [02]:                             Expanded(
+0230 [02]:                               child: Column(
+0231 [02]:                                 crossAxisAlignment: CrossAxisAlignment.start,
+0232 [02]:                                 children: [
+0233 [02]:                                   Text(
+0234 [02]:                                     'Alex',
+0235 [02]:                                     style: GoogleFonts.inter(
+0236 [02]:                                       fontSize: 16,
+0237 [02]:                                       fontWeight: FontWeight.bold,
+0238 [02]:                                       color: isDark ? Colors.white : Colors.black,
+0239 [02]:                                     ),
+0240 [02]:                                     maxLines: 1,
+0241 [02]:                                     overflow: TextOverflow.ellipsis,
+0242 [02]:                                   ),
+0243 [02]:                                   Row(
+0244 [02]:                                     children: [
+0245 [02]:                                       const Icon(Icons.star_outline, color: Colors.orange, size: 12),
+0246 [02]:                                       const SizedBox(width: 2),
+0247 [02]:                                       Expanded(
+0248 [02]:                                         child: Text(
+0249 [02]:                                           '4.9 • Top Rated',
+0250 [02]:                                           style: GoogleFonts.inter(
+0251 [02]:                                             fontSize: 10,
+0252 [02]:                                             color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+0253 [02]:                                           ),
+0254 [02]:                                           maxLines: 1,
+0255 [02]:                                           overflow: TextOverflow.ellipsis,
+0256 [02]:                                         ),
+0257 [02]:                                       ),
+0258 [02]:                                     ],
+0259 [02]:                                   ),
+0260 [02]:                                 ],
+0261 [02]:                               ),
+0262 [02]:                             ),
+0263 [02]:                           ],
+0264 [02]:                         ),
+0265 [02]:                       ),
+0266 [02]: 
+0267 [02]:                       // Duty Toggle Section
+0268 [02]:                       Expanded(
+0269 [02]:                         flex: 4,
+0270 [02]:                         child: Row(
+0271 [02]:                           mainAxisAlignment: MainAxisAlignment.center,
+0272 [02]:                           children: [
+0273 [02]:                             Column(
+0274 [02]:                               crossAxisAlignment: CrossAxisAlignment.end,
+0275 [02]:                               children: [
+0276 [02]:                                 Row(
+0277 [02]:                                   mainAxisSize: MainAxisSize.min,
+0278 [02]:                                   children: [
+0279 [02]:                                     Container(
+0280 [02]:                                       width: 6,
+0281 [02]:                                       height: 6,
+0282 [02]:                                       decoration: const BoxDecoration(
+0283 [02]:                                         color: Color(0xFF10A142),
+0284 [02]:                                         shape: BoxShape.circle,
+0285 [02]:                                       ),
+0286 [02]:                                     ),
+0287 [02]:                                     const SizedBox(width: 4),
+0288 [02]:                                     Text(
+0289 [02]:                                       'ON DUTY',
+0290 [02]:                                       style: GoogleFonts.inter(
+0291 [02]:                                         fontSize: 10,
+0292 [02]:                                         fontWeight: FontWeight.bold,
+0293 [02]:                                         color: const Color(0xFF10A142),
+0294 [02]:                                       ),
+0295 [02]:                                     ),
+0296 [02]:                                   ],
+0297 [02]:                                 ),
+0298 [02]:                                 const SizedBox(height: 2),
+0299 [02]:                                 Text(
+0300 [02]:                                   "You're available\nfor rides",
+0301 [02]:                                   textAlign: TextAlign.right,
+0302 [02]:                                   style: GoogleFonts.inter(
+0303 [02]:                                     fontSize: 8,
+0304 [02]:                                     color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+0305 [02]:                                   ),
+0306 [02]:                                 ),
+0307 [02]:                               ],
+0308 [02]:                             ),
+0309 [02]:                             Transform.scale(
+0310 [02]:                               scale: 0.7,
+0311 [02]:                               child: Switch(
+0312 [02]:                                 value: _isOnDuty,
+0313 [03]:                                 onChanged: (val) {
+0314 [04]:                                   setState(() {
+0315 [04]:                                     _isOnDuty = val;
+0316 [03]:                                   });
+0317 [02]:                                 },
+0318 [02]:                                 activeColor: Colors.white,
+0319 [02]:                                 activeTrackColor: AppColors.primaryBlue,
+0320 [02]:                               ),
+0321 [02]:                             ),
+0322 [02]:                           ],
+0323 [02]:                         ),
+0324 [02]:                       ),
+0325 [02]: 
+0326 [02]:                       // Wallet Section
+0327 [02]:                       Expanded(
+0328 [02]:                         flex: 3,
+0329 [02]:                         child: Row(
+0330 [02]:                           mainAxisAlignment: MainAxisAlignment.end,
+0331 [02]:                           children: [
+0332 [02]:                             Expanded(
+0333 [02]:                               child: Column(
+0334 [02]:                                 crossAxisAlignment: CrossAxisAlignment.end,
+0335 [02]:                                 children: [
+0336 [02]:                                   Text(
+0337 [02]:                                     'Wallet Balance',
+0338 [02]:                                     style: GoogleFonts.inter(
+0339 [02]:                                       fontSize: 9,
+0340 [02]:                                       color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+0341 [02]:                                     ),
+0342 [02]:                                     maxLines: 1,
+0343 [02]:                                     overflow: TextOverflow.ellipsis,
+0344 [02]:                                   ),
+0345 [02]:                                   Text(
+0346 [02]:                                     '₹184.50',
+0347 [02]:                                     style: GoogleFonts.inter(
+0348 [02]:                                       fontSize: 14,
+0349 [02]:                                       fontWeight: FontWeight.bold,
+0350 [02]:                                       color: isDark ? Colors.white : Colors.black,
+0351 [02]:                                     ),
+0352 [02]:                                     maxLines: 1,
+0353 [02]:                                     overflow: TextOverflow.ellipsis,
+0354 [02]:                                   ),
+0355 [02]:                                 ],
+0356 [02]:                               ),
+0357 [02]:                             ),
+0358 [02]:                           ],
+0359 [02]:                         ),
+0360 [02]:                       ),
+0361 [02]:                     ],
+0362 [02]:                   ),
+0363 [02]:                   const SizedBox(height: 16),
+0364 [02]: 
+0365 [02]:                   // Segmented Control
+0366 [02]:                   Container(
+0367 [02]:                     height: 44,
+0368 [02]:                     decoration: BoxDecoration(
+0369 [02]:                       color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+0370 [02]:                       borderRadius: BorderRadius.circular(22),
+0371 [02]:                       border: Border.all(color: Colors.grey.shade200),
+0372 [02]:                     ),
+0373 [02]:                     child: Row(
+0374 [02]:                       children: [
+0375 [02]:                         Expanded(
+0376 [02]:                           child: GestureDetector(
+0377 [02]:                             onTap: () => setState(() => _rideType = 'Corporate'),
+0378 [02]:                             child: Container(
+0379 [02]:                               decoration: BoxDecoration(
+0380 [02]:                                 color: _rideType == 'Corporate' ? AppColors.primaryBlue : Colors.transparent,
+0381 [02]:                                 borderRadius: BorderRadius.circular(22),
+0382 [02]:                               ),
+0383 [02]:                               child: Center(
+0384 [02]:                                 child: Row(
+0385 [02]:                                   mainAxisSize: MainAxisSize.min,
+0386 [02]:                                   children: [
+0387 [02]:                                     Icon(
+0388 [02]:                                       Icons.work_outline,
+0389 [02]:                                       size: 18,
+0390 [02]:                                       color: _rideType == 'Corporate' ? Colors.white : (isDark ? Colors.grey.shade400 : Colors.black87),
+0391 [02]:                                     ),
+0392 [02]:                                     const SizedBox(width: 8),
+0393 [02]:                                     Text(
+0394 [02]:                                       'Corporate',
+0395 [02]:                                       style: GoogleFonts.inter(
+0396 [02]:                                         fontSize: 14,
+0397 [02]:                                         fontWeight: FontWeight.w600,
+0398 [02]:                                         color: _rideType == 'Corporate' ? Colors.white : (isDark ? Colors.grey.shade400 : Colors.black87),
+0399 [02]:                                       ),
+0400 [02]:                                     ),
+0401 [02]:                                   ],
+0402 [02]:                                 ),
+0403 [02]:                               ),
+0404 [02]:                             ),
+0405 [02]:                           ),
+0406 [02]:                         ),
+0407 [02]:                         Expanded(
+0408 [02]:                           child: GestureDetector(
+0409 [02]:                             onTap: () => setState(() => _rideType = 'Self'),
+0410 [02]:                             child: Container(
+0411 [02]:                               decoration: BoxDecoration(
+0412 [02]:                                 color: _rideType == 'Self' ? AppColors.primaryBlue : Colors.transparent,
+0413 [02]:                                 borderRadius: BorderRadius.circular(22),
+0414 [02]:                               ),
+0415 [02]:                               child: Center(
+0416 [02]:                                 child: Row(
+0417 [02]:                                   mainAxisSize: MainAxisSize.min,
+0418 [02]:                                   children: [
+0419 [02]:                                     Icon(
+0420 [02]:                                       Icons.person_outline,
+0421 [02]:                                       size: 18,
+0422 [02]:                                       color: _rideType == 'Self' ? Colors.white : (isDark ? Colors.grey.shade400 : Colors.black87),
+0423 [02]:                                     ),
+0424 [02]:                                     const SizedBox(width: 8),
+0425 [02]:                                     Text(
+0426 [02]:                                       'Self',
+0427 [02]:                                       style: GoogleFonts.inter(
+0428 [02]:                                         fontSize: 14,
+0429 [02]:                                         fontWeight: FontWeight.w600,
+0430 [02]:                                         color: _rideType == 'Self' ? Colors.white : (isDark ? Colors.grey.shade400 : Colors.black87),
+0431 [02]:                                       ),
+0432 [02]:                                     ),
+0433 [02]:                                   ],
+0434 [02]:                                 ),
+0435 [02]:                               ),
+0436 [02]:                             ),
+0437 [02]:                           ),
+0438 [02]:                         ),
+0439 [02]:                       ],
+0440 [02]:                     ),
+0441 [02]:                   ),
+0442 [02]:                 ],
+0443 [02]:               ),
+0444 [02]:             ),
+0445 [02]:           ),
+0446 [02]: 
+0447 [02]:           // 5. Bottom Ride Request Card
+0448 [02]:           _isRideRequestMinimized
+0449 [02]:               ? _buildMinimizedRideRequestCard(isDark)
+0450 [02]:               : _buildMaximizedRideRequestCard(isDark),
+0451 [02]:         ],
+0452 [02]:       ),
+0453 [02]:       bottomNavigationBar: Container(
+0454 [02]:         decoration: BoxDecoration(
+0455 [02]:           boxShadow: [
+0456 [02]:             BoxShadow(
+0457 [02]:               color: Colors.black.withOpacity(0.05),
+0458 [02]:               blurRadius: 10,
+0459 [02]:               offset: const Offset(0, -5),
+0460 [02]:             ),
+0461 [02]:           ],
+0462 [02]:         ),
+0463 [02]:         child: BottomNavigationBar(
+0464 [02]:           currentIndex: _currentIndex,
+0465 [03]:           onTap: (index) {
+0466 [04]:             if (index == 1) {
+0467 [04]:               Navigator.pushReplacement(
+0468 [04]:                 context,
+0469 [04]:                 MaterialPageRoute(builder: (_) => const TripsPage()),
+0470 [04]:               );
+0471 [04]:             } else if (index == 2) {
+0472 [04]:               Navigator.pushReplacement(
+0473 [04]:                 context,
+0474 [04]:                 MaterialPageRoute(builder: (_) => const EarningsPage()),
+0475 [04]:               );
+0476 [04]:             } else if (index == 3) {
+0477 [04]:               Navigator.pushReplacement(
+0478 [04]:                 context,
+0479 [04]:                 MaterialPageRoute(builder: (_) => const SettingsPage()),
+0480 [04]:               );
+0481 [04]:             } else {
+0482 [04]:               setState(() => _currentIndex = index);
+0483 [03]:             }
+0484 [02]:           },
+0485 [02]:           type: BottomNavigationBarType.fixed,
+0486 [02]:           backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+0487 [02]:           selectedItemColor: AppColors.primaryBlue,
+0488 [02]:           unselectedItemColor: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
+0489 [02]:           selectedLabelStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
+0490 [02]:           unselectedLabelStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500),
+0491 [02]:           items: const [
+0492 [02]:             BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.home)), label: 'Home'),
+0493 [02]:             BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.history)), label: 'Trips'),
+0494 [02]:             BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.currency_rupee)), label: 'Earnings'),
+0495 [02]:             BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.settings_outlined)), label: 'Settings'),
+0496 [02]:           ],
+0497 [02]:         ),
+0498 [02]:       ),
+0499 [02]:     );
+0500 [01]:   }
+0501 [01]: 
+0502 [02]:   Widget _buildFloatingButton(IconData icon, bool isDark) {
+0503 [02]:     return Container(
+0504 [02]:       width: 48,
+0505 [02]:       height: 48,
+0506 [02]:       decoration: BoxDecoration(
+0507 [02]:         color: isDark ? AppColors.surfaceDark : Colors.white,
+0508 [02]:         shape: BoxShape.circle,
+0509 [02]:         boxShadow: [
+0510 [02]:           BoxShadow(
+0511 [02]:             color: Colors.black.withOpacity(0.1),
+0512 [02]:             blurRadius: 10,
+0513 [02]:             offset: const Offset(0, 2),
+0514 [02]:           ),
+0515 [02]:         ],
+0516 [02]:       ),
+0517 [02]:       child: Icon(icon, color: AppColors.primaryBlue, size: 24),
+0518 [02]:     );
+0519 [01]:   }
+0520 [01]: 
+0521 [02]:   Widget _buildMetric(IconData icon, String title, String subtitle, bool isDark) {
+0522 [02]:     return Row(
+0523 [02]:       children: [
+0524 [02]:         Icon(icon, color: AppColors.primaryBlue, size: 20),
+0525 [02]:         const SizedBox(width: 8),
+0526 [02]:         Column(
+0527 [02]:           crossAxisAlignment: CrossAxisAlignment.start,
+0528 [02]:           children: [
+0529 [02]:             Text(
+0530 [02]:               title,
+0531 [02]:               style: GoogleFonts.inter(
+0532 [02]:                 fontSize: 13,
+0533 [02]:                 fontWeight: FontWeight.bold,
+0534 [02]:                 color: isDark ? Colors.white : Colors.black87,
+0535 [02]:               ),
+0536 [02]:             ),
+0537 [02]:             Text(
+0538 [02]:               subtitle,
+0539 [02]:               style: GoogleFonts.inter(
+0540 [02]:                 fontSize: 11,
+0541 [02]:                 color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+0542 [02]:               ),
+0543 [02]:             ),
+0544 [02]:           ],
+0545 [02]:         ),
+0546 [02]:       ],
+0547 [02]:     );
+0548 [02]: 
+0549 [03]:   Widget _buildMaximizedRideRequestCard(bool isDark) {
+0550 [03]:     return Positioned(
+0551 [03]:       bottom: 16,
+0552 [03]:       left: 16,
+0553 [03]:       right: 16,
+0554 [03]:       child: GestureDetector(
+0555 [04]:         onVerticalDragUpdate: (details) {
+0556 [05]:           if (details.delta.dy > 10) {
+0557 [06]:             setState(() {
+0558 [06]:               _isRideRequestMinimized = true;
+0559 [05]:             });
+0560 [04]:           }
+0561 [03]:         },
+0562 [03]:         child: Container(
+0563 [03]:           padding: const EdgeInsets.all(20),
+0564 [03]:           decoration: BoxDecoration(
+0565 [03]:             color: isDark ? const Color(0xFF1A1A1A) : Colors.white, // AppColors.surfaceDark
+0566 [03]:             borderRadius: BorderRadius.circular(24),
+0567 [03]:             boxShadow: [
+0568 [03]:               BoxShadow(
+0569 [03]:                 color: Colors.black.withOpacity(0.08),
+0570 [03]:                 blurRadius: 20,
+0571 [03]:                 offset: const Offset(0, -5),
+0572 [03]:               ),
+0573 [03]:             ],
+0574 [03]:           ),
+0575 [03]:           child: Column(
+0576 [03]:             crossAxisAlignment: CrossAxisAlignment.stretch,
+0577 [03]:             mainAxisSize: MainAxisSize.min,
+0578 [03]:             children: [
+0579 [03]:               // Header
+0580 [03]:               Row(
+0581 [03]:                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+0582 [03]:                 crossAxisAlignment: CrossAxisAlignment.start,
+0583 [03]:                 children: [
+0584 [03]:                   Row(
+0585 [03]:                     children: [
+0586 [03]:                       const CircleAvatar(
+0587 [03]:                         radius: 24,
+0588 [03]:                         backgroundImage: AssetImage('assets/images/login.png'), // Placeholder
+0589 [03]:                       ),
+0590 [03]:                       const SizedBox(width: 12),
+0591 [03]:                       Column(
+0592 [03]:                         crossAxisAlignment: CrossAxisAlignment.start,
+0593 [03]:                         children: [
+0594 [03]:                           Text(
+0595 [03]:                             'Sarah Johnson',
+0596 [03]:                             style: GoogleFonts.inter(
+0597 [03]:                               fontSize: 18,
+0598 [03]:                               fontWeight: FontWeight.bold,
+0599 [03]:                               color: isDark ? Colors.white : Colors.black,
+0600 [03]:                             ),
+0601 [03]:                           ),
+0602 [03]:                           Row(
+0603 [03]:                             children: [
+0604 [03]:                               const Icon(Icons.star_outline, color: Colors.orange, size: 14),
+0605 [03]:                               const SizedBox(width: 4),
+0606 [03]:                               Text(
+0607 [03]:                                 '4.9 • 0.8 mi away',
+0608 [03]:                                 style: GoogleFonts.inter(
+0609 [03]:                                   fontSize: 13,
+0610 [03]:                                   color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+0611 [03]:                                 ),
+0612 [03]:                               ),
+0613 [03]:                             ],
+0614 [03]:                           ),
+0615 [03]:                         ],
+0616 [03]:                       ),
+0617 [03]:                     ],
+0618 [03]:                   ),
+0619 [03]:                   Column(
+0620 [03]:                     crossAxisAlignment: CrossAxisAlignment.end,
+0621 [03]:                     children: [
+0622 [03]:                       Container(
+0623 [03]:                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+0624 [03]:                         decoration: BoxDecoration(
+0625 [03]:                           color: const Color(0xFF0D6EFD).withOpacity(0.1), // AppColors.primaryBlue
+0626 [03]:                           borderRadius: BorderRadius.circular(20),
+0627 [03]:                         ),
+0628 [03]:                         child: Text(
+0629 [03]:                           'Self',
+0630 [03]:                           style: GoogleFonts.inter(
+0631 [03]:                             fontSize: 12,
+0632 [03]:                             fontWeight: FontWeight.w600,
+0633 [03]:                             color: const Color(0xFF0D6EFD), // AppColors.primaryBlue
+0634 [03]:                           ),
+0635 [03]:                         ),
+0636 [03]:                       ),
+0637 [03]:                       const SizedBox(height: 12),
+0638 [03]:                       Text(
+0639 [03]:                         'EST. PAYOUT',
+0640 [03]:                         style: GoogleFonts.inter(
+0641 [03]:                           fontSize: 10,
+0642 [03]:                           fontWeight: FontWeight.bold,
+0643 [03]:                           color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+0644 [03]:                         ),
+0645 [03]:                       ),
+0646 [03]:                       Text(
+0647 [03]:                         '₹70.50',
+0648 [03]:                         style: GoogleFonts.inter(
+0649 [03]:                           fontSize: 24,
+0650 [03]:                           fontWeight: FontWeight.bold,
+0651 [03]:                           color: const Color(0xFF0D6EFD), // AppColors.primaryBlue
+0652 [03]:                         ),
+0653 [03]:                       ),
+0654 [03]:                     ],
+0655 [03]:                   ),
+0656 [03]:                 ],
+0657 [03]:               ),
+0658 [03]: 
+0659 [03]:               const SizedBox(height: 20),
+0660 [03]:               Center(
+0661 [03]:                 child: IconButton(
+0662 [03]:                   icon: Icon(Icons.keyboard_arrow_down, color: isDark ? Colors.white : Colors.black),
+0663 [04]:                   onPressed: () {
+0664 [05]:                     setState(() {
+0665 [05]:                       _isRideRequestMinimized = true;
+0666 [04]:                     });
+0667 [03]:                   },
+0668 [03]:                 ),
+0669 [03]:               ),
+0670 [03]:               const Divider(),
+0671 [03]:               const SizedBox(height: 16),
+0672 [03]: 
+0673 [03]:               // Locations Row
+0674 [03]:               Row(
+0675 [03]:                 children: [
+0676 [03]:                   // Pickup
+0677 [03]:                   Expanded(
+0678 [03]:                     child: Row(
+0679 [03]:                       crossAxisAlignment: CrossAxisAlignment.start,
+0680 [03]:                       children: [
+0681 [03]:                         Column(
+0682 [03]:                           children: [
+0683 [03]:                             Container(
+0684 [03]:                               width: 10,
+0685 [03]:                               height: 10,
+0686 [03]:                               decoration: const BoxDecoration(
+0687 [03]:                                 color: Colors.green,
+0688 [03]:                                 shape: BoxShape.circle,
+0689 [03]:                               ),
+0690 [03]:                             ),
+0691 [03]:                             CustomPaint(
+0692 [03]:                               size: const Size(1, 30),
+0693 [03]:                               painter: DashedLinePainter(),
+0694 [03]:                             ),
+0695 [03]:                           ],
+0696 [03]:                         ),
+0697 [03]:                         const SizedBox(width: 12),
+0698 [03]:                         Expanded(
+0699 [03]:                           child: Column(
+0700 [03]:                             crossAxisAlignment: CrossAxisAlignment.start,
+0701 [03]:                             children: [
+0702 [03]:                               Text(
+0703 [03]:                                 'PICKUP',
+0704 [03]:                                 style: GoogleFonts.inter(
+0705 [03]:                                   fontSize: 10,
+0706 [03]:                                   fontWeight: FontWeight.bold,
+0707 [03]:                                   color: Colors.green, // AppColors.primaryBlue originally
+0708 [03]:                                 ),
+0709 [03]:                               ),
+0710 [03]:                               const SizedBox(height: 4),
+0711 [03]:                               Text(
+0712 [03]:                                 '142 Market St,\nSan Francisco',
+0713 [03]:                                 style: GoogleFonts.inter(
+0714 [03]:                                   fontSize: 13,
+0715 [03]:                                   fontWeight: FontWeight.w500,
+0716 [03]:                                   color: isDark ? Colors.white : Colors.black87,
+0717 [03]:                                 ),
+0718 [03]:                               ),
+0719 [03]:                             ],
+0720 [03]:                           ),
+0721 [03]:                         ),
+0722 [03]:                       ],
+0723 [03]:                     ),
+0724 [03]:                   ),
+0725 [03]: 
+0726 [03]:                   // Divider line
+0727 [03]:                   Container(
+0728 [03]:                     width: 1,
+0729 [03]:                     height: 50,
+0730 [03]:                     color: Colors.grey.shade300,
+0731 [03]:                     margin: const EdgeInsets.symmetric(horizontal: 8),
+0732 [03]:                   ),
+0733 [03]: 
+0734 [03]:                   // Dropoff
+0735 [03]:                   Expanded(
+0736 [03]:                     child: Row(
+0737 [03]:                       crossAxisAlignment: CrossAxisAlignment.start,
+0738 [03]:                       children: [
+0739 [03]:                         Column(
+0740 [03]:                           children: [
+0741 [03]:                             Container(
+0742 [03]:                               width: 10,
+0743 [03]:                               height: 10,
+0744 [03]:                               decoration: const BoxDecoration(
+0745 [03]:                                 color: Color(0xFF0D6EFD),
+0746 [03]:                                 shape: BoxShape.rectangle,
+0747 [03]:                               ),
+0748 [03]:                             ),
+0749 [03]:                           ],
+0750 [03]:                         ),
+0751 [03]:                         const SizedBox(width: 12),
+0752 [03]:                         Expanded(
+0753 [03]:                           child: Column(
+0754 [03]:                             crossAxisAlignment: CrossAxisAlignment.start,
+0755 [03]:                             children: [
+0756 [03]:                               Text(
+0757 [03]:                                 'DROPOFF',
+0758 [03]:                                 style: GoogleFonts.inter(
+0759 [03]:                                   fontSize: 10,
+0760 [03]:                                   fontWeight: FontWeight.bold,
+0761 [03]:                                   color: const Color(0xFF0D6EFD),
+0762 [03]:                                 ),
+0763 [03]:                               ),
+0764 [03]:                               const SizedBox(height: 4),
+0765 [03]:                               Text(
+0766 [03]:                                 '88 King St,\nSan Francisco',
+0767 [03]:                                 style: GoogleFonts.inter(
+0768 [03]:                                   fontSize: 13,
+0769 [03]:                                   fontWeight: FontWeight.w500,
+0770 [03]:                                   color: isDark ? Colors.white : Colors.black87,
+0771 [03]:                                 ),
+0772 [03]:                               ),
+0773 [03]:                             ],
+0774 [03]:                           ),
+0775 [03]:                         ),
+0776 [03]:                       ],
+0777 [03]:                     ),
+0778 [03]:                   ),
+0779 [03]:                 ],
+0780 [03]:               ),
+0781 [03]: 
+0782 [03]:               const SizedBox(height: 20),
+0783 [03]:               const Divider(),
+0784 [03]:               const SizedBox(height: 16),
+0785 [03]: 
+0786 [03]:               // Metrics
+0787 [03]:               Row(
+0788 [03]:                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+0789 [03]:                 children: [
+0790 [03]:                   _buildMetric(Icons.route, '2.1 mi', 'Distance', isDark),
+0791 [03]:                   Container(width: 1, height: 24, color: Colors.grey.shade300),
+0792 [03]:                   _buildMetric(Icons.access_time, '6 min', 'Duration', isDark),
+0793 [03]:                   Container(width: 1, height: 24, color: Colors.grey.shade300),
+0794 [03]:                   _buildMetric(Icons.schedule, 'ETA 4 min', 'To pickup', isDark),
+0795 [03]:                 ],
+0796 [03]:               ),
+0797 [03]:               const SizedBox(height: 24),
+0798 [03]: 
+0799 [03]:               // Action Buttons
+0800 [03]:               Row(
+0801 [03]:                 children: [
+0802 [03]:                   Expanded(
+0803 [03]:                     flex: 1,
+0804 [03]:                     child: OutlinedButton(
+0805 [03]:                       onPressed: () {},
+0806 [03]:                       style: OutlinedButton.styleFrom(
+0807 [03]:                         padding: const EdgeInsets.symmetric(vertical: 16),
+0808 [03]:                         side: BorderSide(color: Colors.grey.shade300),
+0809 [03]:                         shape: RoundedRectangleBorder(
+0810 [03]:                           borderRadius: BorderRadius.circular(12),
+0811 [03]:                         ),
+0812 [03]:                       ),
+0813 [03]:                       child: Text(
+0814 [03]:                         'Decline',
+0815 [03]:                         style: GoogleFonts.inter(
+0816 [03]:                           fontSize: 16,
+0817 [03]:                           fontWeight: FontWeight.w600,
+0818 [03]:                           color: isDark ? Colors.white : Colors.black87,
+0819 [03]:                         ),
+0820 [03]:                       ),
+0821 [03]:                     ),
+0822 [03]:                   ),
+0823 [03]:                   const SizedBox(width: 16),
+0824 [03]:                   Expanded(
+0825 [03]:                     flex: 2,
+0826 [03]:                     child: ElevatedButton(
+0827 [03]:                       onPressed: () {},
+0828 [03]:                       style: ElevatedButton.styleFrom(
+0829 [03]:                         backgroundColor: const Color(0xFF0D6EFD),
+0830 [03]:                         padding: const EdgeInsets.symmetric(vertical: 16),
+0831 [03]:                         elevation: 0,
+0832 [03]:                         shape: RoundedRectangleBorder(
+0833 [03]:                           borderRadius: BorderRadius.circular(12),
+0834 [03]:                         ),
+0835 [03]:                       ),
+0836 [03]:                       child: Text(
+0837 [03]:                         'Accept ride',
+0838 [03]:                         style: GoogleFonts.inter(
+0839 [03]:                           fontSize: 16,
+0840 [03]:                           fontWeight: FontWeight.w600,
+0841 [03]:                           color: Colors.white,
+0842 [03]:                         ),
+0843 [03]:                       ),
+0844 [03]:                     ),
+0845 [03]:                   ),
+0846 [03]:                 ],
+0847 [03]:               ),
+0848 [03]:             ],
+0849 [03]:           ),
+0850 [03]:         ),
+0851 [03]:       ),
+0852 [03]:     );
+0853 [02]:   }
+0854 [02]: 
+0855 [03]:   Widget _buildMinimizedRideRequestCard(bool isDark) {
+0856 [03]:     return Positioned(
+0857 [03]:       bottom: 24, // slightly floating
+0858 [03]:       left: 16,
+0859 [03]:       right: 16,
+0860 [03]:       child: GestureDetector(
+0861 [04]:         onTap: () {
+0862 [05]:           setState(() {
+0863 [05]:             _isRideRequestMinimized = false;
+0864 [04]:           });
+0865 [03]:         },
+0866 [03]:         child: Container(
+0867 [03]:           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+0868 [03]:           decoration: BoxDecoration(
+0869 [03]:             color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+0870 [03]:             borderRadius: BorderRadius.circular(24), // matching pill shape
+0871 [03]:             boxShadow: [
+0872 [03]:               BoxShadow(
+0873 [03]:                 color: Colors.black.withOpacity(0.08),
+0874 [03]:                 blurRadius: 20,
+0875 [03]:                 offset: const Offset(0, -5),
+0876 [03]:               ),
+0877 [03]:             ],
+0878 [03]:           ),
+0879 [03]:           child: Row(
+0880 [03]:             children: [
+0881 [03]:               // Left: Avatar + Name + Rating + Self Tag
+0882 [03]:               const CircleAvatar(
+0883 [03]:                 radius: 20,
+0884 [03]:                 backgroundImage: AssetImage('assets/images/login.png'),
+0885 [03]:               ),
+0886 [03]:               const SizedBox(width: 12),
+0887 [03]:               Expanded(
+0888 [03]:                 flex: 2,
+0889 [03]:                 child: Column(
+0890 [03]:                   crossAxisAlignment: CrossAxisAlignment.start,
+0891 [03]:                   mainAxisSize: MainAxisSize.min,
+0892 [03]:                   children: [
+0893 [03]:                     Text(
+0894 [03]:                       'Sarah Johnson',
+0895 [03]:                       style: GoogleFonts.inter(
+0896 [03]:                         fontSize: 14,
+0897 [03]:                         fontWeight: FontWeight.bold,
+0898 [03]:                         color: isDark ? Colors.white : Colors.black,
+0899 [03]:                       ),
+0900 [03]:                       maxLines: 1,
+0901 [03]:                       overflow: TextOverflow.ellipsis,
+0902 [03]:                     ),
+0903 [03]:                     const SizedBox(height: 2),
+0904 [03]:                     Row(
+0905 [03]:                       children: [
+0906 [03]:                         const Icon(Icons.star_outline, color: Colors.orange, size: 12),
+0907 [03]:                         const SizedBox(width: 2),
+0908 [03]:                         Text(
+0909 [03]:                           '4.9 • 0.8 mi',
+0910 [03]:                           style: GoogleFonts.inter(
+0911 [03]:                             fontSize: 11,
+0912 [03]:                             color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+0913 [03]:                           ),
+0914 [03]:                         ),
+0915 [03]:                       ],
+0916 [03]:                     ),
+0917 [03]:                     const SizedBox(height: 4),
+0918 [03]:                     Container(
+0919 [03]:                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+0920 [03]:                       decoration: BoxDecoration(
+0921 [03]:                         color: const Color(0xFFEAF1FF),
+0922 [03]:                         borderRadius: BorderRadius.circular(12),
+0923 [03]:                         border: Border.all(color: const Color(0xFF0D6EFD).withOpacity(0.3)),
+0924 [03]:                       ),
+0925 [03]:                       child: Text(
+0926 [03]:                         'Self',
+0927 [03]:                         style: GoogleFonts.inter(
+0928 [03]:                           fontSize: 10,
+0929 [03]:                           fontWeight: FontWeight.w600,
+0930 [03]:                           color: const Color(0xFF0D6EFD),
+0931 [03]:                         ),
+0932 [03]:                       ),
+0933 [03]:                     ),
+0934 [03]:                   ],
+0935 [03]:                 ),
+0936 [03]:               ),
+0937 [03]: 
+0938 [03]:               // Middle: Route Dots
+0939 [03]:               Container(width: 1, height: 40, color: Colors.grey.shade200, margin: const EdgeInsets.symmetric(horizontal: 8)),
+0940 [03]: 
+0941 [03]:               Expanded(
+0942 [03]:                 flex: 3,
+0943 [03]:                 child: Column(
+0944 [03]:                   crossAxisAlignment: CrossAxisAlignment.start,
+0945 [03]:                   mainAxisSize: MainAxisSize.min,
+0946 [03]:                   children: [
+0947 [03]:                     Row(
+0948 [03]:                       children: [
+0949 [03]:                         Container(
+0950 [03]:                           width: 8,
+0951 [03]:                           height: 8,
+0952 [03]:                           decoration: const BoxDecoration(
+0953 [03]:                             color: Color(0xFF0D6EFD),
+0954 [03]:                             shape: BoxShape.circle,
+0955 [03]:                           ),
+0956 [03]:                         ),
+0957 [03]:                         const SizedBox(width: 6),
+0958 [03]:                         Expanded(
+0959 [03]:                           child: Text(
+0960 [03]:                             '142 Market St, SF',
+0961 [03]:                             style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
+0962 [03]:                             maxLines: 1,
+0963 [03]:                             overflow: TextOverflow.ellipsis,
+0964 [03]:                           ),
+0965 [03]:                         ),
+0966 [03]:                       ],
+0967 [03]:                     ),
+0968 [03]:                     Padding(
+0969 [03]:                       padding: const EdgeInsets.only(left: 3.5),
+0970 [03]:                       child: CustomPaint(
+0971 [03]:                         size: const Size(1, 12),
+0972 [03]:                         painter: DashedLinePainter(),
+0973 [03]:                       ),
+0974 [03]:                     ),
+0975 [03]:                     Row(
+0976 [03]:                       children: [
+0977 [03]:                         Container(
+0978 [03]:                           width: 8,
+0979 [03]:                           height: 8,
+0980 [03]:                           decoration: const BoxDecoration(
+0981 [03]:                             color: Colors.green,
+0982 [03]:                             shape: BoxShape.circle,
+0983 [03]:                           ),
+0984 [03]:                         ),
+0985 [03]:                         const SizedBox(width: 6),
+0986 [03]:                         Expanded(
+0987 [03]:                           child: Text(
+0988 [03]:                             '88 King St, SF',
+0989 [03]:                             style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
+0990 [03]:                             maxLines: 1,
+0991 [03]:                             overflow: TextOverflow.ellipsis,
+0992 [03]:                           ),
+0993 [03]:                         ),
+0994 [03]:                       ],
+0995 [03]:                     ),
+0996 [03]:                   ],
+0997 [03]:                 ),
+0998 [03]:               ),
+0999 [03]: 
+1000 [03]:               Container(width: 1, height: 40, color: Colors.grey.shade200, margin: const EdgeInsets.symmetric(horizontal: 8)),
+1001 [03]: 
+1002 [03]:               // Right: Payout + Action Buttons
+1003 [03]:               Expanded(
+1004 [03]:                 flex: 2,
+1005 [03]:                 child: Column(
+1006 [03]:                   crossAxisAlignment: CrossAxisAlignment.end,
+1007 [03]:                   mainAxisSize: MainAxisSize.min,
+1008 [03]:                   children: [
+1009 [03]:                     Text(
+1010 [03]:                       'EST. PAYOUT',
+1011 [03]:                       style: GoogleFonts.inter(
+1012 [03]:                         fontSize: 9,
+1013 [03]:                         fontWeight: FontWeight.bold,
+1014 [03]:                         color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+1015 [03]:                       ),
+1016 [03]:                     ),
+1017 [03]:                     Text(
+1018 [03]:                       '₹70.50',
+1019 [03]:                       style: GoogleFonts.inter(
+1020 [03]:                         fontSize: 18,
+1021 [03]:                         fontWeight: FontWeight.bold,
+1022 [03]:                         color: const Color(0xFF0D6EFD),
+1023 [03]:                       ),
+1024 [03]:                     ),
+1025 [03]:                   ],
+1026 [03]:                 ),
+1027 [03]:               ),
+1028 [03]:               const SizedBox(width: 8),
+1029 [03]: 
+1030 [03]:               // Actions
+1031 [03]:               Container(
+1032 [03]:                 width: 36,
+1033 [03]:                 height: 36,
+1034 [03]:                 decoration: BoxDecoration(
+1035 [03]:                   color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+1036 [03]:                   shape: BoxShape.circle,
+1037 [03]:                 ),
+1038 [03]:                 child: IconButton(
+1039 [03]:                   padding: EdgeInsets.zero,
+1040 [03]:                   icon: const Icon(Icons.close, size: 20),
+1041 [03]:                   color: isDark ? Colors.white : Colors.black54,
+1042 [03]:                   onPressed: () {},
+1043 [03]:                 ),
+1044 [03]:               ),
+1045 [03]:               const SizedBox(width: 8),
+1046 [03]:               Container(
+1047 [03]:                 width: 44,
+1048 [03]:                 height: 44,
+1049 [03]:                 decoration: const BoxDecoration(
+1050 [03]:                   color: Color(0xFF0D6EFD),
+1051 [03]:                   shape: BoxShape.circle,
+1052 [03]:                 ),
+1053 [03]:                 child: IconButton(
+1054 [03]:                   padding: EdgeInsets.zero,
+1055 [03]:                   icon: const Icon(Icons.check, size: 24),
+1056 [03]:                   color: Colors.white,
+1057 [03]:                   onPressed: () {},
+1058 [03]:                 ),
+1059 [03]:               ),
+1060 [03]:             ],
+1061 [03]:           ),
+1062 [03]:         ),
+1063 [03]:       ),
+1064 [03]:     );
+1065 [02]:   }
+1066 [01]: }
+1067 [01]: 
+1068 [02]: class DashedLinePainter extends CustomPainter {
+1069 [02]:   @override
+1070 [03]:   void paint(Canvas canvas, Size size) {
+1071 [03]:     final paint = Paint()
+1072 [03]:       ..color = Colors.grey.shade400
+1073 [03]:       ..strokeWidth = 1
+1074 [03]:       ..style = PaintingStyle.stroke;
+1075 [03]: 
+1076 [03]:     const dashWidth = 3.0;
+1077 [03]:     const dashSpace = 3.0;
+1078 [03]:     double startY = 0;
+1079 [04]:     while (startY < size.height) {
+1080 [04]:       canvas.drawLine(Offset(0, startY), Offset(0, startY + dashWidth), paint);
+1081 [04]:       startY += dashWidth + dashSpace;
+1082 [03]:     }
+1083 [02]:   }
+1084 [02]: 
+1085 [02]:   @override
+1086 [02]:   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+1087 [01]: }

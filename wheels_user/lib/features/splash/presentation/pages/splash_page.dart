@@ -8,6 +8,11 @@ import '../../../../core/constants/app_strings.dart';
 import '../bloc/splash_bloc.dart';
 import '../bloc/splash_event.dart';
 import '../bloc/splash_state.dart';
+import '../../../onboarding/presentation/bloc/onboarding_bloc.dart';
+import '../../../onboarding/presentation/pages/onboarding_page.dart';
+import '../../../auth/presentation/bloc/login_bloc.dart';
+import '../../../auth/presentation/pages/login_page.dart';
+import '../../../../core/di/injection_container.dart';
 
 /// Splash Screen page matching exact design layout guidelines.
 class SplashPage extends StatefulWidget {
@@ -34,7 +39,25 @@ class _SplashPageState extends State<SplashPage> {
     return BlocListener<SplashBloc, SplashState>(
       listener: (context, state) {
         if (state is SplashCompleted) {
-          // Navigation logic after splash screen completes
+          if (state.isFirstTime) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => BlocProvider<OnboardingBloc>(
+                  create: (_) => sl<OnboardingBloc>(),
+                  child: const OnboardingPage(),
+                ),
+              ),
+            );
+          } else {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => BlocProvider<LoginBloc>(
+                  create: (_) => sl<LoginBloc>(),
+                  child: const LoginPage(),
+                ),
+              ),
+            );
+          }
         }
       },
       child: Scaffold(

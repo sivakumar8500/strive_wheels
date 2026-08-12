@@ -14,5 +14,7 @@ class SplashLoading extends SplashState {
 }
 
 class SplashCompleted extends SplashState {
-  const SplashCompleted();
+  final bool isFirstTime;
+
+  const SplashCompleted({required this.isFirstTime});
 }
