@@ -13,16 +13,20 @@ void main() {
   testWidgets('App first time launch displays OnboardingPage',
       (WidgetTester tester) async {
     await initDependencyInjection();
-    await tester.pumpWidget(const WheelsUserApp(isFirstTime: true));
+    await tester.pumpWidget(const WheelsUserApp());
+    await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
     expect(find.text(AppStrings.onboardingTitle1), findsOneWidget);
   });
 
   testWidgets('App subsequent launch displays SplashPage',
       (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({'is_first_time_launch': false});
     await initDependencyInjection();
-    await tester.pumpWidget(const WheelsUserApp(isFirstTime: false));
+    await tester.pumpWidget(const WheelsUserApp());
     expect(find.text(AppStrings.appName), findsOneWidget);
-    await tester.pumpAndSettle(const Duration(seconds: 4));
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+    expect(find.text(AppStrings.welcomeBack), findsOneWidget);
   });
 }

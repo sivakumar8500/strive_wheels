@@ -4,8 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/di/injection_container.dart';
-import '../../../splash/presentation/bloc/splash_bloc.dart';
-import '../../../splash/presentation/pages/splash_page.dart';
+import '../../../auth/presentation/bloc/login_bloc.dart';
+import '../../../auth/presentation/pages/login_page.dart';
 import '../bloc/onboarding_bloc.dart';
 import '../bloc/onboarding_event.dart';
 import '../bloc/onboarding_state.dart';
@@ -36,12 +36,12 @@ class _OnboardingPageState extends State<OnboardingPage> {
     super.dispose();
   }
 
-  void _navigateToSplash() {
+  void _navigateToLogin() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => BlocProvider<SplashBloc>(
-          create: (_) => sl<SplashBloc>(),
-          child: const SplashPage(),
+        builder: (_) => BlocProvider<LoginBloc>(
+          create: (_) => sl<LoginBloc>(),
+          child: const LoginPage(),
         ),
       ),
     );
@@ -57,7 +57,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     return BlocConsumer<OnboardingBloc, OnboardingState>(
       listener: (context, state) {
         if (state is OnboardingCompletedState) {
-          _navigateToSplash();
+          _navigateToLogin();
         } else if (state is OnboardingLoadedState) {
           if (_pageController.hasClients &&
               _pageController.page?.round() != state.currentPageIndex) {
