@@ -1,6 +1,8 @@
+import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../network/api_client.dart';
 import '../theme/data/datasources/theme_local_datasource.dart';
 import '../theme/data/repositories/theme_repository_impl.dart';
 import '../theme/domain/repositories/theme_repository.dart';
@@ -20,6 +22,7 @@ import '../../features/splash/domain/repositories/splash_repository.dart';
 import '../../features/splash/domain/usecases/check_initial_auth_status.dart';
 import '../../features/splash/presentation/bloc/splash_bloc.dart';
 import '../../features/auth/data/datasources/auth_local_datasource.dart';
+import '../../features/auth/data/datasources/auth_remote_data_source.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/auth/domain/usecases/login_with_phone_usecase.dart';
@@ -28,7 +31,12 @@ import '../../features/auth/presentation/bloc/login_bloc.dart';
 import '../../features/auth/presentation/bloc/otp_bloc.dart';
 import '../../features/auth/presentation/bloc/permissions_bloc.dart';
 import '../../features/auth/presentation/bloc/registration_bloc.dart';
-
+import '../../features/auth/data/datasources/registration_remote_data_source.dart';
+import '../../features/auth/data/repositories/registration_repository_impl.dart';
+import '../../features/auth/domain/repositories/registration_repository.dart';
+import '../../features/auth/domain/usecases/registration/submit_personal_info_usecase.dart';
+import '../../features/auth/domain/usecases/registration/submit_address_usecase.dart';
+import '../../features/auth/domain/usecases/registration/upload_file_usecase.dart';
 final sl = GetIt.instance;
 
 Future<void> initDependencyInjection() async {
@@ -36,6 +44,18 @@ Future<void> initDependencyInjection() async {
   final sharedPreferences = await SharedPreferences.getInstance();
   if (!sl.isRegistered<SharedPreferences>()) {
     sl.registerLazySingleton<SharedPreferences>(() => sharedPreferences);
+  }
+  
+  if (!sl.isRegistered<Dio>()) {
+    sl.registerLazySingleton<Dio>(() => Dio());
+  }
+
+  // Network
+  if (!sl.isRegistered<ApiClient>()) {
+    sl.registerLazySingleton<ApiClient>(() => ApiClient(
+      dio: sl(),
+      sharedPreferences: sl(),
+    ));
   }
 
   // Data sources
@@ -59,6 +79,11 @@ Future<void> initDependencyInjection() async {
       () => AuthLocalDataSourceImpl(sharedPreferences: sl()),
     );
   }
+  if (!sl.isRegistered<AuthRemoteDataSource>()) {
+    sl.registerLazySingleton<AuthRemoteDataSource>(
+      () => AuthRemoteDataSourceImpl(apiClient: sl()),
+    );
+  }
 
   // Repositories
   if (!sl.isRegistered<ThemeRepository>()) {
@@ -78,7 +103,7 @@ Future<void> initDependencyInjection() async {
   }
   if (!sl.isRegistered<AuthRepository>()) {
     sl.registerLazySingleton<AuthRepository>(
-      () => AuthRepositoryImpl(localDataSource: sl()),
+      () => AuthRepositoryImpl(localDataSource: sl(), remoteDataSource: sl()),
     );
   }
 
@@ -122,6 +147,35 @@ Future<void> initDependencyInjection() async {
     sl.registerLazySingleton<VerifyOtpUseCase>(() => VerifyOtpUseCase(sl()));
   }
 
+  // Registration dependencies
+  if (!sl.isRegistered<RegistrationRemoteDataSource>()) {
+    sl.registerLazySingleton<RegistrationRemoteDataSource>(
+      () => RegistrationRemoteDataSourceImpl(apiClient: sl()),
+    );
+  }
+  if (!sl.isRegistered<RegistrationRepository>()) {
+    sl.registerLazySingleton<RegistrationRepository>(
+      () => RegistrationRepositoryImpl(remoteDataSource: sl()),
+    );
+  }
+  if (!sl.isRegistered<SubmitPersonalInfoUsecase>()) {
+    sl.registerLazySingleton<SubmitPersonalInfoUsecase>(
+      () => SubmitPersonalInfoUsecase(sl()),
+    );
+  }
+
+  if (!sl.isRegistered<SubmitAddressUsecase>()) {
+    sl.registerLazySingleton<SubmitAddressUsecase>(
+      () => SubmitAddressUsecase(sl()),
+    );
+  }
+
+  if (!sl.isRegistered<UploadFileUseCase>()) {
+    sl.registerLazySingleton<UploadFileUseCase>(
+      () => UploadFileUseCase(sl()),
+    );
+  }
+
   // BLoCs
   if (!sl.isRegistered<ThemeBloc>()) {
     sl.registerFactory<ThemeBloc>(
@@ -151,6 +205,10 @@ Future<void> initDependencyInjection() async {
     sl.registerFactory<PermissionsBloc>(() => PermissionsBloc());
   }
   if (!sl.isRegistered<RegistrationBloc>()) {
-    sl.registerFactory<RegistrationBloc>(() => RegistrationBloc());
+    sl.registerFactory<RegistrationBloc>(() => RegistrationBloc(
+          submitPersonalInfoUsecase: sl(),
+          submitAddressUsecase: sl(),
+          uploadFileUseCase: sl(),
+        ));
   }
 }

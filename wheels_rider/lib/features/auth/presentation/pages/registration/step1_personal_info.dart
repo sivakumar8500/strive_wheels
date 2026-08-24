@@ -32,9 +32,20 @@ class _Step1PersonalInfoState extends State<Step1PersonalInfo> {
   @override
   void initState() {
     super.initState();
-    // Initialize mobile number from BLoC state
+    // Initialize fields from BLoC state if available
     final bloc = context.read<RegistrationBloc>();
-    _mobileNumberController.text = bloc.state.data.mobileNumber ?? '';
+    final data = bloc.state.data;
+    _firstNameController.text = data.firstName ?? '';
+    _lastNameController.text = data.lastName ?? '';
+    _mobileNumberController.text = data.mobileNumber ?? '';
+    _emailController.text = data.email ?? '';
+    _dobController.text = data.dateOfBirth ?? '';
+    selectedGender = data.gender ?? '';
+    if (data.profilePhotoPath != null && data.profilePhotoPath!.isNotEmpty) {
+      if (!data.profilePhotoPath!.startsWith('http')) {
+        _profileImage = File(data.profilePhotoPath!);
+      }
+    }
   }
 
   @override
@@ -70,17 +81,31 @@ class _Step1PersonalInfoState extends State<Step1PersonalInfo> {
 
     return BlocListener<RegistrationBloc, RegistrationState>(
       listenWhen: (previous, current) =>
-          previous.data.mobileNumber != current.data.mobileNumber,
+          previous.data.mobileNumber != current.data.mobileNumber ||
+          previous.status != current.status,
       listener: (context, state) {
         if (_mobileNumberController.text.isEmpty &&
             state.data.mobileNumber != null) {
           _mobileNumberController.text = state.data.mobileNumber!;
         }
+
+        if (state.status == RegistrationStatus.success) {
+          // Dispatch NextStepEvent only when success
+          context.read<RegistrationBloc>().add(NextStepEvent());
+        } else if (state.status == RegistrationStatus.failure) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.errorMessage ?? 'Submission failed')),
+          );
+        }
       },
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: BlocBuilder<RegistrationBloc, RegistrationState>(
+        builder: (context, state) {
+          final isLoading = state.status == RegistrationStatus.loading;
+          
+          return SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -121,10 +146,16 @@ class _Step1PersonalInfoState extends State<Step1PersonalInfo> {
                                 image: FileImage(_profileImage!),
                                 fit: BoxFit.cover,
                               )
-                            : const DecorationImage(
-                                image: AssetImage('assets/images/strive_logo.jpg'), // Placeholder
-                                fit: BoxFit.cover,
-                              ),
+                            : (state.data.profilePhotoPath != null &&
+                                    state.data.profilePhotoPath!.isNotEmpty)
+                                ? DecorationImage(
+                                    image: NetworkImage(state.data.profilePhotoPath!),
+                                    fit: BoxFit.cover,
+                                  )
+                                : const DecorationImage(
+                                    image: AssetImage('assets/images/strive_logo.jpg'), // Placeholder
+                                    fit: BoxFit.cover,
+                                  ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -196,8 +227,8 @@ class _Step1PersonalInfoState extends State<Step1PersonalInfo> {
             ),
             const SizedBox(height: 4),
             AppTextField(
-              label: '',
-              hintText: 'Email (Optional)',
+              label: 'Email',
+              hintText: 'Enter your email address',
               keyboardType: TextInputType.emailAddress,
               controller: _emailController,
             ),
@@ -265,22 +296,80 @@ class _Step1PersonalInfoState extends State<Step1PersonalInfo> {
             SizedBox(
               height: 56,
               child: ElevatedButton(
-                onPressed: () {
-                  // Dispatch Update Event and Move to Next
-                  context.read<RegistrationBloc>().add(
-                    UpdatePersonalInfoEvent(
-                      profilePhotoPath: _profileImage?.path,
-                      firstName: _firstNameController.text,
-                      lastName: _lastNameController.text,
-                      mobileNumber: _mobileNumberController.text,
-                      email: _emailController.text,
-                      dateOfBirth: _dobController.text,
-                      gender: selectedGender,
-                      referralCode: _referralController.text,
-                    ),
-                  );
-                  context.read<RegistrationBloc>().add(NextStepEvent());
-                },
+                onPressed: isLoading
+                    ? null
+                    : () {
+                        final firstName = _firstNameController.text.trim();
+                        final lastName = _lastNameController.text.trim();
+                        final mobileNumber = _mobileNumberController.text.trim();
+                        final email = _emailController.text.trim();
+                        final dob = _dobController.text.trim();
+
+                        if (_profileImage == null && 
+                            (state.data.profilePhotoPath == null || state.data.profilePhotoPath!.isEmpty)) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please upload a profile photo')),
+                          );
+                          return;
+                        }
+                        if (firstName.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('First name is required')),
+                          );
+                          return;
+                        }
+                        if (lastName.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Last name is required')),
+                          );
+                          return;
+                        }
+                        if (mobileNumber.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Mobile number is required')),
+                          );
+                          return;
+                        }
+                        if (email.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Email address is required')),
+                          );
+                          return;
+                        }
+                        final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                        if (!emailRegex.hasMatch(email)) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please enter a valid email address')),
+                          );
+                          return;
+                        }
+                        if (dob.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Date of birth is required')),
+                          );
+                          return;
+                        }
+                        if (selectedGender.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please select your gender')),
+                          );
+                          return;
+                        }
+
+                        // Dispatch Submit Event
+                        context.read<RegistrationBloc>().add(
+                          SubmitPersonalInfoEvent(
+                            profilePhotoPath: _profileImage?.path,
+                            firstName: firstName,
+                            lastName: lastName,
+                            mobileNumber: mobileNumber,
+                            email: email,
+                            dateOfBirth: dob,
+                            gender: selectedGender,
+                            referralCode: _referralController.text.trim(),
+                          ),
+                        );
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.darkBlue,
                   foregroundColor: AppColors.white,
@@ -288,27 +377,39 @@ class _Step1PersonalInfoState extends State<Step1PersonalInfo> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Save & Continue',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                child: isLoading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          color: AppColors.white,
+                          strokeWidth: 2.5,
+                        ),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Save & Continue',
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.arrow_forward, size: 20),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.arrow_forward, size: 20),
-                  ],
-                ),
               ),
             ),
             const SizedBox(height: 32),
           ],
         ),
       ),
-    ));
+    );
+        },
+      ),
+    );
   }
 
   Widget _buildGenderChip(String label, bool isDark) {

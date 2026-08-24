@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/widgets/app_text_field.dart';
@@ -22,6 +24,7 @@ class _Step2AddressDetailsState extends State<Step2AddressDetails> {
   final _pincodeController = TextEditingController();
   final _cityController = TextEditingController();
   final _stateController = TextEditingController();
+  bool _isLoadingLocation = false;
 
   @override
   void initState() {
@@ -47,13 +50,88 @@ class _Step2AddressDetailsState extends State<Step2AddressDetails> {
     super.dispose();
   }
 
+  Future<void> _getCurrentLocation() async {
+    setState(() {
+      _isLoadingLocation = true;
+    });
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw Exception('Location services are disabled.');
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw Exception('Location permissions are denied');
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception(
+            'Location permissions are permanently denied, we cannot request permissions.');
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      final Geocoding geocoding = Geocoding();
+      List<Placemark> placemarks = await geocoding.placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        final place = placemarks.first;
+        setState(() {
+          _houseNoController.text = place.name ?? '';
+          _streetController.text = place.street ?? place.subLocality ?? '';
+          _landmarkController.text = place.subLocality ?? place.locality ?? '';
+          _pincodeController.text = place.postalCode ?? '';
+          _cityController.text = place.locality ?? place.subAdministrativeArea ?? '';
+          _stateController.text = place.administrativeArea ?? '';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingLocation = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Padding(
+    return BlocListener<RegistrationBloc, RegistrationState>(
+      listenWhen: (previous, current) => previous.status != current.status,
+      listener: (context, state) {
+        if (state.status == RegistrationStatus.success) {
+          context.read<RegistrationBloc>().add(NextStepEvent());
+        } else if (state.status == RegistrationStatus.failure) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.errorMessage ?? 'Submission failed')),
+          );
+        }
+      },
+      child: BlocBuilder<RegistrationBloc, RegistrationState>(
+        builder: (context, state) {
+          final isLoading = state.status == RegistrationStatus.loading;
+
+          return SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -159,10 +237,16 @@ class _Step2AddressDetailsState extends State<Step2AddressDetails> {
 
             // Use Current Location Button
             OutlinedButton.icon(
-              onPressed: () {},
-              icon: Icon(Icons.near_me_outlined, color: AppColors.primaryBlue),
+              onPressed: _isLoadingLocation ? null : _getCurrentLocation,
+              icon: _isLoadingLocation
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(Icons.near_me_outlined, color: AppColors.primaryBlue),
               label: Text(
-                'Use Current Location',
+                _isLoadingLocation ? 'Fetching Location...' : 'Use Current Location',
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -275,19 +359,20 @@ class _Step2AddressDetailsState extends State<Step2AddressDetails> {
             SizedBox(
               height: 56,
               child: ElevatedButton(
-                onPressed: () {
-                  context.read<RegistrationBloc>().add(
-                    UpdateAddressDetailsEvent(
-                      houseNo: _houseNoController.text,
-                      streetName: _streetController.text,
-                      landmark: _landmarkController.text,
-                      pincode: _pincodeController.text,
-                      city: _cityController.text,
-                      state: _stateController.text,
-                    ),
-                  );
-                  context.read<RegistrationBloc>().add(NextStepEvent());
-                },
+                onPressed: isLoading
+                    ? null
+                    : () {
+                        context.read<RegistrationBloc>().add(
+                          SubmitAddressDetailsEvent(
+                            houseNo: _houseNoController.text,
+                            streetName: _streetController.text,
+                            landmark: _landmarkController.text,
+                            pincode: _pincodeController.text,
+                            city: _cityController.text,
+                            state: _stateController.text,
+                          ),
+                        );
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.darkBlue,
                   foregroundColor: AppColors.white,
@@ -295,18 +380,30 @@ class _Step2AddressDetailsState extends State<Step2AddressDetails> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: Text(
-                  'Save & Continue',
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child: isLoading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          color: AppColors.white,
+                          strokeWidth: 2.5,
+                        ),
+                      )
+                    : Text(
+                        'Save & Continue',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 32),
           ],
         ),
+      ),
+    );
+        },
       ),
     );
   }

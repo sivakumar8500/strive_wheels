@@ -1,9 +1,20 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../domain/usecases/registration/submit_personal_info_usecase.dart';
+import '../../domain/usecases/registration/submit_address_usecase.dart';
+import '../../domain/usecases/registration/upload_file_usecase.dart';
 import 'registration_event.dart';
 import 'registration_state.dart';
 
 class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
-  RegistrationBloc() : super(RegistrationState.initial()) {
+  final SubmitPersonalInfoUsecase submitPersonalInfoUsecase;
+  final SubmitAddressUsecase submitAddressUsecase;
+  final UploadFileUseCase uploadFileUseCase;
+
+  RegistrationBloc({
+    required this.submitPersonalInfoUsecase,
+    required this.submitAddressUsecase,
+    required this.uploadFileUseCase,
+  }) : super(RegistrationState.initial()) {
     on<NextStepEvent>((event, emit) {
       if (state.currentStep < 9) {
         emit(state.copyWith(currentStep: state.currentStep + 1));
@@ -18,6 +29,15 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
 
     on<UpdatePersonalInfoEvent>((event, emit) {
       final updatedData = state.data.copyWith(
+        mobileNumber: event.mobileNumber ?? state.data.mobileNumber,
+      );
+      emit(state.copyWith(data: updatedData));
+    });
+
+    on<SubmitPersonalInfoEvent>((event, emit) async {
+      emit(state.copyWith(status: RegistrationStatus.loading));
+
+      final updatedData = state.data.copyWith(
         profilePhotoPath: event.profilePhotoPath ?? state.data.profilePhotoPath,
         firstName: event.firstName ?? state.data.firstName,
         lastName: event.lastName ?? state.data.lastName,
@@ -27,10 +47,76 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         gender: event.gender ?? state.data.gender,
         referralCode: event.referralCode ?? state.data.referralCode,
       );
-      emit(state.copyWith(data: updatedData));
+
+      try {
+        String? profilePhotoUrl;
+        if (updatedData.profilePhotoPath != null && updatedData.profilePhotoPath!.isNotEmpty) {
+          if (!updatedData.profilePhotoPath!.startsWith('http')) {
+            // Upload the file first
+            profilePhotoUrl = await uploadFileUseCase(updatedData.profilePhotoPath!);
+          } else {
+            profilePhotoUrl = updatedData.profilePhotoPath;
+          }
+        }
+
+        // Format DOB from MM/DD/YYYY to YYYY-MM-DD
+        String formattedDob = "";
+        if (updatedData.dateOfBirth != null && updatedData.dateOfBirth!.isNotEmpty) {
+          try {
+            if (RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(updatedData.dateOfBirth!)) {
+              formattedDob = updatedData.dateOfBirth!;
+            } else {
+              final parts = updatedData.dateOfBirth!.split('/');
+              if (parts.length == 3) {
+                final month = parts[0].padLeft(2, '0');
+                final day = parts[1].padLeft(2, '0');
+                final year = parts[2];
+                formattedDob = "$year-$month-$day";
+              } else {
+                formattedDob = updatedData.dateOfBirth!;
+              }
+            }
+          } catch (_) {
+            formattedDob = updatedData.dateOfBirth!;
+          }
+        }
+
+        final payload = {
+          "first_name": updatedData.firstName ?? "",
+          "last_name": updatedData.lastName ?? "",
+          "mobile_number": updatedData.mobileNumber ?? "",
+          "email": updatedData.email ?? "",
+          "dob": formattedDob,
+          "gender": updatedData.gender?.toUpperCase() ?? "",
+          "referral_code": updatedData.referralCode ?? "",
+          "profile_photo_url": profilePhotoUrl ?? "",
+        };
+
+        // Explicitly printing the payload body so it's shown in the console/run logs
+        print('========================================');
+        print('=== REGISTRATION STEP 1 REQUEST BODY ===');
+        print(payload);
+        print('========================================');
+
+        await submitPersonalInfoUsecase(payload);
+        
+        emit(state.copyWith(
+          data: updatedData.copyWith(
+            profilePhotoPath: profilePhotoUrl ?? updatedData.profilePhotoPath,
+          ),
+          status: RegistrationStatus.success,
+        ));
+      } catch (e) {
+        emit(state.copyWith(
+          status: RegistrationStatus.failure,
+          errorMessage: e.toString(),
+        ));
+      }
     });
 
-    on<UpdateAddressDetailsEvent>((event, emit) {
+    on<SubmitAddressDetailsEvent>((event, emit) async {
+      emit(state.copyWith(status: RegistrationStatus.loading));
+
       final updatedData = state.data.copyWith(
         mapLocation: event.mapLocation ?? state.data.mapLocation,
         houseNo: event.houseNo ?? state.data.houseNo,
@@ -40,7 +126,30 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         city: event.city ?? state.data.city,
         state: event.state ?? state.data.state,
       );
-      emit(state.copyWith(data: updatedData));
+
+      final payload = {
+        "house_no": updatedData.houseNo,
+        "street_area": updatedData.streetName,
+        "landmark": updatedData.landmark,
+        "pincode": updatedData.pincode,
+        "city": updatedData.city,
+        "state": updatedData.state,
+        "latitude": 17.4312, // TODO: Get actual lat from map
+        "longitude": 78.4069 // TODO: Get actual lng from map
+      };
+
+      try {
+        await submitAddressUsecase(payload);
+        emit(state.copyWith(
+          data: updatedData,
+          status: RegistrationStatus.success,
+        ));
+      } catch (e) {
+        emit(state.copyWith(
+          status: RegistrationStatus.failure,
+          errorMessage: e.toString(),
+        ));
+      }
     });
 
     on<UpdateIdentityVerificationEvent>((event, emit) {

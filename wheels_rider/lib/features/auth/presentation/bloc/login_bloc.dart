@@ -33,7 +33,8 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
         );
       }
     } catch (e) {
-      emit(LoginFailure(errorMessage: 'An error occurred: $e'));
+      final msg = e.toString().replaceAll('Exception: ', '');
+      emit(LoginFailure(errorMessage: msg));
     }
   }
 }

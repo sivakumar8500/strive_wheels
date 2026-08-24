@@ -5,7 +5,7 @@ class VerifyOtpUseCase {
 
   VerifyOtpUseCase(this.repository);
 
-  Future<bool> call(String phoneNumber, String otp) async {
+  Future<AuthStatus> call(String phoneNumber, String otp) async {
     return await repository.verifyOtp(phoneNumber, otp);
   }
 }

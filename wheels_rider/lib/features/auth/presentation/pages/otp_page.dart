@@ -10,7 +10,10 @@ import '../../../../core/di/injection_container.dart';
 import '../bloc/otp_bloc.dart';
 import '../bloc/otp_event.dart';
 import '../bloc/otp_state.dart';
+import '../../domain/repositories/auth_repository.dart';
 import '../../../home/presentation/pages/home_page.dart';
+import 'registration_landing_page.dart';
+import 'registration_page.dart';
 
 class OtpPage extends StatefulWidget {
   final String phoneNumber;
@@ -99,10 +102,29 @@ class _OtpPageState extends State<OtpPage> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('OTP Verified Successfully!')),
             );
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const HomePage()),
-              (route) => false,
-            );
+            
+            if (state.authStatus == AuthStatus.approved) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const HomePage()),
+                (route) => false,
+              );
+            } else if (state.authStatus == AuthStatus.registrationDraft) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => RegistrationPage(phoneNumber: widget.phoneNumber)),
+                (route) => false,
+              );
+            } else if (state.authStatus == AuthStatus.registrationSubmitted) {
+              // TODO: Navigate to Pending Approval Screen. 
+              // For now, redirect to Landing Page to show status.
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => RegistrationLandingPage(phoneNumber: widget.phoneNumber)),
+              );
+            } else {
+              // Covers registrationPending, registrationRejected, and default
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => RegistrationLandingPage(phoneNumber: widget.phoneNumber)),
+              );
+            }
           } else if (state is OtpFailure) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(

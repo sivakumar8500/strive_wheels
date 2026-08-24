@@ -11,6 +11,12 @@ class NextStepEvent extends RegistrationEvent {}
 class PreviousStepEvent extends RegistrationEvent {}
 
 class UpdatePersonalInfoEvent extends RegistrationEvent {
+  final String? mobileNumber;
+
+  const UpdatePersonalInfoEvent({this.mobileNumber});
+}
+
+class SubmitPersonalInfoEvent extends RegistrationEvent {
   final String? profilePhotoPath;
   final String? firstName;
   final String? lastName;
@@ -20,7 +26,7 @@ class UpdatePersonalInfoEvent extends RegistrationEvent {
   final String? gender;
   final String? referralCode;
 
-  const UpdatePersonalInfoEvent({
+  const SubmitPersonalInfoEvent({
     this.profilePhotoPath,
     this.firstName,
     this.lastName,
@@ -32,7 +38,7 @@ class UpdatePersonalInfoEvent extends RegistrationEvent {
   });
 }
 
-class UpdateAddressDetailsEvent extends RegistrationEvent {
+class SubmitAddressDetailsEvent extends RegistrationEvent {
   final String? mapLocation;
   final String? houseNo;
   final String? streetName;
@@ -41,7 +47,7 @@ class UpdateAddressDetailsEvent extends RegistrationEvent {
   final String? city;
   final String? state;
 
-  const UpdateAddressDetailsEvent({
+  const SubmitAddressDetailsEvent({
     this.mapLocation,
     this.houseNo,
     this.streetName,
