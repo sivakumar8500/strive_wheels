@@ -1,3 +1,4 @@
+import '../../domain/entities/auth_result.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_local_datasource.dart';
 import '../datasources/auth_remote_data_source.dart';
@@ -32,7 +33,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<AuthStatus> verifyOtp(String phoneNumber, String otp) async {
+  Future<AuthResult> verifyOtp(String phoneNumber, String otp) async {
     try {
       final response = await remoteDataSource.verifyOtp(
         countryCode: '+91', 
@@ -49,17 +50,27 @@ class AuthRepositoryImpl implements AuthRepository {
       await localDataSource.cacheUserToken(token);
       
       if (driverRegistration == null) {
-        return AuthStatus.registrationPending;
+        return const AuthResult(authStatus: AuthStatus.registrationPending);
       }
 
       final status = driverRegistration.status?.toUpperCase() ?? '';
+      final currentStep = driverRegistration.currentStep;
       
       switch(status) {
-        case 'DRAFT': return AuthStatus.registrationDraft;
-        case 'SUBMITTED': return AuthStatus.registrationSubmitted;
-        case 'APPROVED': return AuthStatus.approved;
-        case 'REJECTED': return AuthStatus.registrationRejected;
-        default: return AuthStatus.registrationPending;
+        case 'DRAFT':
+        case 'IN_PROGRESS':
+          return AuthResult(
+            authStatus: AuthStatus.registrationDraft,
+            currentStep: currentStep,
+          );
+        case 'SUBMITTED':
+          return const AuthResult(authStatus: AuthStatus.registrationSubmitted);
+        case 'APPROVED':
+          return const AuthResult(authStatus: AuthStatus.approved);
+        case 'REJECTED':
+          return const AuthResult(authStatus: AuthStatus.registrationRejected);
+        default:
+          return const AuthResult(authStatus: AuthStatus.registrationPending);
       }
     } catch (e) {
       final msg = e.toString().replaceAll('Exception: ', '');
@@ -67,3 +78,4 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 }
+

@@ -103,17 +103,25 @@ class _OtpPageState extends State<OtpPage> {
               const SnackBar(content: Text('OTP Verified Successfully!')),
             );
             
-            if (state.authStatus == AuthStatus.approved) {
+            final authStatus = state.authResult.authStatus;
+            final currentStep = state.authResult.currentStep ?? 1;
+
+            if (authStatus == AuthStatus.approved) {
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const HomePage()),
                 (route) => false,
               );
-            } else if (state.authStatus == AuthStatus.registrationDraft) {
+            } else if (authStatus == AuthStatus.registrationDraft) {
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => RegistrationPage(phoneNumber: widget.phoneNumber)),
+                MaterialPageRoute(
+                  builder: (_) => RegistrationPage(
+                    phoneNumber: widget.phoneNumber,
+                    initialStep: currentStep,
+                  ),
+                ),
                 (route) => false,
               );
-            } else if (state.authStatus == AuthStatus.registrationSubmitted) {
+            } else if (authStatus == AuthStatus.registrationSubmitted) {
               // TODO: Navigate to Pending Approval Screen. 
               // For now, redirect to Landing Page to show status.
               Navigator.of(context).push(

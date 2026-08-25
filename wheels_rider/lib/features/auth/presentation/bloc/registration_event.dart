@@ -10,6 +10,12 @@ class NextStepEvent extends RegistrationEvent {}
 
 class PreviousStepEvent extends RegistrationEvent {}
 
+class SetInitialStepEvent extends RegistrationEvent {
+  final int step;
+  const SetInitialStepEvent({required this.step});
+}
+
+
 class UpdatePersonalInfoEvent extends RegistrationEvent {
   final String? mobileNumber;
 

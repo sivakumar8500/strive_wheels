@@ -19,8 +19,8 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
     on<OtpSubmitted>((event, emit) async {
       emit(const OtpLoading());
       try {
-        final authStatus = await verifyOtpUseCase(event.phoneNumber, event.otpCode);
-        emit(OtpSuccess(authStatus: authStatus));
+        final authResult = await verifyOtpUseCase(event.phoneNumber, event.otpCode);
+        emit(OtpSuccess(authResult: authResult));
       } catch (e) {
         emit(
           OtpFailure(errorMessage: e.toString().replaceAll('Exception: ', '')),

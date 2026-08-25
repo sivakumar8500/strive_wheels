@@ -1,3 +1,4 @@
+import '../entities/auth_result.dart';
 import '../repositories/auth_repository.dart';
 
 class VerifyOtpUseCase {
@@ -5,7 +6,8 @@ class VerifyOtpUseCase {
 
   VerifyOtpUseCase(this.repository);
 
-  Future<AuthStatus> call(String phoneNumber, String otp) async {
+  Future<AuthResult> call(String phoneNumber, String otp) async {
     return await repository.verifyOtp(phoneNumber, otp);
   }
 }
+

@@ -27,6 +27,13 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
       }
     });
 
+    on<SetInitialStepEvent>((event, emit) {
+      if (event.step >= 1 && event.step <= 9) {
+        emit(state.copyWith(currentStep: event.step));
+      }
+    });
+
+
     on<UpdatePersonalInfoEvent>((event, emit) {
       final updatedData = state.data.copyWith(
         mobileNumber: event.mobileNumber ?? state.data.mobileNumber,

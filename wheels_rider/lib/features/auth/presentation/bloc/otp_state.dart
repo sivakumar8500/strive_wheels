@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import '../../domain/repositories/auth_repository.dart';
+import '../../domain/entities/auth_result.dart';
 
 @immutable
 abstract class OtpState {
@@ -15,8 +15,8 @@ class OtpLoading extends OtpState {
 }
 
 class OtpSuccess extends OtpState {
-  final AuthStatus authStatus;
-  const OtpSuccess({required this.authStatus});
+  final AuthResult authResult;
+  const OtpSuccess({required this.authResult});
 }
 
 class OtpFailure extends OtpState {
@@ -28,3 +28,4 @@ class OtpFailure extends OtpState {
 class OtpResendSuccess extends OtpState {
   const OtpResendSuccess();
 }
+

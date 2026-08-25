@@ -1,3 +1,5 @@
+import '../entities/auth_result.dart';
+
 enum AuthStatus {
   approved,
   registrationPending,
@@ -9,5 +11,5 @@ enum AuthStatus {
 
 abstract class AuthRepository {
   Future<bool> loginWithPhone(String phoneNumber);
-  Future<AuthStatus> verifyOtp(String phoneNumber, String otp);
+  Future<AuthResult> verifyOtp(String phoneNumber, String otp);
 }

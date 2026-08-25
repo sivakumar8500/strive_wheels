@@ -20,8 +20,13 @@ import 'registration/step9_success.dart';
 
 class RegistrationPage extends StatelessWidget {
   final String phoneNumber;
+  final int initialStep;
 
-  const RegistrationPage({super.key, required this.phoneNumber});
+  const RegistrationPage({
+    super.key,
+    required this.phoneNumber,
+    this.initialStep = 1,
+  });
 
   String _getAppBarTitle(int step) {
     switch (step) {
@@ -54,9 +59,14 @@ class RegistrationPage extends StatelessWidget {
         : AppColors.onboardingBgLight;
 
     return BlocProvider(
-      create: (_) =>
-          sl<RegistrationBloc>()
-            ..add(UpdatePersonalInfoEvent(mobileNumber: phoneNumber)),
+      create: (_) {
+        final bloc = sl<RegistrationBloc>()
+          ..add(UpdatePersonalInfoEvent(mobileNumber: phoneNumber));
+        if (initialStep > 1) {
+          bloc.add(SetInitialStepEvent(step: initialStep));
+        }
+        return bloc;
+      },
       child: BlocBuilder<RegistrationBloc, RegistrationState>(
         builder: (context, state) {
           return Scaffold(
