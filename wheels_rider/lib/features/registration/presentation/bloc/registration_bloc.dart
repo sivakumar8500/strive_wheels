@@ -12,6 +12,7 @@ import '../../domain/usecases/submit_kyc_usecase.dart';
 import '../../domain/usecases/submit_vehicle_details_usecase.dart';
 import '../../domain/usecases/submit_vehicle_docs_usecase.dart';
 import '../../domain/usecases/upload_file_usecase.dart';
+import '../../data/models/registration_step_response.dart';
 import 'registration_event.dart';
 import 'registration_state.dart';
 
@@ -45,10 +46,8 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
       emit(state.copyWith(status: RegistrationStatus.loading));
       try {
         final response = await getRegistrationStateUseCase();
-        if (response.success && response.data.currentStep > 0) {
-          final nextStep = (response.data.nextStep != null && response.data.nextStep! > 0)
-              ? response.data.nextStep!
-              : response.data.currentStep;
+        if (response.success && response.data != null && response.data!.currentStep > 0) {
+          final nextStep = _getNextStep(response, response.data!.currentStep);
           emit(state.copyWith(
             currentStep: nextStep,
             status: RegistrationStatus.success,
@@ -62,7 +61,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
       emit(state.copyWith(status: RegistrationStatus.loading));
       try {
         final response = await submitInstantRegistrationUseCase();
-        final nextStep = response.data.nextStep ?? 2;
+        final nextStep = _getNextStep(response, 2);
         emit(state.copyWith(
           currentStep: nextStep,
           status: RegistrationStatus.success,
@@ -166,7 +165,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         debugPrint('========================================');
 
         final response = await submitPersonalInfoUsecase(payload);
-        final nextStep = response.data.nextStep ?? (state.currentStep + 1);
+        final nextStep = _getNextStep(response, state.currentStep + 1);
         
         emit(state.copyWith(
           currentStep: nextStep,
@@ -209,7 +208,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
 
       try {
         final response = await submitAddressUsecase(payload);
-        final nextStep = response.data.nextStep ?? (state.currentStep + 1);
+        final nextStep = _getNextStep(response, state.currentStep + 1);
         emit(state.copyWith(
           currentStep: nextStep,
           data: updatedData,
@@ -277,7 +276,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         };
 
         final response = await submitKycUsecase(payload);
-        final nextStep = response.data.nextStep ?? (state.currentStep + 1);
+        final nextStep = _getNextStep(response, state.currentStep + 1);
 
         emit(state.copyWith(
           currentStep: nextStep,
@@ -386,9 +385,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
 
         final response = await submitVehicleDocsUsecase(payload);
         if (response.success) {
-          final nextStep = (response.data.nextStep != null && response.data.nextStep! > 0)
-              ? response.data.nextStep!
-              : (state.currentStep + 1);
+          final nextStep = _getNextStep(response, state.currentStep + 1);
           emit(state.copyWith(
             currentStep: nextStep,
             data: updatedData.copyWith(
@@ -410,9 +407,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         } else {
           emit(state.copyWith(
             status: RegistrationStatus.failure,
-            errorMessage: response.data.message.isNotEmpty
-                ? response.data.message
-                : "Failed to submit vehicle documents",
+            errorMessage: _getErrorMessage(response, "Failed to submit vehicle documents"),
           ));
         }
       } catch (e) {
@@ -459,9 +454,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
       try {
         final response = await submitVehicleDetailsUsecase(payload);
         if (response.success) {
-          final nextStep = (response.data.nextStep != null && response.data.nextStep! > 0)
-              ? response.data.nextStep!
-              : (state.currentStep + 1);
+          final nextStep = _getNextStep(response, state.currentStep + 1);
           emit(state.copyWith(
             currentStep: nextStep,
             data: updatedData,
@@ -470,9 +463,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         } else {
           emit(state.copyWith(
             status: RegistrationStatus.failure,
-            errorMessage: response.data.message.isNotEmpty
-                ? response.data.message
-                : "Failed to submit vehicle details",
+            errorMessage: _getErrorMessage(response, "Failed to submit vehicle details"),
           ));
         }
       } catch (e) {
@@ -519,9 +510,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
 
         final response = await submitBankDetailsUsecase(payload);
         if (response.success) {
-          final nextStep = (response.data.nextStep != null && response.data.nextStep! > 0)
-              ? response.data.nextStep!
-              : (state.currentStep + 1);
+          final nextStep = _getNextStep(response, state.currentStep + 1);
           emit(state.copyWith(
             currentStep: nextStep,
             data: updatedData.copyWith(bankChequePath: chequeUrl),
@@ -530,9 +519,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         } else {
           emit(state.copyWith(
             status: RegistrationStatus.failure,
-            errorMessage: response.data.message.isNotEmpty
-                ? response.data.message
-                : "Failed to submit bank details",
+            errorMessage: _getErrorMessage(response, "Failed to submit bank details"),
           ));
         }
       } catch (e) {
@@ -569,9 +556,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
       try {
         final response = await submitEmergencyContactUsecase(payload);
         if (response.success) {
-          final nextStep = (response.data.nextStep != null && response.data.nextStep! > 0)
-              ? response.data.nextStep!
-              : (state.currentStep + 1);
+          final nextStep = _getNextStep(response, state.currentStep + 1);
           emit(state.copyWith(
             currentStep: nextStep,
             data: updatedData,
@@ -580,9 +565,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         } else {
           emit(state.copyWith(
             status: RegistrationStatus.failure,
-            errorMessage: response.data.message.isNotEmpty
-                ? response.data.message
-                : "Failed to submit emergency contact",
+            errorMessage: _getErrorMessage(response, "Failed to submit emergency contact"),
           ));
         }
       } catch (e) {
@@ -617,11 +600,14 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
             status: RegistrationStatus.success,
           ));
         } else {
+          final errorMsg = response.message.isNotEmpty
+              ? response.message
+              : (response.data != null && response.data!.message.isNotEmpty
+                  ? response.data!.message
+                  : "Failed to submit final registration");
           emit(state.copyWith(
             status: RegistrationStatus.failure,
-            errorMessage: response.data.message.isNotEmpty
-                ? response.data.message
-                : "Failed to submit final registration",
+            errorMessage: errorMsg,
           ));
         }
       } catch (e) {
@@ -631,6 +617,21 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         ));
       }
     });
+  }
+
+  int _getNextStep(RegistrationStepResponse response, int fallback) {
+    if (response.data?.nextStep != null && response.data!.nextStep! > 0) {
+      return response.data!.nextStep!;
+    }
+    return fallback;
+  }
+
+  String _getErrorMessage(RegistrationStepResponse response, String fallback) {
+    if (response.message.isNotEmpty) return response.message;
+    if (response.data != null && response.data!.message.isNotEmpty) {
+      return response.data!.message;
+    }
+    return fallback;
   }
 
   String _parseErrorMessage(dynamic error) {

@@ -36,64 +36,86 @@ class RegistrationRemoteDataSourceImpl implements RegistrationRemoteDataSource {
     return [];
   }
 
+  RegistrationStepResponse _parseStepResponse(dynamic responseData) {
+    if (responseData is Map) {
+      final map = Map<String, dynamic>.from(responseData);
+      final topMessage = map['message'] as String? ?? '';
+      if (map['data'] is Map) {
+        final dataMap = Map<String, dynamic>.from(map['data'] as Map);
+        if (!dataMap.containsKey('message') || dataMap['message'] == null) {
+          dataMap['message'] = topMessage;
+        }
+        map['data'] = dataMap;
+      } else if (map['data'] == null) {
+        map['data'] = {'message': topMessage};
+      }
+      return RegistrationStepResponse.fromJson(map);
+    }
+    return RegistrationStepResponse(
+      success: true,
+      message: responseData?.toString() ?? '',
+      data: null,
+    );
+  }
+
   @override
   Future<RegistrationStepResponse> getRegistrationState() async {
     final response = await apiClient.get(ApiEndpoints.registrationDraft);
-    return RegistrationStepResponse.fromJson(response.data);
+    return _parseStepResponse(response.data);
   }
 
   @override
   Future<RegistrationStepResponse> submitInstantRegistration() async {
     final response = await apiClient.post(ApiEndpoints.registrationInstant, data: {});
-    return RegistrationStepResponse.fromJson(response.data);
+    return _parseStepResponse(response.data);
   }
 
   @override
   Future<RegistrationStepResponse> submitPersonalInfo(Map<String, dynamic> data) async {
     final response = await apiClient.post(ApiEndpoints.registrationPersonal, data: data);
-    return RegistrationStepResponse.fromJson(response.data);
+    return _parseStepResponse(response.data);
   }
 
   @override
   Future<RegistrationStepResponse> submitAddress(Map<String, dynamic> data) async {
     final response = await apiClient.post(ApiEndpoints.registrationAddress, data: data);
-    return RegistrationStepResponse.fromJson(response.data);
+    return _parseStepResponse(response.data);
   }
 
   @override
   Future<RegistrationStepResponse> submitKyc(Map<String, dynamic> data) async {
     final response = await apiClient.post(ApiEndpoints.registrationKyc, data: data);
-    return RegistrationStepResponse.fromJson(response.data);
+    return _parseStepResponse(response.data);
   }
 
   @override
   Future<RegistrationStepResponse> submitVehicleDetails(Map<String, dynamic> data) async {
     final response = await apiClient.post(ApiEndpoints.registrationVehicle, data: data);
-    return RegistrationStepResponse.fromJson(response.data);
+    return _parseStepResponse(response.data);
   }
 
   @override
   Future<RegistrationStepResponse> submitVehicleDocuments(Map<String, dynamic> data) async {
     final response = await apiClient.post(ApiEndpoints.registrationVehicleDocs, data: data);
-    return RegistrationStepResponse.fromJson(response.data);
+    return _parseStepResponse(response.data);
   }
 
   @override
   Future<RegistrationStepResponse> submitBankDetails(Map<String, dynamic> data) async {
     final response = await apiClient.post(ApiEndpoints.registrationBankDetails, data: data);
-    return RegistrationStepResponse.fromJson(response.data);
+    return _parseStepResponse(response.data);
   }
 
   @override
   Future<RegistrationStepResponse> submitEmergencyContact(Map<String, dynamic> data) async {
     final response = await apiClient.post(ApiEndpoints.registrationEmergencyContact, data: data);
-    return RegistrationStepResponse.fromJson(response.data);
+    return _parseStepResponse(response.data);
   }
 
   @override
   Future<RegistrationStepResponse> submitRegistration(Map<String, dynamic> data) async {
     final response = await apiClient.post(ApiEndpoints.registrationSubmit, data: data);
-    return RegistrationStepResponse.fromJson(response.data);
+    return _parseStepResponse(response.data);
   }
 
   @override
