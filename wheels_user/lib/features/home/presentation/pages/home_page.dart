@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -34,16 +35,77 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   GoogleMapController? _mapController;
   LatLng _currentPosition = const LatLng(37.7749, -122.4194); // Default fallback (San Francisco)
   bool _loadingLocation = true;
 
+  late final AnimationController _pulseController;
+  BitmapDescriptor? _customMarker;
+  StreamSubscription<Position>? _positionStreamSubscription;
+
   @override
   void initState() {
     super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat();
+    _loadCustomMarker();
     context.read<HomeBloc>().add(const LoadHomeDashboardEvent());
     _getCurrentLocation();
+    _startLocationUpdates();
+  }
+
+  Future<void> _loadCustomMarker() async {
+    try {
+      _customMarker = await BitmapDescriptor.asset(
+        const ImageConfiguration(size: Size(48, 48)),
+        'assets/images/user_marker.png',
+      );
+      if (mounted) setState(() {});
+    } catch (e) {
+      debugPrint('Custom marker load error: $e');
+    }
+  }
+
+  Future<void> _startLocationUpdates() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
+          return;
+        }
+      }
+
+      _positionStreamSubscription = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 5,
+        ),
+      ).listen((Position position) {
+        final newLatLng = LatLng(position.latitude, position.longitude);
+        if (mounted) {
+          setState(() {
+            _currentPosition = newLatLng;
+            _loadingLocation = false;
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint('Error starting location stream: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _positionStreamSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _getCurrentLocation() async {
@@ -189,27 +251,72 @@ class _HomePageState extends State<HomePage> {
               children: [
                 // 1. Map Layer Background
                 Positioned.fill(
-                  child: GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target: _currentPosition,
-                      zoom: 16.0,
-                    ),
-                    zoomControlsEnabled: false,
-                    myLocationEnabled: true,
-                    myLocationButtonEnabled: false,
-                    compassEnabled: false,
-                    mapToolbarEnabled: false,
-                    onMapCreated: (controller) {
-                      _mapController = controller;
+                  child: AnimatedBuilder(
+                    animation: _pulseController,
+                    builder: (context, child) {
+                      return GoogleMap(
+                        initialCameraPosition: CameraPosition(
+                          target: _currentPosition,
+                          zoom: 16.0,
+                        ),
+                        zoomControlsEnabled: false,
+                        myLocationEnabled: false,
+                        myLocationButtonEnabled: false,
+                        compassEnabled: false,
+                        mapToolbarEnabled: false,
+                        onMapCreated: (controller) {
+                          _mapController = controller;
+                        },
+                        markers: {
+                          Marker(
+                            markerId: const MarkerId('current_location'),
+                            position: _currentPosition,
+                            infoWindow: const InfoWindow(title: 'Current Location'),
+                            icon: _customMarker ??
+                                BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+                            anchor: const Offset(0.5, 0.5),
+                          ),
+                        },
+                        circles: {
+                          Circle(
+                            circleId: const CircleId('user_pulse'),
+                            center: _currentPosition,
+                            radius: _pulseController.value * 200,
+                            fillColor: AppColors.primaryBlue.withValues(
+                              alpha: 0.25 * (1 - _pulseController.value),
+                            ),
+                            strokeWidth: 2,
+                            strokeColor: AppColors.primaryBlue.withValues(
+                              alpha: 0.5 * (1 - _pulseController.value),
+                            ),
+                          ),
+                        },
+                      );
                     },
-                    markers: {
-                      Marker(
-                        markerId: const MarkerId('current_location'),
-                        position: _currentPosition,
-                        infoWindow: const InfoWindow(title: 'Current Location'),
-                        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-                      ),
+                  ),
+                ),
+
+                // 2. Floating Location Recenter Button
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 70,
+                  right: 16,
+                  child: FloatingActionButton.small(
+                    heroTag: 'gps_recenter',
+                    backgroundColor: isDark ? AppColors.cardBgDark : Colors.white,
+                    foregroundColor: AppColors.primaryBlue,
+                    onPressed: () {
+                      if (_mapController != null) {
+                        _mapController!.animateCamera(
+                          CameraUpdate.newCameraPosition(
+                            CameraPosition(
+                              target: _currentPosition,
+                              zoom: 16.0,
+                            ),
+                          ),
+                        );
+                      }
                     },
+                    child: const Icon(Icons.my_location),
                   ),
                 ),
 
