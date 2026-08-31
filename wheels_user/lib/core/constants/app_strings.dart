@@ -17,12 +17,16 @@ abstract class AppStrings {
   // Login Strings
   static const String welcomeBack = 'Welcome Back';
   static const String bookRidesInSeconds = 'Book rides in seconds.';
+  static const String bookRidesSubtext = 'Book rides in seconds.';
   static const String enterMobileNumber = 'Enter Mobile Number';
   static const String continueButton = 'Continue';
+  static const String continueBtn = 'Continue';
   static const String defaultCountryCode = '+91';
   static const String byContinuing = 'By continuing, you agree to our ';
   static const String termsAndConditions = 'Terms & Conditions';
+  static const String termsConditions = 'Terms & Conditions';
   static const String andWord = ' and ';
+  static const String and = 'and';
   static const String privacyPolicy = 'Privacy Policy';
 
   // OTP Verification Strings
@@ -159,3 +163,4 @@ abstract class AppStrings {
   static const String vanSpecs = '12 Seats · AC · Luggage';
   static const String miniBusSpecs = '20 Seats · AC · Express';
 }
+

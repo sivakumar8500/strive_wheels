@@ -45,6 +45,12 @@ import '../../features/login/domain/repositories/login_repository.dart';
 import '../../features/login/domain/usecases/send_otp_usecase.dart';
 import '../../features/login/presentation/bloc/login_bloc.dart';
 
+import '../theme/data/datasources/theme_local_datasource.dart';
+import '../theme/data/repositories/theme_repository_impl.dart';
+import '../theme/domain/repositories/theme_repository.dart';
+import '../theme/domain/usecases/get_theme_mode_usecase.dart';
+import '../theme/domain/usecases/set_theme_mode_usecase.dart';
+import '../theme/presentation/bloc/theme_bloc.dart';
 import '../../features/onboarding/data/datasources/onboarding_local_datasource.dart';
 import '../../features/onboarding/data/repositories/onboarding_repository_impl.dart';
 import '../../features/onboarding/domain/repositories/onboarding_repository.dart';
@@ -134,6 +140,13 @@ Future<void> initDependencyInjection() async {
   }
 
   // Data Sources
+  if (!sl.isRegistered<ThemeLocalDataSource>()) {
+    sl.registerLazySingleton<ThemeLocalDataSource>(
+      () => ThemeLocalDataSourceImpl(
+        sharedPreferences: sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : sharedPreferences,
+      ),
+    );
+  }
   if (!sl.isRegistered<OnboardingLocalDataSource>()) {
     sl.registerLazySingleton<OnboardingLocalDataSource>(
       () => OnboardingLocalDataSourceImpl(
@@ -198,6 +211,11 @@ Future<void> initDependencyInjection() async {
   }
 
   // Repositories
+  if (!sl.isRegistered<ThemeRepository>()) {
+    sl.registerLazySingleton<ThemeRepository>(
+      () => ThemeRepositoryImpl(localDataSource: sl()),
+    );
+  }
   if (!sl.isRegistered<OnboardingRepository>()) {
     sl.registerLazySingleton<OnboardingRepository>(
       () => OnboardingRepositoryImpl(localDataSource: sl()),
@@ -251,15 +269,29 @@ Future<void> initDependencyInjection() async {
   }
 
   // UseCases
+  if (!sl.isRegistered<GetThemeModeUseCase>()) {
+    sl.registerLazySingleton<GetThemeModeUseCase>(
+      () => GetThemeModeUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<SetThemeModeUseCase>()) {
+    sl.registerLazySingleton<SetThemeModeUseCase>(
+      () => SetThemeModeUseCase(sl()),
+    );
+  }
   if (!sl.isRegistered<CheckFirstTimeUseCase>()) {
     sl.registerLazySingleton<CheckFirstTimeUseCase>(
       () => CheckFirstTimeUseCase(sl()),
     );
   }
-
   if (!sl.isRegistered<CompleteOnboardingUseCase>()) {
     sl.registerLazySingleton<CompleteOnboardingUseCase>(
       () => CompleteOnboardingUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<LoginWithPhoneUseCase>()) {
+    sl.registerLazySingleton<LoginWithPhoneUseCase>(
+      () => LoginWithPhoneUseCase(sl()),
     );
   }
 
@@ -348,6 +380,14 @@ Future<void> initDependencyInjection() async {
   }
 
   // BLoCs
+  if (!sl.isRegistered<ThemeBloc>()) {
+    sl.registerFactory<ThemeBloc>(
+      () => ThemeBloc(
+        getThemeModeUseCase: sl(),
+        setThemeModeUseCase: sl(),
+      ),
+    );
+  }
   if (!sl.isRegistered<OnboardingBloc>()) {
     sl.registerFactory<OnboardingBloc>(
       () => OnboardingBloc(
@@ -356,7 +396,6 @@ Future<void> initDependencyInjection() async {
       ),
     );
   }
-
   if (!sl.isRegistered<SplashBloc>()) {
     sl.registerFactory<SplashBloc>(
       () => SplashBloc(sl()),

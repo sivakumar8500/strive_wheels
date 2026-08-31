@@ -7,6 +7,16 @@ abstract class AppColors {
   static const Color accentOrange = Color(0xFFFF6600);
   static const Color darkBlue = Color(0xFF002266);
 
+  // Surface & Background Colors
+  static const Color backgroundLight = Color(0xFFF8F9FD);
+  static const Color backgroundDark = Color(0xFF0F172A);
+
+  static const Color surfaceLight = Color(0xFFFFFFFF);
+  static const Color surfaceDark = Color(0xFF1E293B);
+
+  static const Color cardLight = Color(0xFFFFFFFF);
+  static const Color cardDark = Color(0xFF1E293B);
+
   // Gradient Colors
   static const List<Color> splashGradientLight = [
     Color(0xFFDDF0FF),
@@ -27,15 +37,15 @@ abstract class AppColors {
   static const Color black = Color(0xFF000000);
 
   // Text Colors
-  static const Color textPrimaryLight = Color(0xFFFFFFFF);
-  static const Color textSecondaryLight = Color(0xFFE0E0E0);
-  
-  static const Color textPrimaryDark = Color(0xFFFFFFFF);
-  static const Color textSecondaryDark = Color(0xFFB0BEC5);
+  static const Color textPrimaryLight = Color(0xFF1E293B);
+  static const Color textSecondaryLight = Color(0xFF64748B);
+
+  static const Color textPrimaryDark = Color(0xFFF8FAFC);
+  static const Color textSecondaryDark = Color(0xFF94A3B8);
 
   // Separator & Border Colors
-  static const Color dividerLight = Color(0x66FFFFFF);
-  static const Color dividerDark = Color(0x33FFFFFF);
+  static const Color dividerLight = Color(0xFFE2E8F0);
+  static const Color dividerDark = Color(0xFF334155);
 
   // Onboarding Colors
   static const Color onboardingBgLight = Color(0xFFF8F9FD);

@@ -1,0 +1,48 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "wheels_rider",
+            "cwd": "wheels_rider",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "wheels_rider (profile mode)",
+            "cwd": "wheels_rider",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "wheels_rider (release mode)",
+            "cwd": "wheels_rider",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "wheels_user",
+            "cwd": "wheels_user",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "wheels_user (profile mode)",
+            "cwd": "wheels_user",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "wheels_user (release mode)",
+            "cwd": "wheels_user",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        }
+    ]
+}

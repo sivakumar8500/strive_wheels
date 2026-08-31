@@ -13,6 +13,8 @@ import '../../../login/presentation/pages/auth_page.dart';
 import '../bloc/splash_bloc.dart';
 import '../bloc/splash_event.dart';
 import '../bloc/splash_state.dart';
+import '../../../onboarding/presentation/bloc/onboarding_bloc.dart';
+import '../../../onboarding/presentation/pages/onboarding_page.dart';
 
 /// Splash Screen page matching exact design layout guidelines.
 class SplashPage extends StatefulWidget {

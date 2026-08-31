@@ -17,10 +17,10 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
     emit(const SplashLoading());
     // Simulate initialization delay / splash duration
     await Future.delayed(const Duration(seconds: 3));
-    
+
     final token = _sharedPreferences.getString('access_token');
     final isAuthenticated = token != null && token.isNotEmpty;
-    
+
     emit(SplashCompleted(isAuthenticated: isAuthenticated));
   }
 }

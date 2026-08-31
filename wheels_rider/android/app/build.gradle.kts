@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.wheels_rider"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
