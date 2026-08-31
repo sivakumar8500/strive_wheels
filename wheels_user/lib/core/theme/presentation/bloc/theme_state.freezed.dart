@@ -205,8 +205,8 @@ return $default(_that.themeMode);case _:
 /// @nodoc
 
 
-class _ThemeState implements ThemeState {
-  const _ThemeState({required this.themeMode});
+class _ThemeState extends ThemeState {
+  const _ThemeState({required this.themeMode}): super._();
   
 
 @override final  ThemeMode themeMode;
