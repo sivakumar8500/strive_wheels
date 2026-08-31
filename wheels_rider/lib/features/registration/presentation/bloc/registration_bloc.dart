@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../domain/usecases/get_registration_state_usecase.dart';
+import '../../domain/usecases/submit_registration_usecase.dart';
 import '../../domain/usecases/submit_bank_details_usecase.dart';
 import '../../domain/usecases/submit_emergency_contact_usecase.dart';
 import '../../domain/usecases/submit_instant_registration_usecase.dart';
@@ -14,6 +16,7 @@ import 'registration_event.dart';
 import 'registration_state.dart';
 
 class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
+  final GetRegistrationStateUseCase getRegistrationStateUseCase;
   final SubmitInstantRegistrationUseCase submitInstantRegistrationUseCase;
   final SubmitPersonalInfoUsecase submitPersonalInfoUsecase;
   final SubmitAddressUsecase submitAddressUsecase;
@@ -22,9 +25,11 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
   final SubmitVehicleDocsUsecase submitVehicleDocsUsecase;
   final SubmitBankDetailsUsecase submitBankDetailsUsecase;
   final SubmitEmergencyContactUsecase submitEmergencyContactUsecase;
+  final SubmitRegistrationUsecase submitRegistrationUsecase;
   final UploadFileUseCase uploadFileUseCase;
 
   RegistrationBloc({
+    required this.getRegistrationStateUseCase,
     required this.submitInstantRegistrationUseCase,
     required this.submitPersonalInfoUsecase,
     required this.submitAddressUsecase,
@@ -33,8 +38,26 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
     required this.submitVehicleDocsUsecase,
     required this.submitBankDetailsUsecase,
     required this.submitEmergencyContactUsecase,
+    required this.submitRegistrationUsecase,
     required this.uploadFileUseCase,
   }) : super(RegistrationState.initial()) {
+    on<FetchRegistrationStateEvent>((event, emit) async {
+      emit(state.copyWith(status: RegistrationStatus.loading));
+      try {
+        final response = await getRegistrationStateUseCase();
+        if (response.success && response.data.currentStep > 0) {
+          final nextStep = (response.data.nextStep != null && response.data.nextStep! > 0)
+              ? response.data.nextStep!
+              : response.data.currentStep;
+          emit(state.copyWith(
+            currentStep: nextStep,
+            status: RegistrationStatus.success,
+          ));
+        }
+      } catch (_) {
+        emit(state.copyWith(status: RegistrationStatus.initial));
+      }
+    });
     on<SubmitInstantRegistrationEvent>((event, emit) async {
       emit(state.copyWith(status: RegistrationStatus.loading));
       try {
@@ -575,6 +598,38 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         agreedToTerms: event.agreedToTerms,
       );
       emit(state.copyWith(data: updatedData));
+    });
+
+    on<SubmitRegistrationEvent>((event, emit) async {
+      emit(state.copyWith(status: RegistrationStatus.loading));
+      final payload = {
+        "terms_accepted": true,
+        "privacy_policy_accepted": true,
+        "terms_version": "1.0",
+        "privacy_policy_version": "1.0"
+      };
+
+      try {
+        final response = await submitRegistrationUsecase(payload);
+        if (response.success) {
+          emit(state.copyWith(
+            currentStep: 10,
+            status: RegistrationStatus.success,
+          ));
+        } else {
+          emit(state.copyWith(
+            status: RegistrationStatus.failure,
+            errorMessage: response.data.message.isNotEmpty
+                ? response.data.message
+                : "Failed to submit final registration",
+          ));
+        }
+      } catch (e) {
+        emit(state.copyWith(
+          status: RegistrationStatus.failure,
+          errorMessage: _parseErrorMessage(e),
+        ));
+      }
     });
   }
 

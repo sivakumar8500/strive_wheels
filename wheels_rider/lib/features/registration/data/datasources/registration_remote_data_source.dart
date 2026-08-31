@@ -6,6 +6,7 @@ import '../../../../core/network/api_endpoints.dart';
 import '../models/registration_step_response.dart';
 
 abstract class RegistrationRemoteDataSource {
+  Future<RegistrationStepResponse> getRegistrationState();
   Future<RegistrationStepResponse> submitInstantRegistration();
   Future<RegistrationStepResponse> submitPersonalInfo(Map<String, dynamic> data);
   Future<RegistrationStepResponse> submitAddress(Map<String, dynamic> data);
@@ -33,6 +34,12 @@ class RegistrationRemoteDataSourceImpl implements RegistrationRemoteDataSource {
       return response.data as List<dynamic>;
     }
     return [];
+  }
+
+  @override
+  Future<RegistrationStepResponse> getRegistrationState() async {
+    final response = await apiClient.get(ApiEndpoints.registrationDraft);
+    return RegistrationStepResponse.fromJson(response.data);
   }
 
   @override

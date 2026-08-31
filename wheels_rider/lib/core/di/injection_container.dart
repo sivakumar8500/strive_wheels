@@ -42,6 +42,8 @@ import '../../features/registration/domain/usecases/submit_address_usecase.dart'
 import '../../features/registration/domain/usecases/submit_kyc_usecase.dart';
 import '../../features/registration/domain/usecases/submit_vehicle_details_usecase.dart';
 import '../../features/registration/domain/usecases/submit_vehicle_docs_usecase.dart';
+import '../../features/registration/domain/usecases/get_registration_state_usecase.dart';
+import '../../features/registration/domain/usecases/submit_registration_usecase.dart';
 import '../../features/registration/domain/usecases/submit_bank_details_usecase.dart';
 import '../../features/registration/domain/usecases/submit_emergency_contact_usecase.dart';
 import '../../features/registration/domain/usecases/upload_file_usecase.dart';
@@ -376,6 +378,18 @@ Future<void> initDependencyInjection() async {
     );
   }
 
+  if (!sl.isRegistered<GetRegistrationStateUseCase>()) {
+    sl.registerLazySingleton<GetRegistrationStateUseCase>(
+      () => GetRegistrationStateUseCase(sl()),
+    );
+  }
+
+  if (!sl.isRegistered<SubmitRegistrationUsecase>()) {
+    sl.registerLazySingleton<SubmitRegistrationUsecase>(
+      () => SubmitRegistrationUsecase(sl()),
+    );
+  }
+
   if (!sl.isRegistered<UploadFileUseCase>()) {
     sl.registerLazySingleton<UploadFileUseCase>(
       () => UploadFileUseCase(sl()),
@@ -412,6 +426,7 @@ Future<void> initDependencyInjection() async {
   }
   if (!sl.isRegistered<RegistrationBloc>()) {
     sl.registerFactory<RegistrationBloc>(() => RegistrationBloc(
+          getRegistrationStateUseCase: sl(),
           submitInstantRegistrationUseCase: sl(),
           submitPersonalInfoUsecase: sl(),
           submitAddressUsecase: sl(),
@@ -420,6 +435,7 @@ Future<void> initDependencyInjection() async {
           submitVehicleDocsUsecase: sl(),
           submitBankDetailsUsecase: sl(),
           submitEmergencyContactUsecase: sl(),
+          submitRegistrationUsecase: sl(),
           uploadFileUseCase: sl(),
         ));
   }
