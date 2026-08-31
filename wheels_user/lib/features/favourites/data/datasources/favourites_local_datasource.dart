@@ -16,28 +16,24 @@ class FavouritesLocalDataSourceImpl implements FavouritesLocalDataSource {
       shortcutSubtitle: AppStrings.tapPlaceToUseAsDestination,
       places: [
         FavoritePlaceModel(
-          id: '1',
+          id: 1,
           title: 'Home',
           address: 'Nanakramguda, Hyderabad',
-          iconType: 'home',
         ),
         FavoritePlaceModel(
-          id: '2',
+          id: 2,
           title: 'Office',
           address: 'Mindspace IT Park, Madhapur',
-          iconType: 'office',
         ),
         FavoritePlaceModel(
-          id: '3',
+          id: 3,
           title: 'Rajiv Gandhi Airport',
           address: 'Shamshabad, Hyderabad',
-          iconType: 'airport',
         ),
         FavoritePlaceModel(
-          id: '4',
+          id: 4,
           title: 'Raidurg Metro',
           address: 'HITEC City, Hyderabad',
-          iconType: 'metro',
         ),
       ],
     );

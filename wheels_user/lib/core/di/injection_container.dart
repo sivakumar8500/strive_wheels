@@ -289,12 +289,6 @@ Future<void> initDependencyInjection() async {
       () => CompleteOnboardingUseCase(sl()),
     );
   }
-  if (!sl.isRegistered<LoginWithPhoneUseCase>()) {
-    sl.registerLazySingleton<LoginWithPhoneUseCase>(
-      () => LoginWithPhoneUseCase(sl()),
-    );
-  }
-
   if (!sl.isRegistered<SendOtpUseCase>()) {
     sl.registerLazySingleton<SendOtpUseCase>(
       () => SendOtpUseCase(sl()),

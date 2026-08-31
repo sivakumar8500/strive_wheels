@@ -29,10 +29,9 @@ void main() {
     shortcutSubtitle: 'Tap a place to use it as your next destination.',
     places: [
       FavoritePlaceModel(
-        id: '1',
+        id: 1,
         title: 'Home',
         address: 'Nanakramguda, Hyderabad',
-        iconType: 'home',
       ),
     ],
   );
