@@ -43,6 +43,7 @@ dependencies:
   geocoding: ^5.0.0
   flutter_contacts: ^2.3.1
   google_maps_flutter: ^2.18.0
+  google_maps_flutter_android: ^2.16.0
 
 dev_dependencies:
   flutter_test:
