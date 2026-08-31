@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
@@ -43,36 +44,40 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _onContinuePressed() {
+  void _onContinuePressed(BuildContext context) {
     FocusScope.of(context).unfocus();
     context.read<LoginBloc>().add(LoginSubmitted(_phoneController.text));
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark
-        ? AppColors.onboardingBgDark
-        : AppColors.onboardingBgLight;
+    return BlocProvider<LoginBloc>(
+      create: (_) => sl<LoginBloc>(),
+      child: Builder(
+        builder: (context) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final backgroundColor = isDark
+              ? AppColors.onboardingBgDark
+              : AppColors.onboardingBgLight;
 
-    return BlocListener<LoginBloc, LoginState>(
-      listener: (context, state) {
-        if (state is LoginSuccess) {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => OtpPage(phoneNumber: _phoneController.text),
-            ),
-          );
-        } else if (state is LoginFailure) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.errorMessage),
-              backgroundColor: Colors.redAccent,
-            ),
-          );
-        }
-      },
-      child: Scaffold(
+          return BlocListener<LoginBloc, LoginState>(
+            listener: (context, state) {
+              if (state is LoginSuccess) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => OtpPage(phoneNumber: _phoneController.text),
+                  ),
+                );
+              } else if (state is LoginFailure) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.errorMessage),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
+              }
+            },
+            child: Scaffold(
         backgroundColor: backgroundColor,
         body: SafeArea(
           child: LayoutBuilder(
@@ -231,15 +236,15 @@ class _LoginPageState extends State<LoginPage> {
                                 child: ElevatedButton(
                                   onPressed: (isLoading || !_isPhoneValid)
                                       ? null
-                                      : _onContinuePressed,
+                                      : () => _onContinuePressed(context),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.indicatorActive,
                                     foregroundColor: AppColors.white,
                                     disabledBackgroundColor: AppColors
                                         .indicatorActive
-                                        .withOpacity(0.5),
+                                        .withValues(alpha: 0.5),
                                     disabledForegroundColor: AppColors.white
-                                        .withOpacity(0.7),
+                                        .withValues(alpha: 0.7),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
@@ -281,6 +286,9 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
       ),
+    );
+  },
+),
     );
   }
 

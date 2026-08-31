@@ -14,25 +14,21 @@ void main() {
     usecase = CheckInitialAuthStatus(mockSplashRepository);
   });
 
-  test('should return true when repository returns true', () async {
-    when(
-      () => mockSplashRepository.isUserAuthenticated(),
-    ).thenAnswer((_) async => true);
+  test('should return InitialAuthData when repository is called', () async {
+    when(() => mockSplashRepository.isUserAuthenticated()).thenAnswer((_) async => true);
+    when(() => mockSplashRepository.getAuthStatus()).thenAnswer((_) async => 'approved');
+    when(() => mockSplashRepository.getCurrentStep()).thenAnswer((_) async => 2);
+    when(() => mockSplashRepository.getPhoneNumber()).thenAnswer((_) async => '1234567890');
 
     final result = await usecase();
 
-    expect(result, isTrue);
+    expect(result.isAuthenticated, isTrue);
+    expect(result.authStatus, 'approved');
+    expect(result.currentStep, 2);
+    expect(result.phoneNumber, '1234567890');
     verify(() => mockSplashRepository.isUserAuthenticated()).called(1);
-  });
-
-  test('should return false when repository returns false', () async {
-    when(
-      () => mockSplashRepository.isUserAuthenticated(),
-    ).thenAnswer((_) async => false);
-
-    final result = await usecase();
-
-    expect(result, isFalse);
-    verify(() => mockSplashRepository.isUserAuthenticated()).called(1);
+    verify(() => mockSplashRepository.getAuthStatus()).called(1);
+    verify(() => mockSplashRepository.getCurrentStep()).called(1);
+    verify(() => mockSplashRepository.getPhoneNumber()).called(1);
   });
 }

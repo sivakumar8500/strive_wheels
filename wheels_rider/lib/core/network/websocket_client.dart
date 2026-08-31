@@ -15,11 +15,11 @@ class WebSocketClient {
   bool _isConnected = false;
   bool get isConnected => _isConnected;
 
-  void connect(String token) {
+  void connect(int driverId, String token) {
     if (_isConnected) return;
 
     try {
-      final uri = Uri.parse('${ApiEndpoints.wsConnect}?token=$token');
+      final uri = Uri.parse('${ApiEndpoints.wsDriverConnect(driverId)}?token=$token');
       _channel = WebSocketChannel.connect(uri);
       
       _isConnected = true;

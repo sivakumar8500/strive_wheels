@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../home/presentation/pages/home_page.dart';
 import '../../../trips/presentation/pages/trips_page.dart';
@@ -10,6 +11,12 @@ import '../../../legal_and_support/presentation/pages/terms_and_conditions_page.
 import '../../../legal_and_support/presentation/pages/contact_us_page.dart';
 import '../../../legal_and_support/presentation/pages/help_and_sales_page.dart';
 import '../../../auth/presentation/pages/login_page.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../profile/presentation/bloc/profile_bloc.dart';
+import '../../../profile/presentation/bloc/profile_event.dart';
+import '../../../profile/presentation/bloc/profile_state.dart';
+import '../../../profile/presentation/pages/edit_profile_page.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -20,45 +27,74 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   int _currentIndex = 3; // Settings is selected
+  late final ProfileBloc _profileBloc;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileBloc = sl<ProfileBloc>()..add(GetProfileEvent());
+  }
+
+  @override
+  void dispose() {
+    _profileBloc.close();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFFBFAFD);
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 32),
-                _buildProfileCard(isDark),
-                const SizedBox(height: 24),
-                _buildSectionHeader('GENERAL', isDark),
-                const SizedBox(height: 12),
-                _buildGeneralSection(isDark),
-                const SizedBox(height: 24),
-                _buildSectionHeader('HELP', isDark),
-                const SizedBox(height: 12),
-                _buildHelpSection(context, isDark),
-                const SizedBox(height: 32),
-                _buildLogOutButton(context, isDark),
-                const SizedBox(height: 32),
-              ],
+    return BlocProvider.value(
+      value: _profileBloc,
+      child: Scaffold(
+        backgroundColor: bgColor,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 32),
+                  BlocBuilder<ProfileBloc, ProfileState>(
+                    builder: (context, state) {
+                      if (state is ProfileLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      } else if (state is ProfileLoaded) {
+                        return _buildProfileCard(isDark, state.profile);
+                      } else if (state is ProfileUpdateSuccess) {
+                        return _buildProfileCard(isDark, state.profile);
+                      } else if (state is ProfileError) {
+                        return Center(child: Text(state.message));
+                      }
+                      return const Center(child: CircularProgressIndicator());
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  _buildSectionHeader('GENERAL', isDark),
+                  const SizedBox(height: 12),
+                  _buildGeneralSection(isDark),
+                  const SizedBox(height: 24),
+                  _buildSectionHeader('HELP', isDark),
+                  const SizedBox(height: 12),
+                  _buildHelpSection(context, isDark),
+                  const SizedBox(height: 32),
+                  _buildLogOutButton(context, isDark),
+                  const SizedBox(height: 32),
+                ],
+              ),
             ),
           ),
         ),
+        bottomNavigationBar: _buildBottomNavigationBar(context, isDark),
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(context, isDark),
     );
   }
 
 
-  Widget _buildProfileCard(bool isDark) {
+  Widget _buildProfileCard(bool isDark, profile) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
       decoration: BoxDecoration(
@@ -66,7 +102,7 @@ class _SettingsPageState extends State<SettingsPage> {
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -74,6 +110,23 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       child: Column(
         children: [
+          Align(
+            alignment: Alignment.topRight,
+            child: IconButton(
+              icon: const Icon(Icons.edit, color: Color(0xFF0D52D6)),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider.value(
+                      value: _profileBloc,
+                      child: EditProfilePage(profile: profile),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
           Stack(
             clipBehavior: Clip.none,
             children: [
@@ -83,9 +136,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   shape: BoxShape.circle,
                   border: Border.all(color: const Color(0xFF0D52D6), width: 3),
                 ),
-                child: const CircleAvatar(
+                child: CircleAvatar(
                   radius: 50,
-                  backgroundImage: AssetImage('assets/images/login.png'),
+                  backgroundImage: profile.profileImageUrl.isNotEmpty
+                      ? NetworkImage(profile.profileImageUrl)
+                      : const AssetImage('assets/images/login.png') as ImageProvider,
                 ),
               ),
               Positioned(
@@ -111,7 +166,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Alex',
+            profile.name,
             style: GoogleFonts.inter(
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -130,10 +185,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.verified_user, color: Color(0xFF0D52D6), size: 14),
+                    const Icon(Icons.account_balance_wallet, color: Color(0xFF0D52D6), size: 14),
                     const SizedBox(width: 6),
                     Text(
-                      'Elite Driver',
+                      '₹${profile.walletBalance}',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -155,7 +210,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     const Icon(Icons.star, color: Colors.amber, size: 14),
                     const SizedBox(width: 6),
                     Text(
-                      '4.98',
+                      profile.rating.toString(),
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -174,7 +229,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: Column(
                   children: [
                     Text(
-                      'EXPERIENCE',
+                      'TOTAL EARNINGS',
                       style: GoogleFonts.inter(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -184,7 +239,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '2.5 Years',
+                      '₹${profile.totalEarnings}',
                       style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -198,7 +253,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: Column(
                   children: [
                     Text(
-                      'DRIVER ID',
+                      'PHONE',
                       style: GoogleFonts.inter(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -208,7 +263,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '#APX-9821',
+                      profile.phone,
                       style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -247,7 +302,7 @@ class _SettingsPageState extends State<SettingsPage> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -495,41 +550,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildSystemSection(bool isDark) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          _buildListTile(
-            icon: Icons.translate,
-            iconColor: const Color(0xFF0D52D6),
-            iconBgColor: const Color(0xFFEAF1FF),
-            title: 'Languages',
-            subtitle: 'English, Spanish',
-            isDark: isDark,
-          ),
-          _buildListTile(
-            icon: Icons.tune,
-            iconColor: const Color(0xFF0D52D6),
-            iconBgColor: const Color(0xFFEAF1FF),
-            title: 'App Preferences',
-            isDark: isDark,
-            isLast: true,
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildHelpSection(BuildContext context, bool isDark) {
     return Container(
@@ -538,7 +559,7 @@ class _SettingsPageState extends State<SettingsPage> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -718,13 +739,21 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () {
-                    // Navigate to Login Page and clear all previous routes
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LoginPage()),
-                      (Route<dynamic> route) => false,
-                    );
+                  onPressed: () async {
+                    final prefs = sl<SharedPreferences>();
+                    await prefs.remove('is_authenticated');
+                    await prefs.remove('user_token');
+                    await prefs.remove('auth_status');
+                    await prefs.remove('phone_number');
+                    await prefs.remove('current_step');
+
+                    if (context.mounted) {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (context) => const LoginPage()),
+                        (Route<dynamic> route) => false,
+                      );
+                    }
                   },
                   child: Text(
                     'Clear & Log Out',
@@ -770,7 +799,7 @@ class _SettingsPageState extends State<SettingsPage> {
       decoration: BoxDecoration(
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -5),
           ),

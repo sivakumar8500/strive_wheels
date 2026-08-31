@@ -6,8 +6,7 @@ class ApiClient {
   final Dio _dio;
   final SharedPreferences _sharedPreferences;
 
-  ApiClient({required Dio dio, required SharedPreferences sharedPreferences}) 
-      : _dio = dio, _sharedPreferences = sharedPreferences {
+  ApiClient({required this._dio, required this._sharedPreferences}) {
     _dio.options.connectTimeout = const Duration(seconds: 30);
     _dio.options.receiveTimeout = const Duration(seconds: 30);
     _dio.options.headers = {
@@ -72,11 +71,32 @@ class ApiClient {
   }
 
   // POST Request
-  Future<Response> post(String url, {dynamic data, Map<String, dynamic>? queryParameters, Options? options}) async {
+  Future<Response> post(
+    String url, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+    ProgressCallback? onSendProgress,
+  }) async {
     try {
-      final response = await _dio.post(url, data: data, queryParameters: queryParameters, options: options);
+      final response = await _dio.post(
+        url,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+        onSendProgress: onSendProgress,
+      );
       return response;
     } catch (e) {
+      if (e is DioException && e.response != null) {
+        final data = e.response?.data;
+        if (data is Map && data.containsKey('message')) {
+          throw Exception(data['message']);
+        } else if (data is Map && data.containsKey('detail')) {
+          throw Exception(data['detail'].toString());
+        }
+        throw Exception(data.toString());
+      }
       rethrow;
     }
   }

@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'driver_registration.dart';
+import 'package:wheels_rider/features/registration/data/models/driver_registration.dart';
 
 part 'rider_profile.freezed.dart';
 part 'rider_profile.g.dart';

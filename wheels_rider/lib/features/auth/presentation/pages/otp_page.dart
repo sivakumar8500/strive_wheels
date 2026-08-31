@@ -13,7 +13,7 @@ import '../bloc/otp_state.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../../home/presentation/pages/home_page.dart';
 import 'registration_landing_page.dart';
-import 'registration_page.dart';
+import '../../../registration/presentation/pages/registration_page.dart';
 
 class OtpPage extends StatefulWidget {
   final String phoneNumber;
@@ -27,7 +27,7 @@ class OtpPage extends StatefulWidget {
 class _OtpPageState extends State<OtpPage> {
   final _pinController = TextEditingController();
   Timer? _timer;
-  int _start = 11;
+  int _start = 60;
 
   @override
   void initState() {
@@ -36,7 +36,7 @@ class _OtpPageState extends State<OtpPage> {
   }
 
   void startTimer() {
-    _start = 11; // Setting to 11 to match image design
+    _start = 60;
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
       if (_start == 0) {
@@ -198,7 +198,7 @@ class _OtpPageState extends State<OtpPage> {
                                         height: 140,
                                         decoration: BoxDecoration(
                                           color: AppColors.accentOrange
-                                              .withOpacity(0.1),
+                                              .withValues(alpha: 0.1),
                                           shape: BoxShape.circle,
                                         ),
                                         child: Stack(
@@ -402,14 +402,6 @@ class _OtpPageState extends State<OtpPage> {
           );
         },
       ),
-    );
-  }
-
-  Widget _buildDot(Color color) {
-    return Container(
-      width: 6,
-      height: 6,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }

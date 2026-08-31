@@ -19,12 +19,16 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
   ) async {
     emit(SplashLoading());
     await Future.delayed(const Duration(seconds: 3));
-    final isAuthenticated = await checkInitialAuthStatus?.call() ?? false;
+    final authData = await checkInitialAuthStatus?.call();
+    final isAuthenticated = authData?.isAuthenticated ?? false;
     final isFirstTime = await checkFirstTimeUseCase?.call() ?? false;
     emit(
       SplashCompleted(
         isAuthenticated: isAuthenticated,
         isFirstTime: isFirstTime,
+        authStatus: authData?.authStatus,
+        currentStep: authData?.currentStep,
+        phoneNumber: authData?.phoneNumber,
       ),
     );
   }

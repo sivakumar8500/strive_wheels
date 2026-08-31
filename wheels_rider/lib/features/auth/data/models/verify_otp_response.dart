@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'rider_profile.dart';
-import 'driver_registration.dart';
+import 'package:wheels_rider/features/registration/data/models/driver_registration.dart';
 
 part 'verify_otp_response.freezed.dart';
 part 'verify_otp_response.g.dart';

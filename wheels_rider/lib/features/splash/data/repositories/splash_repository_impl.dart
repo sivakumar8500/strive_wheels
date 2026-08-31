@@ -10,4 +10,19 @@ class SplashRepositoryImpl implements SplashRepository {
   Future<bool> isUserAuthenticated() async {
     return await localDataSource.isAuthenticated();
   }
+
+  @override
+  Future<String?> getAuthStatus() async {
+    return await localDataSource.getAuthStatus();
+  }
+
+  @override
+  Future<int?> getCurrentStep() async {
+    return await localDataSource.getCurrentStep();
+  }
+
+  @override
+  Future<String?> getPhoneNumber() async {
+    return await localDataSource.getPhoneNumber();
+  }
 }

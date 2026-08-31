@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../../domain/entities/auth_result.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_local_datasource.dart';
@@ -15,14 +16,13 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<bool> loginWithPhone(String phoneNumber) async {
     try {
-      // Assuming country code +91 as default for now based on the API example
       final response = await remoteDataSource.sendOtp(
         countryCode: '+91', 
         phoneNumber: phoneNumber,
       );
       
       if (response.success) {
-        print('OTP Received (dev): ${response.data.devOtp}');
+        debugPrint('OTP Received (dev): ${response.data.devOtp}');
         return true;
       }
       throw Exception(response.message);

@@ -1,12 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
-import 'dart:math' as math;
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../../trips/presentation/pages/trips_page.dart';
 import '../../../earnings/presentation/pages/earnings_page.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
+import '../bloc/home_bloc.dart';
+import '../bloc/home_event.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../profile/presentation/bloc/profile_bloc.dart';
+import '../../../profile/presentation/bloc/profile_event.dart';
+import '../../../profile/presentation/bloc/profile_state.dart';
+import '../bloc/booking_bloc.dart';
+import '../bloc/booking_event.dart';
+import '../bloc/booking_state.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/app_colors.dart';
 
@@ -17,156 +28,211 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   bool _isOnDuty = true;
-  String _rideType = 'Corporate'; // 'Corporate' or 'Self'
+  String _rideType = 'Self'; // 'Corporate' or 'Self'
   bool _isRideRequestMinimized = false;
   bool _hasActiveRideRequest = true;
+
+  // ignore: unused_field
+  GoogleMapController? _mapController;
+
+  static const CameraPosition _initialPosition = CameraPosition(
+    target: LatLng(37.7800, -122.4050),
+    zoom: 14.5,
+  );
+
+  late final HomeBloc _homeBloc;
+  late final ProfileBloc _profileBloc;
+  late final BookingBloc _bookingBloc;
+  
+  BitmapDescriptor? _customMarker;
+  LatLng? _currentLatLng;
+
+  late final AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat();
+
+    _homeBloc = sl<HomeBloc>();
+    _profileBloc = sl<ProfileBloc>()..add(GetProfileEvent());
+    _bookingBloc = sl<BookingBloc>();
+    _loadCustomMarker();
+    _determinePositionAndSend();
+  }
+
+  Future<void> _loadCustomMarker() async {
+    _customMarker = await BitmapDescriptor.asset(
+      const ImageConfiguration(size: Size(48, 48)),
+      'assets/images/rider_marker.png',
+    );
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _homeBloc.close();
+    _profileBloc.close();
+    _bookingBloc.close();
+    super.dispose();
+  }
+
+  Future<void> _determinePositionAndSend() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return;
+    }
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      if (mounted) {
+        setState(() {
+          _currentLatLng = LatLng(position.latitude, position.longitude);
+        });
+        if (_mapController != null && _currentLatLng != null) {
+          _mapController!.animateCamera(CameraUpdate.newLatLng(_currentLatLng!));
+        }
+        _homeBloc.add(
+          HomeEvent.updateLocation(
+            lat: position.latitude,
+            lng: position.longitude,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("Error getting location: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFEFE9E1),
-      body: Stack(
-        children: [
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: _homeBloc),
+        BlocProvider.value(value: _profileBloc),
+        BlocProvider.value(value: _bookingBloc),
+      ],
+      child: Scaffold(
+        backgroundColor: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFEFE9E1),
+      body: MultiBlocListener(
+        listeners: [
+          BlocListener<ProfileBloc, ProfileState>(
+            listener: (context, state) async {
+              if (state is ProfileLoaded) {
+                final prefs = await SharedPreferences.getInstance();
+                final token = prefs.getString('user_token') ?? '';
+                _bookingBloc.add(ConnectWebSocketEvent(
+                  driverId: state.profile.id,
+                  token: token,
+                ));
+              }
+            },
+          ),
+          BlocListener<BookingBloc, BookingState>(
+            listener: (context, state) {
+              if (state is NewRideRequestState) {
+                setState(() {
+                  _hasActiveRideRequest = true;
+                  _isRideRequestMinimized = false;
+                });
+              } else if (state is RideAcceptedSuccessState) {
+                setState(() {
+                  _hasActiveRideRequest = false;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Ride accepted successfully!')),
+                );
+                // Here we would typically navigate to ActiveTripPage
+              } else if (state is BookingErrorState) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: ${state.message}')),
+                );
+              } else if (state is BookingConnected) {
+                setState(() {
+                  _hasActiveRideRequest = false;
+                });
+              }
+            },
+          ),
+        ],
+        child: Stack(
+          children: [
           // 1. Map Layer
           Positioned.fill(
-            child: FlutterMap(
-              options: const MapOptions(
-                initialCenter: LatLng(37.7800, -122.4050),
-                initialZoom: 14.5,
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.strive.wheels_rider',
-                ),
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: const [
-                        LatLng(37.7780, -122.4150),
-                        LatLng(37.7795, -122.4100),
-                        LatLng(37.7810, -122.4050),
-                        LatLng(37.7850, -122.3950),
-                      ],
-                      color: AppColors.primaryBlue,
-                      strokeWidth: 4.0,
-                    ),
-                  ],
-                ),
-                MarkerLayer(
-                  markers: [
-                    // Start Dot (Location)
-                    Marker(
-                      point: const LatLng(37.7780, -122.4150),
-                      width: 60,
-                      height: 60,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.primaryBlue.withOpacity(0.3),
-                        ),
-                        child: Center(
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.primaryBlue,
-                              border: Border.all(color: Colors.white, width: 3),
-                            ),
+            child: AnimatedBuilder(
+              animation: _pulseController,
+              builder: (context, child) {
+                return GoogleMap(
+                  initialCameraPosition: _initialPosition,
+                  onMapCreated: (controller) => _mapController = controller,
+                  zoomControlsEnabled: false,
+                  myLocationEnabled: false,
+                  myLocationButtonEnabled: false,
+                  polylines: const <Polyline>{},
+                  markers: _currentLatLng != null && _customMarker != null
+                      ? {
+                          Marker(
+                            markerId: const MarkerId('current_location'),
+                            position: _currentLatLng!,
+                            icon: _customMarker!,
+                            anchor: const Offset(0.5, 0.5),
                           ),
-                        ),
-                      ),
-                    ),
-                    // Destination Pin
-                    Marker(
-                      point: const LatLng(37.7850, -122.3950),
-                      width: 40,
-                      height: 40,
-                      alignment: Alignment.topCenter,
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 24,
-                            height: 24,
-                            decoration: const BoxDecoration(
-                              color: AppColors.primaryBlue,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Center(
-                              child: Icon(Icons.circle, color: Colors.white, size: 8),
-                            ),
+                        }
+                      : const <Marker>{},
+                  circles: _currentLatLng != null
+                      ? {
+                          Circle(
+                            circleId: const CircleId('pulse'),
+                            center: _currentLatLng!,
+                            radius: _pulseController.value * 200, // up to 200 meters
+                            fillColor: const Color(0xFF10A142).withValues(alpha: 0.3 * (1 - _pulseController.value)),
+                            strokeWidth: 2,
+                            strokeColor: const Color(0xFF10A142).withValues(alpha: 0.6 * (1 - _pulseController.value)),
                           ),
-                          Container(
-                            width: 4,
-                            height: 16,
-                            color: AppColors.primaryBlue,
-                          ),
-                          Container(
-                            width: 8,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(100),
-                            ),
-                          )
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                        }
+                      : const <Circle>{},
+                );
+              },
             ),
           ),
 
-          // 2. Center "You're online" Badge
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.42,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10A142),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.sensors, color: Colors.white, size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      "You're online",
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+
 
           // 3. Floating Action Buttons (GPS and Filters)
           Positioned(
             top: MediaQuery.of(context).padding.top + 180,
             left: 16,
-            child: _buildFloatingButton(Icons.my_location, isDark),
+            child: _buildFloatingButton(Icons.my_location, isDark, onTap: () {
+              if (_mapController != null && _currentLatLng != null) {
+                _mapController!.animateCamera(CameraUpdate.newLatLng(_currentLatLng!));
+              }
+            }),
           ),
           Positioned(
             top: MediaQuery.of(context).padding.top + 180,
@@ -186,7 +252,7 @@ class _HomePageState extends State<HomePage> {
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
+                    color: Colors.black.withValues(alpha: 0.08),
                     blurRadius: 15,
                     offset: const Offset(0, 4),
                   ),
@@ -201,67 +267,87 @@ class _HomePageState extends State<HomePage> {
                       // Profile Section
                       Expanded(
                         flex: 3,
-                        child: Row(
-                          children: [
-                            Stack(
-                              clipBehavior: Clip.none,
+                        child: BlocBuilder<ProfileBloc, ProfileState>(
+                          builder: (context, state) {
+                            String name = 'Loading...';
+                            String rating = '0.0';
+                            String imageUrl = '';
+
+                            if (state is ProfileLoaded) {
+                              name = state.profile.name;
+                              rating = state.profile.rating.toString();
+                              imageUrl = state.profile.profileImageUrl;
+                            } else if (state is ProfileUpdateSuccess) {
+                              name = state.profile.name;
+                              rating = state.profile.rating.toString();
+                              imageUrl = state.profile.profileImageUrl;
+                            }
+
+                            return Row(
                               children: [
-                                CircleAvatar(
-                                  radius: 20,
-                                  backgroundColor: Colors.grey.shade200,
-                                  backgroundImage: const AssetImage('assets/images/login.png'), // Placeholder
-                                ),
-                                Positioned(
-                                  bottom: 0,
-                                  right: -2,
-                                  child: Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF10A142),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 2),
+                                Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 20,
+                                      backgroundColor: Colors.grey.shade200,
+                                      backgroundImage: imageUrl.isNotEmpty
+                                          ? NetworkImage(imageUrl)
+                                          : const AssetImage('assets/images/login.png') as ImageProvider,
                                     ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Alex',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark ? Colors.white : Colors.black,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.star_outline, color: Colors.orange, size: 12),
-                                      const SizedBox(width: 2),
-                                      Expanded(
-                                        child: Text(
-                                          '4.9 • Top Rated',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 10,
-                                            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
+                                    Positioned(
+                                      bottom: 0,
+                                      right: -2,
+                                      child: Container(
+                                        width: 12,
+                                        height: 12,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF10A142),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: Colors.white, width: 2),
                                         ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        name,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.white : Colors.black,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.star_outline, color: Colors.orange, size: 12),
+                                          const SizedBox(width: 2),
+                                          Expanded(
+                                            child: Text(
+                                              '$rating • Top Rated',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 10,
+                                                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                ],
-                              ),
-                            ),
-                          ],
+                                ),
+                              ],
+                            );
+                          }
                         ),
                       ),
 
@@ -315,8 +401,10 @@ class _HomePageState extends State<HomePage> {
                                   setState(() {
                                     _isOnDuty = val;
                                   });
+                                  final String mode = _rideType == 'Corporate' ? 'EMPLOYEE' : 'NORMAL';
+                                  _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: _isOnDuty));
                                 },
-                                activeColor: Colors.white,
+                                activeThumbColor: Colors.white,
                                 activeTrackColor: AppColors.primaryBlue,
                               ),
                             ),
@@ -327,36 +415,47 @@ class _HomePageState extends State<HomePage> {
                       // Wallet Section
                       Expanded(
                         flex: 3,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    'Wallet Balance',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 9,
-                                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                        child: BlocBuilder<ProfileBloc, ProfileState>(
+                          builder: (context, state) {
+                            String earnings = '0.0';
+                            if (state is ProfileLoaded) {
+                              earnings = state.profile.totalEarnings.toString();
+                            } else if (state is ProfileUpdateSuccess) {
+                              earnings = state.profile.totalEarnings.toString();
+                            }
+                            
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        'Total Earnings',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 9,
+                                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        '₹$earnings',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.white : Colors.black,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
                                   ),
-                                  Text(
-                                    '₹184.50',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark ? Colors.white : Colors.black,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                                ),
+                              ],
+                            );
+                          }
                         ),
                       ),
                     ],
@@ -375,7 +474,11 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => setState(() => _rideType = 'Corporate'),
+                            onTap: () {
+                              setState(() => _rideType = 'Corporate');
+                              final String mode = 'EMPLOYEE';
+                              _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: _isOnDuty));
+                            },
                             child: Container(
                               decoration: BoxDecoration(
                                 color: _rideType == 'Corporate' ? AppColors.primaryBlue : Colors.transparent,
@@ -407,7 +510,11 @@ class _HomePageState extends State<HomePage> {
                         ),
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => setState(() => _rideType = 'Self'),
+                            onTap: () {
+                              setState(() => _rideType = 'Self');
+                              final String mode = 'NORMAL';
+                              _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: _isOnDuty));
+                            },
                             child: Container(
                               decoration: BoxDecoration(
                                 color: _rideType == 'Self' ? AppColors.primaryBlue : Colors.transparent,
@@ -447,16 +554,26 @@ class _HomePageState extends State<HomePage> {
 
           // 5. Bottom Ride Request Card
           if (_hasActiveRideRequest && _isOnDuty)
-            _isRideRequestMinimized
-                ? _buildMinimizedRideRequestCard(isDark)
-                : _buildMaximizedRideRequestCard(isDark),
+            BlocBuilder<BookingBloc, BookingState>(
+              builder: (context, state) {
+                if (state is NewRideRequestState) {
+                  return _isRideRequestMinimized
+                      ? _buildMinimizedRideRequestCard(isDark)
+                      : _buildMaximizedRideRequestCard(isDark, state);
+                } else if (state is AcceptingRideState) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return const SizedBox.shrink();
+              }
+            ),
         ],
+      ),
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, -5),
             ),
@@ -498,58 +615,35 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-    );
+    ));
   }
 
-  Widget _buildFloatingButton(IconData icon, bool isDark) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Icon(icon, color: AppColors.primaryBlue, size: 24),
-    );
-  }
-
-  Widget _buildMetric(IconData icon, String title, String subtitle, bool isDark) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.primaryBlue, size: 20),
-        const SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-            Text(
-              subtitle,
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
-              ),
+  Widget _buildFloatingButton(IconData icon, bool isDark, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
-      ],
+        child: Icon(icon, color: AppColors.primaryBlue, size: 24),
+      ),
     );
   }
 
-  Widget _buildMaximizedRideRequestCard(bool isDark) {
+
+
+  Widget _buildMaximizedRideRequestCard(bool isDark, NewRideRequestState state) {
+    final ride = state.rideRequest;
     return Positioned(
       bottom: 16,
       left: 16,
@@ -569,7 +663,7 @@ class _HomePageState extends State<HomePage> {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 20,
                 offset: const Offset(0, -5),
               ),
@@ -596,7 +690,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         Text(
-                          '₹70.50',
+                          '₹${ride.estimatedFare}',
                           style: GoogleFonts.inter(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
@@ -609,7 +703,7 @@ class _HomePageState extends State<HomePage> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0D6EFD).withOpacity(0.1),
+                      color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -683,7 +777,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '142 Market St, San Francisco',
+                          ride.pickupAddress,
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -723,7 +817,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '88 King St, San Francisco',
+                          ride.dropAddress,
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -745,9 +839,7 @@ class _HomePageState extends State<HomePage> {
                     flex: 1,
                     child: OutlinedButton(
                       onPressed: () {
-                        setState(() {
-                          _hasActiveRideRequest = false;
-                        });
+                        _bookingBloc.add(DeclineRideEvent());
                       },
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -816,7 +908,7 @@ class _HomePageState extends State<HomePage> {
             borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 15,
                 offset: const Offset(0, 5),
               ),

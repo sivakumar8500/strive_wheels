@@ -55,7 +55,6 @@ class _LoginPageState extends State<LoginPage> {
     return BlocListener<LoginBloc, LoginState>(
       listener: (context, state) {
         if (state is LoginSuccess) {
-          // TODO: Navigate to Home Page
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Login Success!')),
           );
@@ -83,7 +82,6 @@ class _LoginPageState extends State<LoginPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Center the illustration using Expanded
                           Expanded(
                             child: Center(
                               child: Image.asset(
@@ -95,7 +93,6 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           const SizedBox(height: 48),
 
-                  // Welcome Titles
                   Text(
                     AppStrings.welcomeBack,
                     style: GoogleFonts.poppins(

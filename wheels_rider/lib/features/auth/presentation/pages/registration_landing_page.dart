@@ -2,13 +2,60 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/constants/app_colors.dart';
-import 'login_page.dart';
-import 'registration_page.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../registration/domain/usecases/submit_instant_registration_usecase.dart';
+import '../../../registration/presentation/pages/registration_page.dart';
 
-class RegistrationLandingPage extends StatelessWidget {
+class RegistrationLandingPage extends StatefulWidget {
   final String phoneNumber;
 
   const RegistrationLandingPage({super.key, required this.phoneNumber});
+
+  @override
+  State<RegistrationLandingPage> createState() => _RegistrationLandingPageState();
+}
+
+class _RegistrationLandingPageState extends State<RegistrationLandingPage> {
+  bool _isLoading = false;
+
+  Future<void> _handleInstantRegistration() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final useCase = sl<SubmitInstantRegistrationUseCase>();
+      final response = await useCase();
+      
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+
+      final targetStep = response.data.nextStep ?? 2;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => RegistrationPage(
+            phoneNumber: widget.phoneNumber,
+            initialStep: targetStep,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Show error snackbar or proceed to registration page gracefully
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Registration setup failed: ${e.toString()}'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +85,7 @@ class RegistrationLandingPage extends StatelessWidget {
                         height: 240,
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: AppColors.primaryBlue.withOpacity(0.1),
+                          color: AppColors.primaryBlue.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
@@ -137,13 +184,7 @@ class RegistrationLandingPage extends StatelessWidget {
                 SizedBox(
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => RegistrationPage(phoneNumber: phoneNumber),
-                        ),
-                      );
-                    },
+                    onPressed: _isLoading ? null : _handleInstantRegistration,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF0D47A1), // Darker blue for button based on design
                       foregroundColor: AppColors.white,
@@ -152,21 +193,30 @@ class RegistrationLandingPage extends StatelessWidget {
                       ),
                       elevation: 0,
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Register as Driver',
-                          style: GoogleFonts.inter(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.5,
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: AppColors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Register as Driver',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.arrow_forward, size: 20),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.arrow_forward, size: 20),
-                      ],
-                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -179,8 +229,8 @@ class RegistrationLandingPage extends StatelessWidget {
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
                     color: isDark
-                        ? AppColors.textSecondaryDark.withOpacity(0.7)
-                        : AppColors.onboardingTextSecondaryLight.withOpacity(0.7),
+                        ? AppColors.textSecondaryDark.withValues(alpha: 0.7)
+                        : AppColors.onboardingTextSecondaryLight.withValues(alpha: 0.7),
                     height: 1.5,
                   ),
                 ),
@@ -216,7 +266,7 @@ class RegistrationLandingPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.primaryBlue.withOpacity(0.1),
+              color: AppColors.primaryBlue.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
