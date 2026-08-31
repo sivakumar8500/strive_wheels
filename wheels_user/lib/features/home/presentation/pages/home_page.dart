@@ -251,47 +251,38 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               children: [
                 // 1. Map Layer Background
                 Positioned.fill(
-                  child: AnimatedBuilder(
-                    animation: _pulseController,
-                    builder: (context, child) {
-                      return GoogleMap(
-                        initialCameraPosition: CameraPosition(
-                          target: _currentPosition,
-                          zoom: 16.0,
-                        ),
-                        zoomControlsEnabled: false,
-                        myLocationEnabled: false,
-                        myLocationButtonEnabled: false,
-                        compassEnabled: false,
-                        mapToolbarEnabled: false,
-                        onMapCreated: (controller) {
-                          _mapController = controller;
-                        },
-                        markers: {
-                          Marker(
-                            markerId: const MarkerId('current_location'),
-                            position: _currentPosition,
-                            infoWindow: const InfoWindow(title: 'Current Location'),
-                            icon: _customMarker ??
-                                BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-                            anchor: const Offset(0.5, 0.5),
-                          ),
-                        },
-                        circles: {
-                          Circle(
-                            circleId: const CircleId('user_pulse'),
-                            center: _currentPosition,
-                            radius: _pulseController.value * 200,
-                            fillColor: AppColors.primaryBlue.withValues(
-                              alpha: 0.25 * (1 - _pulseController.value),
-                            ),
-                            strokeWidth: 2,
-                            strokeColor: AppColors.primaryBlue.withValues(
-                              alpha: 0.5 * (1 - _pulseController.value),
-                            ),
-                          ),
-                        },
-                      );
+                  child: GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: _currentPosition,
+                      zoom: 16.0,
+                    ),
+                    zoomControlsEnabled: false,
+                    myLocationEnabled: false,
+                    myLocationButtonEnabled: false,
+                    compassEnabled: false,
+                    mapToolbarEnabled: false,
+                    onMapCreated: (controller) {
+                      _mapController = controller;
+                    },
+                    markers: {
+                      Marker(
+                        markerId: const MarkerId('current_location'),
+                        position: _currentPosition,
+                        infoWindow: const InfoWindow(title: 'Current Location'),
+                        icon: _customMarker ??
+                            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+                        anchor: const Offset(0.5, 0.5),
+                      ),
+                    },
+                    circles: {
+                      Circle(
+                        circleId: const CircleId('user_pulse'),
+                        center: _currentPosition,
+                        radius: 100,
+                        fillColor: AppColors.primaryBlue.withValues(alpha: 0.2),
+                        strokeWidth: 2,
+                        strokeColor: AppColors.primaryBlue.withValues(alpha: 0.5),
+                      ),
                     },
                   ),
                 ),
