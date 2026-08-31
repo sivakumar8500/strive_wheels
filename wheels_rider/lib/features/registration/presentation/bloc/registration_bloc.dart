@@ -362,9 +362,12 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         };
 
         final response = await submitVehicleDocsUsecase(payload);
-        if (response.success && response.data.nextStep != null) {
+        if (response.success) {
+          final nextStep = (response.data.nextStep != null && response.data.nextStep! > 0)
+              ? response.data.nextStep!
+              : (state.currentStep + 1);
           emit(state.copyWith(
-            currentStep: response.data.nextStep!,
+            currentStep: nextStep,
             data: updatedData.copyWith(
               rcFrontPath: rcFrontUrl,
               rcBackPath: rcBackUrl,
@@ -384,7 +387,9 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         } else {
           emit(state.copyWith(
             status: RegistrationStatus.failure,
-            errorMessage: response.data.message,
+            errorMessage: response.data.message.isNotEmpty
+                ? response.data.message
+                : "Failed to submit vehicle documents",
           ));
         }
       } catch (e) {
@@ -430,16 +435,21 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
 
       try {
         final response = await submitVehicleDetailsUsecase(payload);
-        if (response.success && response.data.nextStep != null) {
+        if (response.success) {
+          final nextStep = (response.data.nextStep != null && response.data.nextStep! > 0)
+              ? response.data.nextStep!
+              : (state.currentStep + 1);
           emit(state.copyWith(
-            currentStep: response.data.nextStep!,
+            currentStep: nextStep,
             data: updatedData,
             status: RegistrationStatus.success,
           ));
         } else {
           emit(state.copyWith(
             status: RegistrationStatus.failure,
-            errorMessage: response.data.message,
+            errorMessage: response.data.message.isNotEmpty
+                ? response.data.message
+                : "Failed to submit vehicle details",
           ));
         }
       } catch (e) {
@@ -485,16 +495,21 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         };
 
         final response = await submitBankDetailsUsecase(payload);
-        if (response.success && response.data.nextStep != null) {
+        if (response.success) {
+          final nextStep = (response.data.nextStep != null && response.data.nextStep! > 0)
+              ? response.data.nextStep!
+              : (state.currentStep + 1);
           emit(state.copyWith(
-            currentStep: response.data.nextStep!,
+            currentStep: nextStep,
             data: updatedData.copyWith(bankChequePath: chequeUrl),
             status: RegistrationStatus.success,
           ));
         } else {
           emit(state.copyWith(
             status: RegistrationStatus.failure,
-            errorMessage: response.data.message,
+            errorMessage: response.data.message.isNotEmpty
+                ? response.data.message
+                : "Failed to submit bank details",
           ));
         }
       } catch (e) {
@@ -530,16 +545,21 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
 
       try {
         final response = await submitEmergencyContactUsecase(payload);
-        if (response.success && response.data.nextStep != null) {
+        if (response.success) {
+          final nextStep = (response.data.nextStep != null && response.data.nextStep! > 0)
+              ? response.data.nextStep!
+              : (state.currentStep + 1);
           emit(state.copyWith(
-            currentStep: response.data.nextStep!,
+            currentStep: nextStep,
             data: updatedData,
             status: RegistrationStatus.success,
           ));
         } else {
           emit(state.copyWith(
             status: RegistrationStatus.failure,
-            errorMessage: response.data.message,
+            errorMessage: response.data.message.isNotEmpty
+                ? response.data.message
+                : "Failed to submit emergency contact",
           ));
         }
       } catch (e) {
