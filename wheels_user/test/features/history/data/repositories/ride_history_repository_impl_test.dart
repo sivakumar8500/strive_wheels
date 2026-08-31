@@ -5,17 +5,26 @@ import 'package:wheels_user/features/history/data/models/past_ride_item_model.da
 import 'package:wheels_user/features/history/data/models/ride_history_model.dart';
 import 'package:wheels_user/features/history/data/repositories/ride_history_repository_impl.dart';
 
+import 'package:wheels_user/features/history/data/datasources/ride_history_remote_data_source.dart';
+
 class MockRideHistoryLocalDataSource extends Mock
     implements RideHistoryLocalDataSource {}
+
+class MockRideHistoryRemoteDataSource extends Mock
+    implements RideHistoryRemoteDataSource {}
 
 void main() {
   late RideHistoryRepositoryImpl repository;
   late MockRideHistoryLocalDataSource mockLocalDataSource;
+  late MockRideHistoryRemoteDataSource mockRemoteDataSource;
 
   setUp(() {
     mockLocalDataSource = MockRideHistoryLocalDataSource();
-    repository =
-        RideHistoryRepositoryImpl(localDataSource: mockLocalDataSource);
+    mockRemoteDataSource = MockRideHistoryRemoteDataSource();
+    repository = RideHistoryRepositoryImpl(
+      localDataSource: mockLocalDataSource,
+      remoteDataSource: mockRemoteDataSource,
+    );
   });
 
   const tModel = RideHistoryModel(
@@ -40,6 +49,8 @@ void main() {
     // arrange
     when(() => mockLocalDataSource.getRideHistoryData())
         .thenAnswer((_) async => tModel);
+    when(() => mockRemoteDataSource.getBookingHistory())
+        .thenAnswer((_) async => []);
 
     // act
     final result = await repository.getRideHistory();

@@ -18,7 +18,7 @@ void main() {
     expect(find.text(AppStrings.onboardingTitle1), findsOneWidget);
   });
 
-  testWidgets('App subsequent launch displays SplashPage and navigates to LoginPage',
+  testWidgets('App subsequent launch displays SplashPage and navigates to AuthPage',
       (WidgetTester tester) async {
     await initDependencyInjection();
     await tester.pumpWidget(const WheelsUserApp(isFirstTime: false));

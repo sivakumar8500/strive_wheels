@@ -2,99 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_strings.dart';
-
-class QuickServiceItem {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color bgColor;
-  final Color iconColor;
-
-  const QuickServiceItem({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.bgColor,
-    required this.iconColor,
-  });
-}
+import '../../domain/entities/home_dashboard_entity.dart';
 
 class QuickServicesGrid extends StatelessWidget {
+  final List<QuickServiceEntity> services;
   final Function(String serviceName)? onServiceTap;
 
   const QuickServicesGrid({
     super.key,
+    required this.services,
     this.onServiceTap,
   });
 
-  static const List<QuickServiceItem> _services = [
-    QuickServiceItem(
-      title: AppStrings.serviceBike,
-      subtitle: AppStrings.serviceBikeSubtitle,
-      icon: Icons.two_wheeler_rounded,
-      bgColor: AppColors.bikeServiceBg,
-      iconColor: AppColors.bikeServiceIcon,
-    ),
-    QuickServiceItem(
-      title: AppStrings.serviceAuto,
-      subtitle: AppStrings.serviceAutoSubtitle,
-      icon: Icons.electric_rickshaw_rounded,
-      bgColor: AppColors.autoServiceBg,
-      iconColor: AppColors.autoServiceIcon,
-    ),
-    QuickServiceItem(
-      title: AppStrings.serviceCab,
-      subtitle: AppStrings.serviceCabSubtitle,
-      icon: Icons.directions_car_rounded,
-      bgColor: AppColors.cabServiceBg,
-      iconColor: AppColors.cabServiceIcon,
-    ),
-    QuickServiceItem(
-      title: AppStrings.serviceRental,
-      subtitle: AppStrings.serviceRentalSubtitle,
-      icon: Icons.access_time_filled_rounded,
-      bgColor: AppColors.rentalServiceBg,
-      iconColor: AppColors.rentalServiceIcon,
-    ),
-    QuickServiceItem(
-      title: AppStrings.serviceParcel,
-      subtitle: AppStrings.serviceParcelSubtitle,
-      icon: Icons.inventory_2_rounded,
-      bgColor: AppColors.parcelServiceBg,
-      iconColor: AppColors.parcelServiceIcon,
-    ),
-    QuickServiceItem(
-      title: AppStrings.serviceCourier,
-      subtitle: AppStrings.serviceCourierSubtitle,
-      icon: Icons.send_rounded,
-      bgColor: AppColors.courierServiceBg,
-      iconColor: AppColors.courierServiceIcon,
-    ),
-    QuickServiceItem(
-      title: AppStrings.serviceAirport,
-      subtitle: AppStrings.serviceAirportSubtitle,
-      icon: Icons.account_balance_rounded,
-      bgColor: AppColors.airportServiceBg,
-      iconColor: AppColors.airportServiceIcon,
-    ),
-    QuickServiceItem(
-      title: AppStrings.serviceCorporate,
-      subtitle: AppStrings.serviceCorporateSubtitle,
-      icon: Icons.receipt_long_rounded,
-      bgColor: AppColors.corporateServiceBg,
-      iconColor: AppColors.corporateServiceIcon,
-    ),
-  ];
+
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    if (services.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return GridView.builder(
+      padding: EdgeInsets.zero,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: _services.length,
+      itemCount: services.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 4,
         crossAxisSpacing: 12,
@@ -102,12 +36,12 @@ class QuickServicesGrid extends StatelessWidget {
         childAspectRatio: 0.72,
       ),
       itemBuilder: (context, index) {
-        final item = _services[index];
+        final item = services[index];
         return InkWell(
           onTap: () => onServiceTap?.call(item.title),
           borderRadius: BorderRadius.circular(16),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
             decoration: BoxDecoration(
               color: isDark
                   ? AppColors.serviceTileBgDark
@@ -125,16 +59,31 @@ class QuickServicesGrid extends StatelessWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: item.bgColor,
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(
-                    item.icon,
-                    color: item.iconColor,
-                    size: 24,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: item.iconUrl.isNotEmpty
+                        ? Image.network(
+                            item.iconUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(
+                                Icons.local_taxi_rounded,
+                                color: isDark ? Colors.white54 : Colors.black54,
+                                size: 24,
+                              );
+                            },
+                          )
+                        : Icon(
+                            Icons.local_taxi_rounded,
+                            color: isDark ? Colors.white54 : Colors.black54,
+                            size: 24,
+                          ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                
                 Text(
                   item.title,
                   style: GoogleFonts.inter(

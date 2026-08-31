@@ -8,10 +8,11 @@ part of 'favorite_place_model.dart';
 
 _FavoritePlaceModel _$FavoritePlaceModelFromJson(Map<String, dynamic> json) =>
     _FavoritePlaceModel(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      address: json['address'] as String,
-      iconType: json['iconType'] as String,
+      id: (_readId(json, 'id') as num).toInt(),
+      title: json['title'] as String? ?? 'Unknown',
+      address: json['address'] as String? ?? '',
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
     );
 
 Map<String, dynamic> _$FavoritePlaceModelToJson(_FavoritePlaceModel instance) =>
@@ -19,5 +20,6 @@ Map<String, dynamic> _$FavoritePlaceModelToJson(_FavoritePlaceModel instance) =>
       'id': instance.id,
       'title': instance.title,
       'address': instance.address,
-      'iconType': instance.iconType,
+      'latitude': instance.latitude,
+      'longitude': instance.longitude,
     };

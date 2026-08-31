@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -20,6 +22,7 @@ import '../bloc/home_state.dart';
 import '../widgets/home_bottom_nav_bar.dart';
 import '../widgets/home_search_bar.dart';
 import '../widgets/offers_carousel.dart';
+import '../widgets/popular_locations_grid.dart';
 import '../widgets/quick_services_grid.dart';
 import '../widgets/recent_ride_card.dart';
 
@@ -32,10 +35,66 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  GoogleMapController? _mapController;
+  LatLng _currentPosition = const LatLng(37.7749, -122.4194); // Default fallback (San Francisco)
+  bool _loadingLocation = true;
+
   @override
   void initState() {
     super.initState();
     context.read<HomeBloc>().add(const LoadHomeDashboardEvent());
+    _getCurrentLocation();
+  }
+
+  Future<void> _getCurrentLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() { _loadingLocation = false; });
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          setState(() { _loadingLocation = false; });
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        setState(() { _loadingLocation = false; });
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      final newLatLng = LatLng(position.latitude, position.longitude);
+
+      if (mounted) {
+        setState(() {
+          _currentPosition = newLatLng;
+          _loadingLocation = false;
+        });
+      }
+
+      _mapController?.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: newLatLng,
+            zoom: 16.0,
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error getting current location: $e');
+      if (mounted) {
+        setState(() { _loadingLocation = false; });
+      }
+    }
   }
 
   @override
@@ -130,57 +189,27 @@ class _HomePageState extends State<HomePage> {
               children: [
                 // 1. Map Layer Background
                 Positioned.fill(
-                  child: Image.asset(
-                    AppAssets.mapBackground,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: isDark
-                            ? const Color(0xFF0F172A)
-                            : const Color(0xFFE2E8F0),
-                        child: const Center(
-                          child: Icon(
-                            Icons.map_rounded,
-                            size: 100,
-                            color: AppColors.primaryBlue,
-                          ),
-                        ),
-                      );
+                  child: GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: _currentPosition,
+                      zoom: 16.0,
+                    ),
+                    zoomControlsEnabled: false,
+                    myLocationEnabled: true,
+                    myLocationButtonEnabled: false,
+                    compassEnabled: false,
+                    mapToolbarEnabled: false,
+                    onMapCreated: (controller) {
+                      _mapController = controller;
                     },
-                  ),
-                ),
-
-                // 2. Pulse / Location Pin Marker on Map
-                Positioned(
-                  top: MediaQuery.of(context).size.height * 0.28,
-                  left: MediaQuery.of(context).size.width * 0.46,
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryBlue.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Container(
-                        width: 16,
-                        height: 16,
-                        decoration: const BoxDecoration(
-                          color: AppColors.primaryBlue,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Container(
-                            width: 6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
+                    markers: {
+                      Marker(
+                        markerId: const MarkerId('current_location'),
+                        position: _currentPosition,
+                        infoWindow: const InfoWindow(title: 'Current Location'),
+                        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
                       ),
-                    ),
+                    },
                   ),
                 ),
 
@@ -234,23 +263,30 @@ class _HomePageState extends State<HomePage> {
 
                 // 4. Main Scrollable Floating Sheet
                 Positioned.fill(
-                  top: MediaQuery.of(context).size.height * 0.32,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: sheetBg,
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(28),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 16,
-                          offset: const Offset(0, -4),
+                  child: DraggableScrollableSheet(
+                    initialChildSize: 0.65,
+                    minChildSize: 0.3,
+                    maxChildSize: 0.9,
+                    snap: true,
+                    snapSizes: const [0.3, 0.65, 0.9],
+                    builder: (BuildContext context, ScrollController scrollController) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: sheetBg,
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(28),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 16,
+                              offset: const Offset(0, -4),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
+                      child: SingleChildScrollView(
+                        controller: scrollController,
+                        physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.only(
                         left: 20,
                         right: 20,
@@ -312,7 +348,7 @@ class _HomePageState extends State<HomePage> {
                             },
                           ),
 
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 5),
 
                           // Section Title: Quick Ride Services
                           Text(
@@ -325,10 +361,11 @@ class _HomePageState extends State<HomePage> {
                                   : AppColors.onboardingTextPrimaryLight,
                             ),
                           ),
-                          const SizedBox(height: 14),
+                          
 
                           // Quick Services 8-Grid
                           QuickServicesGrid(
+                            services: entity?.quickServices ?? [],
                             onServiceTap: (serviceName) {
                               context
                                   .read<HomeBloc>()
@@ -351,7 +388,19 @@ class _HomePageState extends State<HomePage> {
                             },
                           ),
 
-                          const SizedBox(height: 28),
+                        
+
+                          // Popular Locations Grid
+                          if (entity?.popularLocations.isNotEmpty == true)
+                            PopularLocationsGrid(
+                              locations: entity!.popularLocations,
+                              onLocationTap: (locationId) {
+                                // Add navigation or logic
+                              },
+                            ),
+
+                          if (entity?.popularLocations.isNotEmpty == true)
+                            const SizedBox(height: 28),
 
                           // Section Title: Offers for You
                           Text(
@@ -368,6 +417,7 @@ class _HomePageState extends State<HomePage> {
 
                           // Offers Banner Carousel
                           OffersCarousel(
+                            coupons: entity?.coupons ?? [],
                             onClaimOfferTap: () {
                               context
                                   .read<HomeBloc>()
@@ -378,10 +428,12 @@ class _HomePageState extends State<HomePage> {
                           const SizedBox(height: 20),
                         ],
                       ),
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 ),
-              ],
+              ),
+            ],
             );
           }
 

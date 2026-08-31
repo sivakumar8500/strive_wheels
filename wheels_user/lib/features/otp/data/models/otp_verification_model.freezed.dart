@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$OtpVerificationModel {
 
- String get fullPhoneNumber; String get otpCode;
+@JsonKey(name: 'phone') String get fullPhoneNumber;@JsonKey(name: 'otp') String get otpCode;
 /// Create a copy of OtpVerificationModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -48,7 +48,7 @@ abstract mixin class $OtpVerificationModelCopyWith<$Res>  {
   factory $OtpVerificationModelCopyWith(OtpVerificationModel value, $Res Function(OtpVerificationModel) _then) = _$OtpVerificationModelCopyWithImpl;
 @useResult
 $Res call({
- String fullPhoneNumber, String otpCode
+@JsonKey(name: 'phone') String fullPhoneNumber,@JsonKey(name: 'otp') String otpCode
 });
 
 
@@ -154,7 +154,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String fullPhoneNumber,  String otpCode)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'phone')  String fullPhoneNumber, @JsonKey(name: 'otp')  String otpCode)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _OtpVerificationModel() when $default != null:
 return $default(_that.fullPhoneNumber,_that.otpCode);case _:
@@ -175,7 +175,7 @@ return $default(_that.fullPhoneNumber,_that.otpCode);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String fullPhoneNumber,  String otpCode)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'phone')  String fullPhoneNumber, @JsonKey(name: 'otp')  String otpCode)  $default,) {final _that = this;
 switch (_that) {
 case _OtpVerificationModel():
 return $default(_that.fullPhoneNumber,_that.otpCode);case _:
@@ -195,7 +195,7 @@ return $default(_that.fullPhoneNumber,_that.otpCode);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String fullPhoneNumber,  String otpCode)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'phone')  String fullPhoneNumber, @JsonKey(name: 'otp')  String otpCode)?  $default,) {final _that = this;
 switch (_that) {
 case _OtpVerificationModel() when $default != null:
 return $default(_that.fullPhoneNumber,_that.otpCode);case _:
@@ -210,11 +210,11 @@ return $default(_that.fullPhoneNumber,_that.otpCode);case _:
 @JsonSerializable()
 
 class _OtpVerificationModel extends OtpVerificationModel {
-  const _OtpVerificationModel({required this.fullPhoneNumber, required this.otpCode}): super._();
+  const _OtpVerificationModel({@JsonKey(name: 'phone') required this.fullPhoneNumber, @JsonKey(name: 'otp') required this.otpCode}): super._();
   factory _OtpVerificationModel.fromJson(Map<String, dynamic> json) => _$OtpVerificationModelFromJson(json);
 
-@override final  String fullPhoneNumber;
-@override final  String otpCode;
+@override@JsonKey(name: 'phone') final  String fullPhoneNumber;
+@override@JsonKey(name: 'otp') final  String otpCode;
 
 /// Create a copy of OtpVerificationModel
 /// with the given fields replaced by the non-null parameter values.
@@ -249,7 +249,7 @@ abstract mixin class _$OtpVerificationModelCopyWith<$Res> implements $OtpVerific
   factory _$OtpVerificationModelCopyWith(_OtpVerificationModel value, $Res Function(_OtpVerificationModel) _then) = __$OtpVerificationModelCopyWithImpl;
 @override @useResult
 $Res call({
- String fullPhoneNumber, String otpCode
+@JsonKey(name: 'phone') String fullPhoneNumber,@JsonKey(name: 'otp') String otpCode
 });
 
 

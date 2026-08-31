@@ -3,16 +3,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:wheels_user/features/favourites/domain/entities/favorite_place_entity.dart';
 import 'package:wheels_user/features/favourites/domain/entities/favourites_entity.dart';
+import 'package:wheels_user/features/favourites/domain/usecases/add_favorite_usecase.dart';
+import 'package:wheels_user/features/favourites/domain/usecases/update_favorite_usecase.dart';
+import 'package:wheels_user/features/favourites/domain/usecases/delete_favorite_usecase.dart';
 import 'package:wheels_user/features/favourites/domain/usecases/get_favourites_usecase.dart';
 import 'package:wheels_user/features/favourites/presentation/bloc/favourites_bloc.dart';
 import 'package:wheels_user/features/favourites/presentation/bloc/favourites_event.dart';
 import 'package:wheels_user/features/favourites/presentation/bloc/favourites_state.dart';
 
 class MockGetFavouritesUseCase extends Mock implements GetFavouritesUseCase {}
+class MockAddFavoriteUseCase extends Mock implements AddFavoriteUseCase {}
+class MockUpdateFavoriteUseCase extends Mock implements UpdateFavoriteUseCase {}
+class MockDeleteFavoriteUseCase extends Mock implements DeleteFavoriteUseCase {}
 
 void main() {
   late FavouritesBloc bloc;
   late MockGetFavouritesUseCase mockGetFavouritesUseCase;
+  late MockAddFavoriteUseCase mockAddFavoriteUseCase;
+  late MockUpdateFavoriteUseCase mockUpdateFavoriteUseCase;
+  late MockDeleteFavoriteUseCase mockDeleteFavoriteUseCase;
 
   const tEntity = FavouritesEntity(
     shortcutTitle: 'Places you ride to most',
@@ -29,7 +38,15 @@ void main() {
 
   setUp(() {
     mockGetFavouritesUseCase = MockGetFavouritesUseCase();
-    bloc = FavouritesBloc(getFavouritesUseCase: mockGetFavouritesUseCase);
+    mockAddFavoriteUseCase = MockAddFavoriteUseCase();
+    mockUpdateFavoriteUseCase = MockUpdateFavoriteUseCase();
+    mockDeleteFavoriteUseCase = MockDeleteFavoriteUseCase();
+    bloc = FavouritesBloc(
+      getFavouritesUseCase: mockGetFavouritesUseCase,
+      addFavoriteUseCase: mockAddFavoriteUseCase,
+      updateFavoriteUseCase: mockUpdateFavoriteUseCase,
+      deleteFavoriteUseCase: mockDeleteFavoriteUseCase,
+    );
   });
 
   tearDown(() {

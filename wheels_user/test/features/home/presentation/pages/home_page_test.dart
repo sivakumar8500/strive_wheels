@@ -24,6 +24,16 @@ void main() {
     greetingSubtitle: 'Siri, ready for your next ride?',
     recentRideTitle: 'Office ➔ Home',
     recentRideDetails: 'Yesterday • Bike • ₹185',
+    quickServices: [
+      QuickServiceEntity(id: '1', title: 'Bike', subtitle: 'Quick', iconUrl: ''),
+      QuickServiceEntity(id: '2', title: 'Auto', subtitle: 'Standard', iconUrl: ''),
+    ],
+    popularLocations: [
+      PopularLocationEntity(id: '1', title: 'Work', address: '123 Main St', type: 'work'),
+    ],
+    coupons: [
+      CouponEntity(id: '1', title: 'Get 50% Off', code: 'OFFER10', description: '10% off'),
+    ],
   );
 
   Widget createWidgetUnderTest() {
@@ -54,7 +64,8 @@ void main() {
     );
 
     await widgetTester.pumpWidget(createWidgetUnderTest());
-    await widgetTester.pumpAndSettle();
+    await widgetTester.pump();
+    await widgetTester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Good Morning 👋'), findsOneWidget);
     expect(find.text('Siri, ready for your next ride?'), findsOneWidget);
@@ -62,7 +73,9 @@ void main() {
     expect(find.text('Quick ride services'), findsOneWidget);
     expect(find.text('Bike'), findsOneWidget);
     expect(find.text('Auto'), findsOneWidget);
+    expect(find.text('Work'), findsOneWidget);
     expect(find.text('Offers for you'), findsOneWidget);
+    expect(find.text('Get 50% Off'), findsOneWidget);
     expect(find.text('Home'), findsOneWidget);
   });
 
@@ -77,7 +90,8 @@ void main() {
     );
 
     await widgetTester.pumpWidget(createWidgetUnderTest());
-    await widgetTester.pumpAndSettle();
+    await widgetTester.pump();
+    await widgetTester.pump(const Duration(milliseconds: 500));
 
     final searchTextField = find.byKey(const Key('home_search_text_field'));
     expect(searchTextField, findsOneWidget);
@@ -99,7 +113,8 @@ void main() {
     );
 
     await widgetTester.pumpWidget(createWidgetUnderTest());
-    await widgetTester.pumpAndSettle();
+    await widgetTester.pump();
+    await widgetTester.pump(const Duration(milliseconds: 500));
 
     await widgetTester.tap(find.byKey(const Key('home_search_menu_button')));
     verify(() => mockHomeBloc.add(const OpenMenuEvent())).called(1);

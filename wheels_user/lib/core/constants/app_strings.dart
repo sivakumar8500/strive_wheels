@@ -52,7 +52,7 @@ abstract class AppStrings {
   // Home Dashboard Strings
   static const String searchPlaceholder = 'Where would you go?';
   static const String goodMorning = 'Good Morning 👋';
-  static const String readyForNextRide = 'Siri, ready for your next ride?';
+  static const String readyForNextRide = 'Nikhil, ready for your next ride?';
   static const String recentRideOfficeToHome = 'Office ➔ Home';
   static const String recentRideDetails = 'Yesterday • Bike • ₹185';
   static const String repeat = 'Repeat';

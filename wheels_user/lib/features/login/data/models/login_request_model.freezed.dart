@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$LoginRequestModel {
 
- String get countryCode; String get phoneNumber;
+ String get countryCode;@JsonKey(name: 'phone') String get phoneNumber;
 /// Create a copy of LoginRequestModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -48,7 +48,7 @@ abstract mixin class $LoginRequestModelCopyWith<$Res>  {
   factory $LoginRequestModelCopyWith(LoginRequestModel value, $Res Function(LoginRequestModel) _then) = _$LoginRequestModelCopyWithImpl;
 @useResult
 $Res call({
- String countryCode, String phoneNumber
+ String countryCode,@JsonKey(name: 'phone') String phoneNumber
 });
 
 
@@ -154,7 +154,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String countryCode,  String phoneNumber)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String countryCode, @JsonKey(name: 'phone')  String phoneNumber)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LoginRequestModel() when $default != null:
 return $default(_that.countryCode,_that.phoneNumber);case _:
@@ -175,7 +175,7 @@ return $default(_that.countryCode,_that.phoneNumber);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String countryCode,  String phoneNumber)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String countryCode, @JsonKey(name: 'phone')  String phoneNumber)  $default,) {final _that = this;
 switch (_that) {
 case _LoginRequestModel():
 return $default(_that.countryCode,_that.phoneNumber);case _:
@@ -195,7 +195,7 @@ return $default(_that.countryCode,_that.phoneNumber);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String countryCode,  String phoneNumber)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String countryCode, @JsonKey(name: 'phone')  String phoneNumber)?  $default,) {final _that = this;
 switch (_that) {
 case _LoginRequestModel() when $default != null:
 return $default(_that.countryCode,_that.phoneNumber);case _:
@@ -210,11 +210,11 @@ return $default(_that.countryCode,_that.phoneNumber);case _:
 @JsonSerializable()
 
 class _LoginRequestModel extends LoginRequestModel {
-  const _LoginRequestModel({required this.countryCode, required this.phoneNumber}): super._();
+  const _LoginRequestModel({required this.countryCode, @JsonKey(name: 'phone') required this.phoneNumber}): super._();
   factory _LoginRequestModel.fromJson(Map<String, dynamic> json) => _$LoginRequestModelFromJson(json);
 
 @override final  String countryCode;
-@override final  String phoneNumber;
+@override@JsonKey(name: 'phone') final  String phoneNumber;
 
 /// Create a copy of LoginRequestModel
 /// with the given fields replaced by the non-null parameter values.
@@ -249,7 +249,7 @@ abstract mixin class _$LoginRequestModelCopyWith<$Res> implements $LoginRequestM
   factory _$LoginRequestModelCopyWith(_LoginRequestModel value, $Res Function(_LoginRequestModel) _then) = __$LoginRequestModelCopyWithImpl;
 @override @useResult
 $Res call({
- String countryCode, String phoneNumber
+ String countryCode,@JsonKey(name: 'phone') String phoneNumber
 });
 
 

@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../login/presentation/bloc/login_bloc.dart';
-import '../../../login/presentation/pages/login_page.dart';
+import '../../../login/presentation/pages/auth_page.dart';
 import '../bloc/onboarding_bloc.dart';
 import '../bloc/onboarding_event.dart';
 import '../bloc/onboarding_state.dart';
@@ -41,7 +41,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       MaterialPageRoute(
         builder: (_) => BlocProvider<LoginBloc>(
           create: (_) => sl<LoginBloc>(),
-          child: const LoginPage(),
+          child: const AuthPage(),
         ),
       ),
     );

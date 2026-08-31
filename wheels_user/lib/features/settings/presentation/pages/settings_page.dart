@@ -12,6 +12,9 @@ import '../widgets/logout_button.dart';
 import '../widgets/profile_header_card.dart';
 import '../widgets/settings_group_card.dart';
 import '../widgets/user_stats_row.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../login/presentation/bloc/login_bloc.dart';
+import '../../../login/presentation/pages/auth_page.dart';
 
 /// User Profile & Settings Screen matching exact reference UI design.
 class SettingsPage extends StatefulWidget {
@@ -49,7 +52,17 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       body: BlocConsumer<SettingsBloc, SettingsState>(
         listener: (context, state) {
-          if (state.actionMessage != null) {
+          if (state.isLoggedOut) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (_) => BlocProvider<LoginBloc>(
+                  create: (_) => sl<LoginBloc>(),
+                  child: const AuthPage(),
+                ),
+              ),
+              (route) => false,
+            );
+          } else if (state.actionMessage != null) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.actionMessage!),

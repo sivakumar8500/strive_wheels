@@ -38,7 +38,8 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     } catch (e) {
       emit(state.copyWith(
         isLoading: false,
-        errorMessage: 'Failed to load dashboard',
+        errorMessage: 'Failed to load dashboard: $e',
+        actionMessage: 'Failed to load: $e',
       ));
     }
   }

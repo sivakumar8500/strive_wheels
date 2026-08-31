@@ -9,8 +9,8 @@ abstract class OtpVerificationModel with _$OtpVerificationModel {
   const OtpVerificationModel._();
 
   const factory OtpVerificationModel({
-    required String fullPhoneNumber,
-    required String otpCode,
+    @JsonKey(name: 'phone') required String fullPhoneNumber,
+    @JsonKey(name: 'otp') required String otpCode,
   }) = _OtpVerificationModel;
 
   factory OtpVerificationModel.fromJson(Map<String, dynamic> json) =>

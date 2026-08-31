@@ -1,6 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dio/dio.dart';
+
+import '../network/api_client.dart';
+import '../network/api_constants.dart';
+import '../network/auth_interceptor.dart';
 
 import '../../features/booking/data/datasources/booking_local_datasource.dart';
 import '../../features/booking/data/repositories/booking_repository_impl.dart';
@@ -8,22 +13,28 @@ import '../../features/booking/domain/repositories/booking_repository.dart';
 import '../../features/booking/domain/usecases/get_available_vehicles_usecase.dart';
 import '../../features/booking/domain/usecases/get_recent_journeys_usecase.dart';
 import '../../features/booking/presentation/bloc/booking_bloc.dart';
-import '../../features/contacts/data/datasources/contacts_local_datasource.dart';
-import '../../features/contacts/data/repositories/contacts_repository_impl.dart';
-import '../../features/contacts/domain/repositories/contacts_repository.dart';
-import '../../features/contacts/domain/usecases/request_contacts_permission_usecase.dart';
-import '../../features/contacts/presentation/bloc/contacts_bloc.dart';
-import '../../features/favourites/data/datasources/favourites_local_datasource.dart';
+import '../../features/permissions/data/datasources/permissions_local_datasource.dart';
+import '../../features/permissions/data/repositories/permissions_repository_impl.dart';
+import '../../features/permissions/domain/repositories/permissions_repository.dart';
+import '../../features/permissions/domain/usecases/save_permissions_usecase.dart';
+import '../../features/permissions/domain/usecases/get_permissions_usecase.dart';
+import '../../features/permissions/presentation/bloc/permissions_bloc.dart';
+import '../../features/favourites/data/datasources/favourites_remote_data_source.dart';
 import '../../features/favourites/data/repositories/favourites_repository_impl.dart';
 import '../../features/favourites/domain/repositories/favourites_repository.dart';
+import '../../features/favourites/domain/usecases/add_favorite_usecase.dart';
+import '../../features/favourites/domain/usecases/delete_favorite_usecase.dart';
 import '../../features/favourites/domain/usecases/get_favourites_usecase.dart';
+import '../../features/favourites/domain/usecases/update_favorite_usecase.dart';
 import '../../features/favourites/presentation/bloc/favourites_bloc.dart';
 import '../../features/history/data/datasources/ride_history_local_datasource.dart';
+import '../../features/history/data/datasources/ride_history_remote_data_source.dart';
 import '../../features/history/data/repositories/ride_history_repository_impl.dart';
 import '../../features/history/domain/repositories/ride_history_repository.dart';
 import '../../features/history/domain/usecases/get_ride_history_usecase.dart';
 import '../../features/history/presentation/bloc/ride_history_bloc.dart';
 import '../../features/home/data/datasources/home_local_datasource.dart';
+import '../../features/home/data/datasources/home_remote_data_source.dart';
 import '../../features/home/data/repositories/home_repository_impl.dart';
 import '../../features/home/domain/repositories/home_repository.dart';
 import '../../features/home/domain/usecases/get_home_dashboard_usecase.dart';
@@ -33,11 +44,7 @@ import '../../features/login/data/repositories/login_repository_impl.dart';
 import '../../features/login/domain/repositories/login_repository.dart';
 import '../../features/login/domain/usecases/send_otp_usecase.dart';
 import '../../features/login/presentation/bloc/login_bloc.dart';
-import '../../features/notifications/data/datasources/notification_local_datasource.dart';
-import '../../features/notifications/data/repositories/notification_repository_impl.dart';
-import '../../features/notifications/domain/repositories/notification_repository.dart';
-import '../../features/notifications/domain/usecases/request_notification_permission_usecase.dart';
-import '../../features/notifications/presentation/bloc/notification_bloc.dart';
+
 import '../../features/onboarding/data/datasources/onboarding_local_datasource.dart';
 import '../../features/onboarding/data/repositories/onboarding_repository_impl.dart';
 import '../../features/onboarding/domain/repositories/onboarding_repository.dart';
@@ -96,6 +103,36 @@ Future<void> initDependencyInjection() async {
     debugPrint('SharedPreferences init error: $e');
   }
 
+  // Core Network Setup
+  if (!sl.isRegistered<Dio>()) {
+    sl.registerLazySingleton<Dio>(() {
+      final dio = Dio(
+        BaseOptions(
+          baseUrl: ApiConstants.baseUrl,
+          connectTimeout: ApiConstants.connectTimeout,
+          receiveTimeout: ApiConstants.receiveTimeout,
+          headers: {
+            ApiConstants.contentTypeKey: ApiConstants.applicationJson,
+          },
+        ),
+      );
+
+      // Add interceptors
+      dio.interceptors.add(
+        AuthInterceptor(
+          sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : sharedPreferences!,
+        ),
+      );
+      dio.interceptors.add(LogInterceptor(responseBody: true, requestBody: true));
+
+      return dio;
+    });
+  }
+
+  if (!sl.isRegistered<ApiClient>()) {
+    sl.registerLazySingleton<ApiClient>(() => ApiClient(sl<Dio>()));
+  }
+
   // Data Sources
   if (!sl.isRegistered<OnboardingLocalDataSource>()) {
     sl.registerLazySingleton<OnboardingLocalDataSource>(
@@ -106,25 +143,21 @@ Future<void> initDependencyInjection() async {
   }
   if (!sl.isRegistered<LoginRemoteDataSource>()) {
     sl.registerLazySingleton<LoginRemoteDataSource>(
-      () => const LoginRemoteDataSourceImpl(),
+      () => LoginRemoteDataSourceImpl(dio: sl()),
     );
   }
   if (!sl.isRegistered<OtpRemoteDataSource>()) {
     sl.registerLazySingleton<OtpRemoteDataSource>(
-      () => const OtpRemoteDataSourceImpl(),
-    );
-  }
-  if (!sl.isRegistered<NotificationLocalDataSource>()) {
-    sl.registerLazySingleton<NotificationLocalDataSource>(
-      () => NotificationLocalDataSourceImpl(
-        sharedPreferences: sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : sharedPreferences,
+      () => OtpRemoteDataSourceImpl(
+        dio: sl(),
+        sharedPreferences: sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : sharedPreferences!,
       ),
     );
   }
-  if (!sl.isRegistered<ContactsLocalDataSource>()) {
-    sl.registerLazySingleton<ContactsLocalDataSource>(
-      () => ContactsLocalDataSourceImpl(
-        sharedPreferences: sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : sharedPreferences,
+  if (!sl.isRegistered<PermissionsLocalDataSource>()) {
+    sl.registerLazySingleton<PermissionsLocalDataSource>(
+      () => PermissionsLocalDataSourceImpl(
+        sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : sharedPreferences!,
       ),
     );
   }
@@ -133,14 +166,24 @@ Future<void> initDependencyInjection() async {
       () => const HomeLocalDataSourceImpl(),
     );
   }
+  if (!sl.isRegistered<HomeRemoteDataSource>()) {
+    sl.registerLazySingleton<HomeRemoteDataSource>(
+      () => HomeRemoteDataSourceImpl(dio: sl()),
+    );
+  }
   if (!sl.isRegistered<RideHistoryLocalDataSource>()) {
     sl.registerLazySingleton<RideHistoryLocalDataSource>(
       () => const RideHistoryLocalDataSourceImpl(),
     );
   }
-  if (!sl.isRegistered<FavouritesLocalDataSource>()) {
-    sl.registerLazySingleton<FavouritesLocalDataSource>(
-      () => const FavouritesLocalDataSourceImpl(),
+  if (!sl.isRegistered<RideHistoryRemoteDataSource>()) {
+    sl.registerLazySingleton<RideHistoryRemoteDataSource>(
+      () => RideHistoryRemoteDataSourceImpl(dio: sl()),
+    );
+  }
+  if (!sl.isRegistered<FavouritesRemoteDataSource>()) {
+    sl.registerLazySingleton<FavouritesRemoteDataSource>(
+      () => FavouritesRemoteDataSourceImpl(dio: sl()),
     );
   }
   if (!sl.isRegistered<SettingsLocalDataSource>()) {
@@ -170,29 +213,30 @@ Future<void> initDependencyInjection() async {
       () => OtpRepositoryImpl(remoteDataSource: sl()),
     );
   }
-  if (!sl.isRegistered<NotificationRepository>()) {
-    sl.registerLazySingleton<NotificationRepository>(
-      () => NotificationRepositoryImpl(localDataSource: sl()),
-    );
-  }
-  if (!sl.isRegistered<ContactsRepository>()) {
-    sl.registerLazySingleton<ContactsRepository>(
-      () => ContactsRepositoryImpl(localDataSource: sl()),
+  if (!sl.isRegistered<PermissionsRepository>()) {
+    sl.registerLazySingleton<PermissionsRepository>(
+      () => PermissionsRepositoryImpl(sl()),
     );
   }
   if (!sl.isRegistered<HomeRepository>()) {
     sl.registerLazySingleton<HomeRepository>(
-      () => HomeRepositoryImpl(localDataSource: sl()),
+      () => HomeRepositoryImpl(
+        localDataSource: sl(),
+        remoteDataSource: sl(),
+      ),
     );
   }
   if (!sl.isRegistered<RideHistoryRepository>()) {
     sl.registerLazySingleton<RideHistoryRepository>(
-      () => RideHistoryRepositoryImpl(localDataSource: sl()),
+      () => RideHistoryRepositoryImpl(
+        localDataSource: sl(),
+        remoteDataSource: sl(),
+      ),
     );
   }
   if (!sl.isRegistered<FavouritesRepository>()) {
     sl.registerLazySingleton<FavouritesRepository>(
-      () => FavouritesRepositoryImpl(localDataSource: sl()),
+      () => FavouritesRepositoryImpl(remoteDataSource: sl()),
     );
   }
   if (!sl.isRegistered<SettingsRepository>()) {
@@ -237,15 +281,15 @@ Future<void> initDependencyInjection() async {
     );
   }
 
-  if (!sl.isRegistered<RequestNotificationPermissionUseCase>()) {
-    sl.registerLazySingleton<RequestNotificationPermissionUseCase>(
-      () => RequestNotificationPermissionUseCase(sl()),
+  if (!sl.isRegistered<SavePermissionsUseCase>()) {
+    sl.registerLazySingleton<SavePermissionsUseCase>(
+      () => SavePermissionsUseCase(sl()),
     );
   }
 
-  if (!sl.isRegistered<RequestContactsPermissionUseCase>()) {
-    sl.registerLazySingleton<RequestContactsPermissionUseCase>(
-      () => RequestContactsPermissionUseCase(sl()),
+  if (!sl.isRegistered<GetPermissionsUseCase>()) {
+    sl.registerLazySingleton<GetPermissionsUseCase>(
+      () => GetPermissionsUseCase(sl()),
     );
   }
 
@@ -264,6 +308,24 @@ Future<void> initDependencyInjection() async {
   if (!sl.isRegistered<GetFavouritesUseCase>()) {
     sl.registerLazySingleton<GetFavouritesUseCase>(
       () => GetFavouritesUseCase(sl()),
+    );
+  }
+
+  if (!sl.isRegistered<AddFavoriteUseCase>()) {
+    sl.registerLazySingleton<AddFavoriteUseCase>(
+      () => AddFavoriteUseCase(sl()),
+    );
+  }
+
+  if (!sl.isRegistered<UpdateFavoriteUseCase>()) {
+    sl.registerLazySingleton<UpdateFavoriteUseCase>(
+      () => UpdateFavoriteUseCase(sl()),
+    );
+  }
+
+  if (!sl.isRegistered<DeleteFavoriteUseCase>()) {
+    sl.registerLazySingleton<DeleteFavoriteUseCase>(
+      () => DeleteFavoriteUseCase(sl()),
     );
   }
 
@@ -297,7 +359,7 @@ Future<void> initDependencyInjection() async {
 
   if (!sl.isRegistered<SplashBloc>()) {
     sl.registerFactory<SplashBloc>(
-      () => SplashBloc(),
+      () => SplashBloc(sl()),
     );
   }
 
@@ -317,15 +379,12 @@ Future<void> initDependencyInjection() async {
     );
   }
 
-  if (!sl.isRegistered<NotificationBloc>()) {
-    sl.registerFactory<NotificationBloc>(
-      () => NotificationBloc(requestPermissionUseCase: sl()),
-    );
-  }
-
-  if (!sl.isRegistered<ContactsBloc>()) {
-    sl.registerFactory<ContactsBloc>(
-      () => ContactsBloc(requestPermissionUseCase: sl()),
+  if (!sl.isRegistered<PermissionsBloc>()) {
+    sl.registerFactory<PermissionsBloc>(
+      () => PermissionsBloc(
+        getPermissionsUseCase: sl(),
+        savePermissionsUseCase: sl(),
+      ),
     );
   }
 
@@ -343,7 +402,12 @@ Future<void> initDependencyInjection() async {
 
   if (!sl.isRegistered<FavouritesBloc>()) {
     sl.registerFactory<FavouritesBloc>(
-      () => FavouritesBloc(getFavouritesUseCase: sl()),
+      () => FavouritesBloc(
+        getFavouritesUseCase: sl(),
+        addFavoriteUseCase: sl(),
+        updateFavoriteUseCase: sl(),
+        deleteFavoriteUseCase: sl(),
+      ),
     );
   }
 

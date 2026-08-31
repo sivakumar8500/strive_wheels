@@ -9,11 +9,11 @@ part of 'login_request_model.dart';
 _LoginRequestModel _$LoginRequestModelFromJson(Map<String, dynamic> json) =>
     _LoginRequestModel(
       countryCode: json['countryCode'] as String,
-      phoneNumber: json['phoneNumber'] as String,
+      phoneNumber: json['phone'] as String,
     );
 
 Map<String, dynamic> _$LoginRequestModelToJson(_LoginRequestModel instance) =>
     <String, dynamic>{
       'countryCode': instance.countryCode,
-      'phoneNumber': instance.phoneNumber,
+      'phone': instance.phoneNumber,
     };

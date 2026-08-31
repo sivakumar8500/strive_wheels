@@ -4,6 +4,11 @@ import 'package:wheels_user/features/otp/data/datasources/otp_remote_datasource.
 import 'package:wheels_user/features/otp/data/models/otp_verification_model.dart';
 import 'package:wheels_user/features/otp/data/repositories/otp_repository_impl.dart';
 import 'package:wheels_user/features/otp/domain/entities/otp_verification_entity.dart';
+import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class MockDio extends Mock implements Dio {}
+class MockSharedPreferences extends Mock implements SharedPreferences {}
 
 class MockOtpRemoteDataSource extends Mock implements OtpRemoteDataSource {}
 
@@ -64,7 +69,18 @@ void main() {
   });
 
   test('OtpRemoteDataSourceImpl executes successfully', () async {
-    const dataSource = OtpRemoteDataSourceImpl();
+    final mockDio = MockDio();
+    final mockPrefs = MockSharedPreferences();
+    
+    when(() => mockDio.post(any(), data: any(named: 'data')))
+        .thenAnswer((_) async => Response(
+              requestOptions: RequestOptions(path: ''),
+              statusCode: 200,
+              data: {'token': 'fake_token', 'otp': '123456'},
+            ));
+    when(() => mockPrefs.setString(any(), any())).thenAnswer((_) async => true);
+            
+    final dataSource = OtpRemoteDataSourceImpl(dio: mockDio, sharedPreferences: mockPrefs);
     const model = OtpVerificationModel(
       fullPhoneNumber: '+919876543210',
       otpCode: '702315',

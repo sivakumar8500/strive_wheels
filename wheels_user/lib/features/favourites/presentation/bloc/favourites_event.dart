@@ -30,3 +30,39 @@ class RideHereEvent extends FavouritesEvent {
 class SaveAnotherPlaceEvent extends FavouritesEvent {
   const SaveAnotherPlaceEvent();
 }
+
+class AddFavoriteEvent extends FavouritesEvent {
+  final String title;
+  final String address;
+  final String iconType;
+  final double latitude;
+  final double longitude;
+
+  const AddFavoriteEvent({
+    required this.title,
+    required this.address,
+    required this.iconType,
+    required this.latitude,
+    required this.longitude,
+  });
+}
+
+class UpdateFavoriteEvent extends FavouritesEvent {
+  final String id;
+  final String title;
+  final String address;
+  final String iconType;
+
+  const UpdateFavoriteEvent({
+    required this.id,
+    required this.title,
+    required this.address,
+    required this.iconType,
+  });
+}
+
+class DeleteFavoriteEvent extends FavouritesEvent {
+  final String id;
+
+  const DeleteFavoriteEvent(this.id);
+}

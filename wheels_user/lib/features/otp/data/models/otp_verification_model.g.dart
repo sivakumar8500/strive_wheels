@@ -9,13 +9,13 @@ part of 'otp_verification_model.dart';
 _OtpVerificationModel _$OtpVerificationModelFromJson(
   Map<String, dynamic> json,
 ) => _OtpVerificationModel(
-  fullPhoneNumber: json['fullPhoneNumber'] as String,
-  otpCode: json['otpCode'] as String,
+  fullPhoneNumber: json['phone'] as String,
+  otpCode: json['otp'] as String,
 );
 
 Map<String, dynamic> _$OtpVerificationModelToJson(
   _OtpVerificationModel instance,
 ) => <String, dynamic>{
-  'fullPhoneNumber': instance.fullPhoneNumber,
-  'otpCode': instance.otpCode,
+  'phone': instance.fullPhoneNumber,
+  'otp': instance.otpCode,
 };

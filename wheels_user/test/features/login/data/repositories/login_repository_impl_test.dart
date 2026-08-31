@@ -4,6 +4,9 @@ import 'package:wheels_user/features/login/data/datasources/login_remote_datasou
 import 'package:wheels_user/features/login/data/models/login_request_model.dart';
 import 'package:wheels_user/features/login/data/repositories/login_repository_impl.dart';
 import 'package:wheels_user/features/login/domain/entities/login_request_entity.dart';
+import 'package:dio/dio.dart';
+
+class MockDio extends Mock implements Dio {}
 
 class MockLoginRemoteDataSource extends Mock implements LoginRemoteDataSource {}
 
@@ -48,7 +51,15 @@ void main() {
   });
 
   test('LoginRemoteDataSourceImpl executes successfully', () async {
-    const dataSource = LoginRemoteDataSourceImpl();
+    final mockDio = MockDio();
+    when(() => mockDio.post(any(), data: any(named: 'data')))
+        .thenAnswer((_) async => Response(
+              requestOptions: RequestOptions(path: ''),
+              statusCode: 200,
+              data: {'otp': '123456'},
+            ));
+            
+    final dataSource = LoginRemoteDataSourceImpl(dio: mockDio);
     const model = LoginRequestModel(countryCode: '+91', phoneNumber: '9876543210');
     final result = await dataSource.sendOtp(model);
     expect(result, isTrue);

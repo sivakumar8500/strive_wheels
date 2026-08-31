@@ -10,7 +10,7 @@ abstract class LoginRequestModel with _$LoginRequestModel {
 
   const factory LoginRequestModel({
     required String countryCode,
-    required String phoneNumber,
+    @JsonKey(name: 'phone') required String phoneNumber,
   }) = _LoginRequestModel;
 
   factory LoginRequestModel.fromJson(Map<String, dynamic> json) =>

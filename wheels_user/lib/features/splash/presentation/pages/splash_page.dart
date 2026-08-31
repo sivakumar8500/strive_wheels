@@ -6,8 +6,10 @@ import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../home/presentation/bloc/home_bloc.dart';
+import '../../../home/presentation/pages/home_page.dart';
 import '../../../login/presentation/bloc/login_bloc.dart';
-import '../../../login/presentation/pages/login_page.dart';
+import '../../../login/presentation/pages/auth_page.dart';
 import '../bloc/splash_bloc.dart';
 import '../bloc/splash_event.dart';
 import '../bloc/splash_state.dart';
@@ -37,14 +39,25 @@ class _SplashPageState extends State<SplashPage> {
     return BlocListener<SplashBloc, SplashState>(
       listener: (context, state) {
         if (state is SplashCompleted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => BlocProvider<LoginBloc>(
-                create: (_) => sl<LoginBloc>(),
-                child: const LoginPage(),
+          if (state.isAuthenticated) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => BlocProvider<HomeBloc>(
+                  create: (_) => sl<HomeBloc>(),
+                  child: const HomePage(),
+                ),
               ),
-            ),
-          );
+            );
+          } else {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => BlocProvider<LoginBloc>(
+                  create: (_) => sl<LoginBloc>(),
+                  child: const AuthPage(),
+                ),
+              ),
+            );
+          }
         }
       },
       child: Scaffold(
