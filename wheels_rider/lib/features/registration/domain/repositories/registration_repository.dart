@@ -1,6 +1,7 @@
 import '../../data/models/registration_step_response.dart';
 
 abstract class RegistrationRepository {
+  Future<RegistrationStepResponse> getRegistrationState();
   Future<RegistrationStepResponse> submitInstantRegistration();
   Future<RegistrationStepResponse> submitPersonalInfo(Map<String, dynamic> data);
   Future<RegistrationStepResponse> submitAddress(Map<String, dynamic> data);

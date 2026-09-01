@@ -82,13 +82,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
       return;
     }
 
+    String formattedPhone = mobileNumber;
+    if (formattedPhone.isNotEmpty && !formattedPhone.startsWith('+91')) {
+      formattedPhone = "+91$formattedPhone";
+    }
+
     final updatedData = {
       'first_name': firstName,
       'last_name': lastName,
-      'mobile_number': mobileNumber,
+      'mobile_number': formattedPhone,
       'email': email,
       'dob': dob, 
       'gender': selectedGender.toUpperCase(),
+      'referral_code': '',
       'profile_photo_url': _profileImagePath ?? '',
     };
     context.read<ProfileBloc>().add(UpdateProfileEvent(updatedData));

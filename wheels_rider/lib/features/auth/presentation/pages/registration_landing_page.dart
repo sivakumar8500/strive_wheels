@@ -32,7 +32,7 @@ class _RegistrationLandingPageState extends State<RegistrationLandingPage> {
         _isLoading = false;
       });
 
-      final targetStep = response.data.nextStep ?? 2;
+      final targetStep = response.data?.nextStep ?? 2;
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => RegistrationPage(

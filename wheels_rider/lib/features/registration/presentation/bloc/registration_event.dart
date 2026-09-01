@@ -188,3 +188,7 @@ class AgreeToTermsEvent extends RegistrationEvent {
 
   const AgreeToTermsEvent(this.agreedToTerms);
 }
+
+class FetchRegistrationStateEvent extends RegistrationEvent {}
+
+class SubmitRegistrationEvent extends RegistrationEvent {}

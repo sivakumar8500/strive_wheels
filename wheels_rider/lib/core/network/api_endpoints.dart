@@ -43,6 +43,7 @@ class ApiEndpoints {
 
 
   // Rider Registration Flow Endpoints
+  static const String registrationDraft = '$baseUrl/driver-registration';
   static const String registrationInstant = '$baseUrl/driver-registration/instant';
   static const String registrationPersonal = '$baseUrl/driver-registration/personal';
   static const String registrationAddress = '$baseUrl/driver-registration/address';

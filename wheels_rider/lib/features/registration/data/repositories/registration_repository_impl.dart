@@ -8,6 +8,11 @@ class RegistrationRepositoryImpl implements RegistrationRepository {
   RegistrationRepositoryImpl({required this.remoteDataSource});
 
   @override
+  Future<RegistrationStepResponse> getRegistrationState() async {
+    return remoteDataSource.getRegistrationState();
+  }
+
+  @override
   Future<RegistrationStepResponse> submitInstantRegistration() async {
     return remoteDataSource.submitInstantRegistration();
   }

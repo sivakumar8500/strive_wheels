@@ -236,8 +236,9 @@ class _Step8FinalVerificationState extends State<Step8FinalVerification> {
                         context.read<RegistrationBloc>().add(
                           AgreeToTermsEvent(_agreedToTerms),
                         );
-                        // Trigger final submission here and navigate to success screen
-                        context.read<RegistrationBloc>().add(NextStepEvent());
+                        context.read<RegistrationBloc>().add(
+                          SubmitRegistrationEvent(),
+                        );
                       }
                     : null,
                 style: ElevatedButton.styleFrom(

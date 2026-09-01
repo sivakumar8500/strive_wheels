@@ -162,78 +162,90 @@ class _Step5VehicleDetailsState extends State<Step5VehicleDetails> {
                 ),
               )
             else
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: _vehicleTypes.map((type) {
-                  final typeId = type['id'] as int;
-                  final typeName = type['name'] as String;
-                  final isSelected = _selectedVehicleTypeId == typeId;
+              SizedBox(
+                height: 84,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: _vehicleTypes.length,
+                  separatorBuilder: (context, index) => const SizedBox(width: 10),
+                  itemBuilder: (context, index) {
+                    final type = _vehicleTypes[index];
+                    final typeId = type['id'] as int;
+                    final typeName = type['name'] as String;
+                    final isSelected = _selectedVehicleTypeId == typeId;
 
-                  return Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        right: type == _vehicleTypes.last ? 0 : 8,
-                      ),
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedVehicleTypeId = typeId;
-                            _selectedVehicleTypeName = typeName;
-                          });
-                        },
-                        child: Container(
-                          height: 80,
-                          decoration: BoxDecoration(
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedVehicleTypeId = typeId;
+                          _selectedVehicleTypeName = typeName;
+                        });
+                      },
+                      child: Container(
+                        width: 96,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppColors.darkBlue
+                              : (isDark ? AppColors.surfaceDark : Colors.white),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
                             color: isSelected
                                 ? AppColors.darkBlue
-                                : (isDark ? AppColors.surfaceDark : Colors.white),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isSelected
-                                  ? AppColors.darkBlue
-                                  : AppColors.dividerLight,
-                            ),
-                            boxShadow: isSelected
-                                ? []
-                                : [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.02),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
+                                : (isDark ? AppColors.dividerDark : AppColors.dividerLight),
+                            width: isSelected ? 1.5 : 1.0,
                           ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                type['icon'] as IconData,
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: AppColors.darkBlue.withValues(alpha: 0.25),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ]
+                              : [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.02),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              type['icon'] as IconData,
+                              size: 26,
+                              color: isSelected
+                                  ? AppColors.white
+                                  : AppColors.primaryBlue,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              typeName,
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.w500,
                                 color: isSelected
                                     ? AppColors.white
-                                    : AppColors.primaryBlue,
+                                    : (isDark
+                                          ? AppColors.white
+                                          : AppColors.black),
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                typeName,
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: isSelected
-                                      ? AppColors.white
-                                      : (isDark
-                                            ? AppColors.white
-                                            : AppColors.black),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  },
+                ),
               ),
             const SizedBox(height: 24),
 
