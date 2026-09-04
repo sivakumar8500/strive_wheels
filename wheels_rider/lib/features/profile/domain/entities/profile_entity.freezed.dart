@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ProfileEntity {
 
- int get id; String get name; double get rating; String get profileImageUrl; double get totalEarnings; double get walletBalance; String get phone; String get email; String get dob; String get gender;
+ int get id; String get name; double get rating; String get profileImageUrl; double get totalEarnings; double get walletBalance; String get phone; String get email; String get dob; String get gender; String get status;
 /// Create a copy of ProfileEntity
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $ProfileEntityCopyWith<ProfileEntity> get copyWith => _$ProfileEntityCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileEntity&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.profileImageUrl, profileImageUrl) || other.profileImageUrl == profileImageUrl)&&(identical(other.totalEarnings, totalEarnings) || other.totalEarnings == totalEarnings)&&(identical(other.walletBalance, walletBalance) || other.walletBalance == walletBalance)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.email, email) || other.email == email)&&(identical(other.dob, dob) || other.dob == dob)&&(identical(other.gender, gender) || other.gender == gender));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileEntity&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.profileImageUrl, profileImageUrl) || other.profileImageUrl == profileImageUrl)&&(identical(other.totalEarnings, totalEarnings) || other.totalEarnings == totalEarnings)&&(identical(other.walletBalance, walletBalance) || other.walletBalance == walletBalance)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.email, email) || other.email == email)&&(identical(other.dob, dob) || other.dob == dob)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.status, status) || other.status == status));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,name,rating,profileImageUrl,totalEarnings,walletBalance,phone,email,dob,gender);
+int get hashCode => Object.hash(runtimeType,id,name,rating,profileImageUrl,totalEarnings,walletBalance,phone,email,dob,gender,status);
 
 @override
 String toString() {
-  return 'ProfileEntity(id: $id, name: $name, rating: $rating, profileImageUrl: $profileImageUrl, totalEarnings: $totalEarnings, walletBalance: $walletBalance, phone: $phone, email: $email, dob: $dob, gender: $gender)';
+  return 'ProfileEntity(id: $id, name: $name, rating: $rating, profileImageUrl: $profileImageUrl, totalEarnings: $totalEarnings, walletBalance: $walletBalance, phone: $phone, email: $email, dob: $dob, gender: $gender, status: $status)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $ProfileEntityCopyWith<$Res>  {
   factory $ProfileEntityCopyWith(ProfileEntity value, $Res Function(ProfileEntity) _then) = _$ProfileEntityCopyWithImpl;
 @useResult
 $Res call({
- int id, String name, double rating, String profileImageUrl, double totalEarnings, double walletBalance, String phone, String email, String dob, String gender
+ int id, String name, double rating, String profileImageUrl, double totalEarnings, double walletBalance, String phone, String email, String dob, String gender, String status
 });
 
 
@@ -62,7 +62,7 @@ class _$ProfileEntityCopyWithImpl<$Res>
 
 /// Create a copy of ProfileEntity
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? rating = null,Object? profileImageUrl = null,Object? totalEarnings = null,Object? walletBalance = null,Object? phone = null,Object? email = null,Object? dob = null,Object? gender = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? rating = null,Object? profileImageUrl = null,Object? totalEarnings = null,Object? walletBalance = null,Object? phone = null,Object? email = null,Object? dob = null,Object? gender = null,Object? status = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -74,6 +74,7 @@ as double,phone: null == phone ? _self.phone : phone // ignore: cast_nullable_to
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
 as String,dob: null == dob ? _self.dob : dob // ignore: cast_nullable_to_non_nullable
 as String,gender: null == gender ? _self.gender : gender // ignore: cast_nullable_to_non_nullable
+as String,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }
@@ -159,10 +160,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  double rating,  String profileImageUrl,  double totalEarnings,  double walletBalance,  String phone,  String email,  String dob,  String gender)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name,  double rating,  String profileImageUrl,  double totalEarnings,  double walletBalance,  String phone,  String email,  String dob,  String gender,  String status)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ProfileEntity() when $default != null:
-return $default(_that.id,_that.name,_that.rating,_that.profileImageUrl,_that.totalEarnings,_that.walletBalance,_that.phone,_that.email,_that.dob,_that.gender);case _:
+return $default(_that.id,_that.name,_that.rating,_that.profileImageUrl,_that.totalEarnings,_that.walletBalance,_that.phone,_that.email,_that.dob,_that.gender,_that.status);case _:
   return orElse();
 
 }
@@ -180,10 +181,10 @@ return $default(_that.id,_that.name,_that.rating,_that.profileImageUrl,_that.tot
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  double rating,  String profileImageUrl,  double totalEarnings,  double walletBalance,  String phone,  String email,  String dob,  String gender)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name,  double rating,  String profileImageUrl,  double totalEarnings,  double walletBalance,  String phone,  String email,  String dob,  String gender,  String status)  $default,) {final _that = this;
 switch (_that) {
 case _ProfileEntity():
-return $default(_that.id,_that.name,_that.rating,_that.profileImageUrl,_that.totalEarnings,_that.walletBalance,_that.phone,_that.email,_that.dob,_that.gender);case _:
+return $default(_that.id,_that.name,_that.rating,_that.profileImageUrl,_that.totalEarnings,_that.walletBalance,_that.phone,_that.email,_that.dob,_that.gender,_that.status);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +201,10 @@ return $default(_that.id,_that.name,_that.rating,_that.profileImageUrl,_that.tot
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  double rating,  String profileImageUrl,  double totalEarnings,  double walletBalance,  String phone,  String email,  String dob,  String gender)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name,  double rating,  String profileImageUrl,  double totalEarnings,  double walletBalance,  String phone,  String email,  String dob,  String gender,  String status)?  $default,) {final _that = this;
 switch (_that) {
 case _ProfileEntity() when $default != null:
-return $default(_that.id,_that.name,_that.rating,_that.profileImageUrl,_that.totalEarnings,_that.walletBalance,_that.phone,_that.email,_that.dob,_that.gender);case _:
+return $default(_that.id,_that.name,_that.rating,_that.profileImageUrl,_that.totalEarnings,_that.walletBalance,_that.phone,_that.email,_that.dob,_that.gender,_that.status);case _:
   return null;
 
 }
@@ -215,7 +216,7 @@ return $default(_that.id,_that.name,_that.rating,_that.profileImageUrl,_that.tot
 
 
 class _ProfileEntity extends ProfileEntity {
-  const _ProfileEntity({required this.id, required this.name, required this.rating, required this.profileImageUrl, required this.totalEarnings, required this.walletBalance, required this.phone, required this.email, required this.dob, required this.gender}): super._();
+  const _ProfileEntity({required this.id, required this.name, required this.rating, required this.profileImageUrl, required this.totalEarnings, required this.walletBalance, required this.phone, required this.email, required this.dob, required this.gender, required this.status}): super._();
   
 
 @override final  int id;
@@ -228,6 +229,7 @@ class _ProfileEntity extends ProfileEntity {
 @override final  String email;
 @override final  String dob;
 @override final  String gender;
+@override final  String status;
 
 /// Create a copy of ProfileEntity
 /// with the given fields replaced by the non-null parameter values.
@@ -239,16 +241,16 @@ _$ProfileEntityCopyWith<_ProfileEntity> get copyWith => __$ProfileEntityCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileEntity&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.profileImageUrl, profileImageUrl) || other.profileImageUrl == profileImageUrl)&&(identical(other.totalEarnings, totalEarnings) || other.totalEarnings == totalEarnings)&&(identical(other.walletBalance, walletBalance) || other.walletBalance == walletBalance)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.email, email) || other.email == email)&&(identical(other.dob, dob) || other.dob == dob)&&(identical(other.gender, gender) || other.gender == gender));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileEntity&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.profileImageUrl, profileImageUrl) || other.profileImageUrl == profileImageUrl)&&(identical(other.totalEarnings, totalEarnings) || other.totalEarnings == totalEarnings)&&(identical(other.walletBalance, walletBalance) || other.walletBalance == walletBalance)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.email, email) || other.email == email)&&(identical(other.dob, dob) || other.dob == dob)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.status, status) || other.status == status));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,name,rating,profileImageUrl,totalEarnings,walletBalance,phone,email,dob,gender);
+int get hashCode => Object.hash(runtimeType,id,name,rating,profileImageUrl,totalEarnings,walletBalance,phone,email,dob,gender,status);
 
 @override
 String toString() {
-  return 'ProfileEntity(id: $id, name: $name, rating: $rating, profileImageUrl: $profileImageUrl, totalEarnings: $totalEarnings, walletBalance: $walletBalance, phone: $phone, email: $email, dob: $dob, gender: $gender)';
+  return 'ProfileEntity(id: $id, name: $name, rating: $rating, profileImageUrl: $profileImageUrl, totalEarnings: $totalEarnings, walletBalance: $walletBalance, phone: $phone, email: $email, dob: $dob, gender: $gender, status: $status)';
 }
 
 
@@ -259,7 +261,7 @@ abstract mixin class _$ProfileEntityCopyWith<$Res> implements $ProfileEntityCopy
   factory _$ProfileEntityCopyWith(_ProfileEntity value, $Res Function(_ProfileEntity) _then) = __$ProfileEntityCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String name, double rating, String profileImageUrl, double totalEarnings, double walletBalance, String phone, String email, String dob, String gender
+ int id, String name, double rating, String profileImageUrl, double totalEarnings, double walletBalance, String phone, String email, String dob, String gender, String status
 });
 
 
@@ -276,7 +278,7 @@ class __$ProfileEntityCopyWithImpl<$Res>
 
 /// Create a copy of ProfileEntity
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? rating = null,Object? profileImageUrl = null,Object? totalEarnings = null,Object? walletBalance = null,Object? phone = null,Object? email = null,Object? dob = null,Object? gender = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? rating = null,Object? profileImageUrl = null,Object? totalEarnings = null,Object? walletBalance = null,Object? phone = null,Object? email = null,Object? dob = null,Object? gender = null,Object? status = null,}) {
   return _then(_ProfileEntity(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -288,6 +290,7 @@ as double,phone: null == phone ? _self.phone : phone // ignore: cast_nullable_to
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
 as String,dob: null == dob ? _self.dob : dob // ignore: cast_nullable_to_non_nullable
 as String,gender: null == gender ? _self.gender : gender // ignore: cast_nullable_to_non_nullable
+as String,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }

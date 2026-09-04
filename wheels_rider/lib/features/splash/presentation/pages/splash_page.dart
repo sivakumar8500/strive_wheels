@@ -10,6 +10,10 @@ import '../../../onboarding/presentation/bloc/onboarding_bloc.dart';
 import '../../../onboarding/presentation/pages/onboarding_page.dart';
 import '../../../auth/presentation/bloc/login_bloc.dart';
 import '../../../auth/presentation/pages/login_page.dart';
+import '../../../auth/presentation/pages/pending_approval_page.dart';
+import '../../../home/presentation/pages/home_page.dart';
+import '../../../registration/presentation/pages/registration_page.dart';
+import '../../../auth/domain/repositories/auth_repository.dart';
 import '../bloc/splash_bloc.dart';
 import '../bloc/splash_event.dart';
 import '../bloc/splash_state.dart';
@@ -52,6 +56,30 @@ class _SplashPageState extends State<SplashPage> {
         if (state is SplashCompleted) {
           if (state.isFirstTime) {
             _navigateToOnboarding();
+          } else if (state.isAuthenticated) {
+            final authStatus = state.authStatus;
+            if (authStatus == AuthStatus.approved.name) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const HomePage()),
+              );
+            } else if (authStatus == AuthStatus.registrationDraft.name || authStatus == AuthStatus.registrationPending.name) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => RegistrationPage(
+                    phoneNumber: state.phoneNumber ?? '',
+                    initialStep: state.currentStep ?? 1,
+                  ),
+                ),
+              );
+            } else if (authStatus == AuthStatus.registrationSubmitted.name) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const PendingApprovalPage()),
+              );
+            } else {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const PendingApprovalPage()),
+              );
+            }
           } else {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(

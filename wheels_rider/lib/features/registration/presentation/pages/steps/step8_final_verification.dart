@@ -62,6 +62,9 @@ class _Step8FinalVerificationState extends State<Step8FinalVerification> {
               subtitle: 'Verified',
               subtitleColor: AppColors.primaryBlue,
               subtitleIcon: Icons.check_circle,
+              onTap: () {
+                context.read<RegistrationBloc>().add(const SetInitialStepEvent(step: 1));
+              },
             ),
             const SizedBox(height: 16),
             _buildReviewCard(
@@ -69,6 +72,9 @@ class _Step8FinalVerificationState extends State<Step8FinalVerification> {
               icon: Icons.home,
               title: 'Residential Address',
               subtitle: '${data.houseNo ?? ''} ${data.streetName ?? ''}, ${data.city ?? ''}'.trim().isNotEmpty ? '${data.houseNo ?? ''} ${data.streetName ?? ''}, ${data.city ?? ''}' : 'Not provided',
+              onTap: () {
+                context.read<RegistrationBloc>().add(const SetInitialStepEvent(step: 2));
+              },
             ),
             const SizedBox(height: 16),
             _buildReviewCard(
@@ -77,6 +83,9 @@ class _Step8FinalVerificationState extends State<Step8FinalVerification> {
               title: 'KYC Documents',
               subtitle: 'APPROVED',
               isBadge: true,
+              onTap: () {
+                context.read<RegistrationBloc>().add(const SetInitialStepEvent(step: 3));
+              },
             ),
             const SizedBox(height: 16),
             _buildReviewCard(
@@ -85,6 +94,9 @@ class _Step8FinalVerificationState extends State<Step8FinalVerification> {
               title: 'Vehicle Details',
               subtitle:
                   '${data.vehicleManufacturer ?? ''} ${data.vehicleModel ?? ''} (${data.vehicleYear ?? ''}) • ${data.vehicleRegNumber ?? ''}',
+              onTap: () {
+                context.read<RegistrationBloc>().add(const SetInitialStepEvent(step: 5));
+              },
             ),
             const SizedBox(height: 16),
             _buildReviewCard(
@@ -92,6 +104,9 @@ class _Step8FinalVerificationState extends State<Step8FinalVerification> {
               icon: Icons.description,
               title: 'Vehicle Documents',
               subtitle: 'Insurance, Registration attached',
+              onTap: () {
+                context.read<RegistrationBloc>().add(const SetInitialStepEvent(step: 4));
+              },
             ),
             const SizedBox(height: 16),
             _buildReviewCard(
@@ -100,6 +115,9 @@ class _Step8FinalVerificationState extends State<Step8FinalVerification> {
               title: 'Payout Account',
               subtitle:
                   '${data.bankName ?? ''} **** ${data.bankAccountNumber?.length != null && data.bankAccountNumber!.length >= 4 ? data.bankAccountNumber!.substring(data.bankAccountNumber!.length - 4) : ''}',
+              onTap: () {
+                context.read<RegistrationBloc>().add(const SetInitialStepEvent(step: 6));
+              },
             ),
             const SizedBox(height: 16),
             _buildReviewCard(
@@ -108,6 +126,9 @@ class _Step8FinalVerificationState extends State<Step8FinalVerification> {
               title: 'Emergency Contact',
               subtitle:
                   '${data.emergencyContactName ?? ''} (${data.emergencyContactRelation ?? ''})',
+              onTap: () {
+                context.read<RegistrationBloc>().add(const SetInitialStepEvent(step: 7));
+              },
             ),
             const SizedBox(height: 24),
             Container(
@@ -278,6 +299,7 @@ class _Step8FinalVerificationState extends State<Step8FinalVerification> {
     Color? subtitleColor,
     IconData? subtitleIcon,
     bool isBadge = false,
+    VoidCallback? onTap,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -372,14 +394,30 @@ class _Step8FinalVerificationState extends State<Step8FinalVerification> {
               ],
             ),
           ),
-          Text(
-            'Edit',
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.darkBlue,
+          if (onTap != null)
+            GestureDetector(
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 8.0, top: 8.0, bottom: 8.0),
+                child: Text(
+                  'Edit',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.darkBlue,
+                  ),
+                ),
+              ),
+            )
+          else
+            Text(
+              'Edit',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.darkBlue,
+              ),
             ),
-          ),
         ],
       ),
     );

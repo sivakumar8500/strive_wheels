@@ -29,6 +29,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
             await updateAvailabilityUseCase(
               availabilityMode: e.availabilityMode,
               isOnline: e.isOnline,
+              selectedDates: e.selectedDates,
             );
             emit(const HomeState.success());
           } catch (error) {

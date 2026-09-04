@@ -5,7 +5,11 @@ class UpdateAvailabilityUseCase {
 
   UpdateAvailabilityUseCase(this.repository);
 
-  Future<void> call({required String availabilityMode, required bool isOnline}) {
-    return repository.updateAvailability(availabilityMode: availabilityMode, isOnline: isOnline);
+  Future<void> call({required String availabilityMode, required bool isOnline, List<DateTime>? selectedDates}) async {
+    await repository.updateAvailability(availabilityMode: availabilityMode, isOnline: isOnline);
+    
+    if (selectedDates != null && selectedDates.isNotEmpty) {
+      await repository.updateAvailabilitySchedule(selectedDates);
+    }
   }
 }

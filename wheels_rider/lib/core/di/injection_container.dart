@@ -57,6 +57,7 @@ import '../../features/home/domain/repositories/home_repository.dart';
 import '../../features/home/domain/usecases/booking_usecases.dart';
 import '../../features/home/domain/usecases/update_availability_usecase.dart';
 import '../../features/home/domain/usecases/update_location_usecase.dart';
+import '../../features/home/domain/usecases/get_availability_schedule_usecase.dart';
 import '../../features/home/presentation/bloc/booking_bloc.dart';
 import '../../features/home/presentation/bloc/home_bloc.dart';
 import '../../features/profile/data/datasources/profile_remote_data_source.dart';
@@ -261,6 +262,11 @@ Future<void> initDependencyInjection() async {
   if (!sl.isRegistered<UpdateAvailabilityUseCase>()) {
     sl.registerLazySingleton<UpdateAvailabilityUseCase>(
       () => UpdateAvailabilityUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<GetAvailabilityScheduleUseCase>()) {
+    sl.registerLazySingleton<GetAvailabilityScheduleUseCase>(
+      () => GetAvailabilityScheduleUseCase(sl()),
     );
   }
   if (!sl.isRegistered<ConnectToBookingSocketUseCase>()) {

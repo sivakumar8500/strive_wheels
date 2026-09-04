@@ -31,6 +31,7 @@ abstract class ProfileModel with _$ProfileModel {
       email: userData['email'] as String? ?? '',
       dob: userData['dob'] as String? ?? '',
       gender: userData['gender'] as String? ?? '',
+      status: userData['status'] as String? ?? '',
     );
   }
 }

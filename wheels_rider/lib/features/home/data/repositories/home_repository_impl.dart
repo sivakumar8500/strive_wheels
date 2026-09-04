@@ -25,4 +25,24 @@ class HomeRepositoryImpl implements HomeRepository {
       throw Exception(msg);
     }
   }
+
+  @override
+  Future<void> updateAvailabilitySchedule(List<DateTime> dates) async {
+    try {
+      await remoteDataSource.updateAvailabilitySchedule(dates);
+    } catch (e) {
+      final msg = e.toString().replaceAll('Exception: ', '');
+      throw Exception(msg);
+    }
+  }
+
+  @override
+  Future<List<DateTime>> getAvailabilitySchedule() async {
+    try {
+      return await remoteDataSource.getAvailabilitySchedule();
+    } catch (e) {
+      final msg = e.toString().replaceAll('Exception: ', '');
+      throw Exception(msg);
+    }
+  }
 }

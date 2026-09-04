@@ -27,6 +27,7 @@ class RegistrationData {
   final String? dlNumber;
   final String? dlFrontPath;
   final String? dlBackPath;
+  final String? nocCertificatePath;
 
   // Vehicle Documents (Step 4)
   final String? regDate;
@@ -98,6 +99,7 @@ class RegistrationData {
     this.dlNumber,
     this.dlFrontPath,
     this.dlBackPath,
+    this.nocCertificatePath,
     this.regDate,
     this.regExpiryDate,
     this.rcFrontPath,
@@ -160,6 +162,7 @@ class RegistrationData {
     String? dlNumber,
     String? dlFrontPath,
     String? dlBackPath,
+    String? nocCertificatePath,
     String? regDate,
     String? regExpiryDate,
     String? rcFrontPath,
@@ -221,6 +224,7 @@ class RegistrationData {
       dlNumber: dlNumber ?? this.dlNumber,
       dlFrontPath: dlFrontPath ?? this.dlFrontPath,
       dlBackPath: dlBackPath ?? this.dlBackPath,
+      nocCertificatePath: nocCertificatePath ?? this.nocCertificatePath,
       regDate: regDate ?? this.regDate,
       regExpiryDate: regExpiryDate ?? this.regExpiryDate,
       rcFrontPath: rcFrontPath ?? this.rcFrontPath,
@@ -259,6 +263,71 @@ class RegistrationData {
       emergencyContactPhone:
           emergencyContactPhone ?? this.emergencyContactPhone,
       agreedToTerms: agreedToTerms ?? this.agreedToTerms,
+    );
+  }
+
+  factory RegistrationData.fromJson(Map<String, dynamic> json) {
+    // Helper to safely parse strings
+    String? str(String key) => json[key]?.toString();
+    int? integer(String key) => json[key] is int ? json[key] as int : int.tryParse(json[key]?.toString() ?? '');
+
+    // Sometimes APIs nest these fields or return them flat. We will check the flat structure.
+    return RegistrationData(
+      profilePhotoPath: str('profile_photo_url'),
+      firstName: str('first_name'),
+      lastName: str('last_name'),
+      mobileNumber: str('mobile_number'),
+      email: str('email'),
+      dateOfBirth: str('dob'),
+      gender: str('gender'),
+      referralCode: str('referral_code'),
+      houseNo: str('house_no'),
+      streetName: str('street_area'),
+      landmark: str('landmark'),
+      pincode: str('pincode'),
+      city: str('city'),
+      state: str('state'),
+      selfiePath: str('userSelfiePic') ?? str('selfie_url'),
+      aadhaarNumber: str('aadharNumber') ?? str('aadhaar_number'),
+      aadhaarFrontPath: str('aadharFrontView') ?? str('aadhaar_front_url'),
+      aadhaarBackPath: str('aadharBackView') ?? str('aadhaar_back_url'),
+      panNumber: str('panNumber') ?? str('pan_number'),
+      panFrontPath: str('panView') ?? str('pan_front_url'),
+      dlNumber: str('licenseNumber') ?? str('dl_number'),
+      dlFrontPath: str('licenseFrontView') ?? str('dl_front_url'),
+      dlBackPath: str('licenseBackView') ?? str('dl_back_url'),
+      nocCertificatePath: str('nocCertificateView'),
+      regDate: str('registationDate'),
+      regExpiryDate: str('ecpairDate'),
+      rcFrontPath: str('rcFrontView'),
+      rcBackPath: str('rcBackView'),
+      insurancePath: str('insurancy'),
+      pucPath: str('poliction'),
+      fitnessCertPath: str('fitNessCirtificate'),
+      permitPath: str('permit'),
+      // vehicalPicks is a list, but we have individual fields in the UI. 
+      // It's a bit complex to reverse map vehicalPicks to frontView, backView etc. if it's an array.
+      // We will skip it for now unless we know the exact order.
+      vehicleTypeId: integer('vehicle_type_id'),
+      vehicleManufacturer: str('compenyName'),
+      vehicleModel: str('vehicalModel'),
+      vehicleRegNumber: str('registrationNumber'),
+      vehicleYear: str('registrationyear'),
+      vehicleColor: str('registrationcolor'),
+      vehicleChassisNumber: str('chassisNumber'),
+      vehicleEngineNumber: str('engineNumber'),
+      vehicleTotalSeats: str('total_seats'),
+      vehicleFuelType: str('fuel_type'),
+      bankAccountHolderName: str('account_holder_name'),
+      bankName: str('bank_name'),
+      bankIfscCode: str('ifsc_code'),
+      bankAccountNumber: str('account_number'),
+      bankUpiId: str('upi_id'),
+      bankChequePath: str('cancelled_cheque_url'),
+      emergencyContactName: str('contact_name'),
+      emergencyContactRelation: str('relationship_type'),
+      emergencyContactPhone: str('phone_number'),
+      agreedToTerms: json['terms_accepted'] == true || json['terms_accepted'] == 'true',
     );
   }
 }

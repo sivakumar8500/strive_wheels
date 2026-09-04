@@ -8,6 +8,8 @@ import 'core/theme/presentation/bloc/theme_bloc.dart';
 import 'features/splash/presentation/bloc/splash_bloc.dart';
 import 'features/splash/presentation/pages/splash_page.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initDependencyInjection();
@@ -24,6 +26,7 @@ class WheelsRiderApp extends StatelessWidget {
       child: BlocBuilder<ThemeBloc, ThemeState>(
         builder: (context, state) {
           return MaterialApp(
+            navigatorKey: navigatorKey,
             title: AppStrings.appName,
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,

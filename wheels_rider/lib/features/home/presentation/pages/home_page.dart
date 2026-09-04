@@ -20,6 +20,7 @@ import '../bloc/booking_state.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../widgets/availability_dialog.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -32,6 +33,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   int _currentIndex = 0;
   bool _isOnDuty = true;
   String _rideType = 'Self'; // 'Corporate' or 'Self'
+  List<DateTime> _corporateSelectedDates = [];
   bool _isRideRequestMinimized = false;
   bool _hasActiveRideRequest = true;
 
@@ -474,10 +476,28 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       children: [
                         Expanded(
                           child: GestureDetector(
-                            onTap: () {
-                              setState(() => _rideType = 'Corporate');
-                              final String mode = 'EMPLOYEE';
-                              _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: _isOnDuty));
+                            onTap: () async {
+                              if (_rideType == 'Corporate') return;
+
+                              final selectedDates = await showModalBottomSheet<List<DateTime>>(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (context) => const AvailabilityBottomSheet(),
+                              );
+
+                              if (selectedDates != null && selectedDates.isNotEmpty) {
+                                setState(() {
+                                  _rideType = 'Corporate';
+                                  _corporateSelectedDates = selectedDates;
+                                });
+                                final String mode = 'EMPLOYEE';
+                                _homeBloc.add(HomeEvent.updateAvailability(
+                                  availabilityMode: mode, 
+                                  isOnline: _isOnDuty,
+                                  selectedDates: selectedDates,
+                                ));
+                              }
                             },
                             child: Container(
                               decoration: BoxDecoration(
@@ -511,7 +531,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                         Expanded(
                           child: GestureDetector(
                             onTap: () {
-                              setState(() => _rideType = 'Self');
+                              setState(() {
+                                _rideType = 'Self';
+                                _corporateSelectedDates = [];
+                              });
                               final String mode = 'NORMAL';
                               _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: _isOnDuty));
                             },
@@ -547,6 +570,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       ],
                     ),
                   ),
+
                 ],
               ),
             ),

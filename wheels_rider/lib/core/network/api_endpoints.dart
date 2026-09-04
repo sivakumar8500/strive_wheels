@@ -9,7 +9,13 @@ class ApiEndpoints {
     final cleanPath = path.trim();
     if (cleanPath.startsWith('http://') ||
         cleanPath.startsWith('https://') ||
-        cleanPath.startsWith('blob:')) {
+        cleanPath.startsWith('blob:') ||
+        cleanPath.startsWith('file://') ||
+        cleanPath.startsWith('/data/') ||
+        cleanPath.startsWith('/var/') ||
+        cleanPath.startsWith('/private/') ||
+        cleanPath.startsWith('/Users/') ||
+        cleanPath.contains(RegExp(r'^[a-zA-Z]:\\'))) {
       return cleanPath;
     }
     if (!cleanPath.startsWith('/')) {
@@ -32,6 +38,7 @@ class ApiEndpoints {
 
   // Rider Trip Endpoints
   static const String riderAvailability = '$baseUrl/rider/availability';
+  static const String riderAvailabilitySchedule = '$baseUrl/rider/availability-schedule';
   static const String riderLocation = '$baseUrl/rider/location';
   static const String riderProfile = '$baseUrl/rider/profile';
   static String acceptBooking(int id) => '$baseUrl/rider/booking-requests/$id/accept';

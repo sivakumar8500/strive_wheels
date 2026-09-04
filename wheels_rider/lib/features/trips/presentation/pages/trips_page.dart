@@ -13,6 +13,9 @@ import '../../domain/entities/trip_entity.dart';
 import '../bloc/trips_bloc.dart';
 import '../bloc/trips_event.dart';
 import '../bloc/trips_state.dart';
+import '../../../profile/presentation/bloc/profile_bloc.dart';
+import '../../../profile/presentation/bloc/profile_event.dart';
+import '../../../profile/presentation/bloc/profile_state.dart';
 
 class TripsPage extends StatefulWidget {
   const TripsPage({super.key});
@@ -43,8 +46,11 @@ class _TripsPageState extends State<TripsPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFF9F9FC);
 
-    return BlocProvider.value(
-      value: _tripsBloc,
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: _tripsBloc),
+        BlocProvider(create: (_) => sl<ProfileBloc>()..add(GetProfileEvent())),
+      ],
       child: Scaffold(
       backgroundColor: bgColor,
       body: SafeArea(
@@ -100,82 +106,102 @@ class _TripsPageState extends State<TripsPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
+        BlocBuilder<ProfileBloc, ProfileState>(
+          builder: (context, state) {
+            String name = 'Loading...';
+            String rating = '0.0';
+            String imageUrl = '';
+
+            if (state is ProfileLoaded) {
+              name = state.profile.name;
+              rating = state.profile.rating.toString();
+              imageUrl = state.profile.profileImageUrl;
+            } else if (state is ProfileUpdateSuccess) {
+              name = state.profile.name;
+              rating = state.profile.rating.toString();
+              imageUrl = state.profile.profileImageUrl;
+            }
+
+            return Row(
               children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: Colors.grey.shade200,
-                  backgroundImage: const AssetImage('assets/images/login.png'),
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: -2,
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0D6EFD), // Blue dot
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+                Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0D6EFD),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Icon(Icons.drive_eta, size: 10, color: Colors.white),
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: Colors.grey.shade200,
+                      backgroundImage: imageUrl.isNotEmpty
+                          ? NetworkImage(imageUrl)
+                          : const AssetImage('assets/images/login.png') as ImageProvider,
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Alex',
-                      style: GoogleFonts.inter(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black,
+                    Positioned(
+                      bottom: 0,
+                      right: -2,
+                      child: Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0D6EFD), // Blue dot
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.grey.shade800 : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.star, color: Colors.amber, size: 12),
-                      const SizedBox(width: 4),
-                      Text(
-                        '4.98',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : Colors.black87,
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0D6EFD),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Icon(Icons.drive_eta, size: 10, color: Colors.white),
                         ),
+                        const SizedBox(width: 6),
+                        Text(
+                          name,
+                          style: GoogleFonts.inter(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.grey.shade800 : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
                       ),
-                    ],
-                  ),
-                )
+                      child: Row(
+                        children: [
+                          const Icon(Icons.star, color: Colors.amber, size: 12),
+                          const SizedBox(width: 4),
+                          Text(
+                            rating,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  ],
+                ),
               ],
-            ),
-          ],
+            );
+          }
         ),
         Stack(
           clipBehavior: Clip.none,
