@@ -60,6 +60,7 @@ import '../../features/home/domain/usecases/update_location_usecase.dart';
 import '../../features/home/domain/usecases/get_availability_schedule_usecase.dart';
 import '../../features/home/presentation/bloc/booking_bloc.dart';
 import '../../features/home/presentation/bloc/home_bloc.dart';
+import '../../features/home/presentation/bloc/availability_schedule_bloc.dart';
 import '../../features/profile/data/datasources/profile_remote_data_source.dart';
 import '../../features/profile/data/repositories/profile_repository_impl.dart';
 import '../../features/profile/domain/repositories/profile_repository.dart';
@@ -444,6 +445,11 @@ Future<void> initDependencyInjection() async {
           submitRegistrationUsecase: sl(),
           uploadFileUseCase: sl(),
         ));
+  }
+  if (!sl.isRegistered<AvailabilityScheduleBloc>()) {
+    sl.registerFactory<AvailabilityScheduleBloc>(
+      () => AvailabilityScheduleBloc(getAvailabilityScheduleUseCase: sl()),
+    );
   }
   if (!sl.isRegistered<HomeBloc>()) {
     sl.registerFactory<HomeBloc>(

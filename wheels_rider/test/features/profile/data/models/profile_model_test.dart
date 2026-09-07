@@ -5,7 +5,7 @@ import 'package:wheels_rider/features/profile/domain/entities/profile_entity.dar
 void main() {
   const tProfileModel = ProfileModel(id: 1, rating: 4.98, totalEarnings: 0.0, walletBalance: 0.0, user: {'full_name': 'Alex', 'profile_image_url': 'url', 'phone': '1234567890', 'email': 'test@test.com', 'dob': '1990-01-01', 'gender': 'Male'});
 
-  const tProfileEntity = ProfileEntity(id: 1, name: 'Alex', rating: 4.98, profileImageUrl: 'url', totalEarnings: 0.0, walletBalance: 0.0, phone: '1234567890', email: 'test@test.com', dob: '1990-01-01', gender: 'Male');
+  const tProfileEntity = ProfileEntity(id: 1, name: 'Alex', rating: 4.98, profileImageUrl: 'url', totalEarnings: 0.0, walletBalance: 0.0, phone: '1234567890', email: 'test@test.com', dob: '1990-01-01', gender: 'Male', status: 'active');
 
   test('should convert to ProfileEntity', () {
     final result = tProfileModel.toEntity();
@@ -25,3 +25,4 @@ void main() {
     expect(result, equals(expectedJsonMap));
   });
 }
+

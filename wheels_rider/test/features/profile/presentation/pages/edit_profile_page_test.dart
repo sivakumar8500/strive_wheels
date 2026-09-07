@@ -30,6 +30,7 @@ void main() {
     walletBalance: 0.0,
     dob: '1990-01-01',
     gender: 'Male',
+    status: 'active',
     email: 'test@test.com',
   );
 

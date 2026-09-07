@@ -36,11 +36,14 @@ class _Step9SuccessState extends State<Step9Success> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -223,6 +226,8 @@ class _Step9SuccessState extends State<Step9Success> with SingleTickerProviderSt
           ),
           const SizedBox(height: 16),
         ],
+      ),
+        ),
       ),
     );
   }

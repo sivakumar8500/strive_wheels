@@ -12,9 +12,10 @@ import '../bloc/otp_event.dart';
 import '../bloc/otp_state.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../../home/presentation/pages/home_page.dart';
-import 'registration_landing_page.dart';
-import 'pending_approval_page.dart';
+
+
 import '../../../registration/presentation/pages/registration_page.dart';
+import '../../../registration/presentation/pages/steps/step9_success.dart';
 
 class OtpPage extends StatefulWidget {
   final String phoneNumber;
@@ -124,13 +125,13 @@ class _OtpPageState extends State<OtpPage> {
               );
             } else if (authStatus == AuthStatus.registrationSubmitted) {
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const PendingApprovalPage()),
+                MaterialPageRoute(builder: (_) => const Step9Success()),
                 (route) => false,
               );
             } else {
               // Covers registrationRejected, and default
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const PendingApprovalPage()),
+                MaterialPageRoute(builder: (_) => const Step9Success()),
                 (route) => false,
               );
             }

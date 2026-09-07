@@ -10,9 +10,9 @@ import '../../../onboarding/presentation/bloc/onboarding_bloc.dart';
 import '../../../onboarding/presentation/pages/onboarding_page.dart';
 import '../../../auth/presentation/bloc/login_bloc.dart';
 import '../../../auth/presentation/pages/login_page.dart';
-import '../../../auth/presentation/pages/pending_approval_page.dart';
 import '../../../home/presentation/pages/home_page.dart';
 import '../../../registration/presentation/pages/registration_page.dart';
+import '../../../registration/presentation/pages/steps/step9_success.dart';
 import '../../../auth/domain/repositories/auth_repository.dart';
 import '../bloc/splash_bloc.dart';
 import '../bloc/splash_event.dart';
@@ -73,11 +73,11 @@ class _SplashPageState extends State<SplashPage> {
               );
             } else if (authStatus == AuthStatus.registrationSubmitted.name) {
               Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const PendingApprovalPage()),
+                MaterialPageRoute(builder: (_) => const Step9Success()),
               );
             } else {
               Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const PendingApprovalPage()),
+                MaterialPageRoute(builder: (_) => const Step9Success()),
               );
             }
           } else {
