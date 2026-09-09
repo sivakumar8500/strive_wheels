@@ -237,10 +237,19 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
           if (sl.isRegistered<ActiveBookingService>()) {
             sl<ActiveBookingService>().updateBookingStatus('DRIVER_ARRIVED');
           }
-        } else if (event == 'booking.started' || event == 'rider.trip_started' || event == 'booking.trip_started') {
+        } else if (event == 'booking.started' ||
+            event == 'rider.trip_started' ||
+            event == 'booking.trip_started' ||
+            event == 'trip_started' ||
+            event == 'trip.started' ||
+            event == 'booking.otp_verified' ||
+            event == 'otp_verified' ||
+            event == 'ride.started' ||
+            event == 'booking.in_transit' ||
+            event == 'in_transit') {
           setState(() {
             _phase = TripPhase.inTransit;
-            _routePoints = [];
+            _routePoints = _generateFallbackCurvePoints(_currentVehiclePos, widget.dropLatLng, 35);
             _routeSteps = [];
             _currentStep = null;
           });
@@ -248,6 +257,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
             sl<ActiveBookingService>().updateBookingStatus('TRIP_STARTED');
           }
           _fetchRealRoadRoute(from: _currentVehiclePos, to: widget.dropLatLng, force: true);
+          _fitMapBounds();
         } else if (event == 'booking.completed' || event == 'rider.trip_completed' || event == 'booking.trip_completed') {
           if (sl.isRegistered<ActiveBookingService>()) {
             sl<ActiveBookingService>().clearActiveBooking();
@@ -674,6 +684,14 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                 startCap: Cap.roundCap,
                 endCap: Cap.roundCap,
               ),
+              if (_phase != TripPhase.inTransit)
+                Polyline(
+                  polylineId: const PolylineId('dropoff_preview_route'),
+                  points: [widget.pickupLatLng, widget.dropLatLng],
+                  color: AppColors.primaryBlue.withValues(alpha: 0.5),
+                  width: 4,
+                  patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+                ),
             },
             markers: {
               // Pickup Location Marker Pin (ABC)

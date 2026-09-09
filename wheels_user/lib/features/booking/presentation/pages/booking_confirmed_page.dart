@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -74,7 +75,14 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
       // OTP verified by rider — directly show map tracking screen
       if (event == 'booking.started' ||
           event == 'rider.trip_started' ||
-          event == 'booking.trip_started') {
+          event == 'booking.trip_started' ||
+          event == 'trip_started' ||
+          event == 'trip.started' ||
+          event == 'booking.otp_verified' ||
+          event == 'otp_verified' ||
+          event == 'ride.started' ||
+          event == 'booking.in_transit' ||
+          event == 'in_transit') {
         if (sl.isRegistered<ActiveBookingService>()) {
           sl<ActiveBookingService>().updateBookingStatus('TRIP_STARTED');
         }
@@ -374,20 +382,44 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
             AppMapWidget(
               initialCameraPosition: CameraPosition(
                 target: widget.pickupLatLng,
-                zoom: 18.0,
+                zoom: 14.0,
               ),
+              onMapCreated: (controller) {
+                final bounds = LatLngBounds(
+                  southwest: LatLng(
+                    min(widget.pickupLatLng.latitude, widget.dropLatLng.latitude),
+                    min(widget.pickupLatLng.longitude, widget.dropLatLng.longitude),
+                  ),
+                  northeast: LatLng(
+                    max(widget.pickupLatLng.latitude, widget.dropLatLng.latitude),
+                    max(widget.pickupLatLng.longitude, widget.dropLatLng.longitude),
+                  ),
+                );
+                controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 40));
+              },
               zoomControlsEnabled: false,
               myLocationButtonEnabled: false,
+              polylines: {
+                Polyline(
+                  polylineId: const PolylineId('preview_route'),
+                  points: [widget.pickupLatLng, widget.dropLatLng],
+                  color: AppColors.primaryBlue,
+                  width: 4,
+                  patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+                ),
+              },
               markers: {
                 Marker(
                   markerId: const MarkerId('pickup'),
                   position: widget.pickupLatLng,
-                  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+                  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+                  infoWindow: const InfoWindow(title: 'Pickup Location'),
                 ),
                 Marker(
                   markerId: const MarkerId('drop'),
                   position: widget.dropLatLng,
                   icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+                  infoWindow: const InfoWindow(title: 'Dropoff Location'),
                 ),
               },
             ),

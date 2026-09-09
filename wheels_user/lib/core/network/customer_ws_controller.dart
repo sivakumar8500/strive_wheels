@@ -54,7 +54,14 @@ class CustomerWSController {
         case 'booking.started':
         case 'rider.trip_started':
         case 'booking.trip_started':
-          debugPrint('[CustomerWSController] Trip Started!');
+        case 'trip_started':
+        case 'trip.started':
+        case 'booking.otp_verified':
+        case 'otp_verified':
+        case 'ride.started':
+        case 'booking.in_transit':
+        case 'in_transit':
+          debugPrint('[CustomerWSController] Trip Started / OTP Verified!');
           break;
         case 'booking.completed':
         case 'rider.trip_completed':
