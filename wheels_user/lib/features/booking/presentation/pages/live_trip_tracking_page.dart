@@ -87,13 +87,11 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
   DateTime? _lastRouteFetchTime;
   LatLng? _lastRouteFetchPos;
 
-  late final DraggableScrollableController _sheetController;
   final Dio _dio = Dio();
 
   @override
   void initState() {
     super.initState();
-    _sheetController = DraggableScrollableController();
     _saveActiveBookingState();
     // Phase 1 Initial Node 123 (Rider Location) or Pickup ABC
     _currentVehiclePos = widget.initialRiderLatLng ??
@@ -567,7 +565,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
 
   @override
   void dispose() {
-    _sheetController.dispose();
     _wsSubscription?.cancel();
     super.dispose();
   }
@@ -959,7 +956,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
           Positioned.fill(
             child: DraggableScrollableSheet(
               key: const Key('customer_live_trip_sheet'),
-              controller: _sheetController,
               initialChildSize: 0.45,
               minChildSize: 0.14,
               maxChildSize: 0.85,

@@ -719,6 +719,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   activeData.status == 'TRIP_STARTED' &&
                   state.selectedNavIndex == 0) {
                 currentContent = LiveTripTrackingPage(
+                  key: const ValueKey('home_embedded_live_trip'),
                   driverName: activeData.driverName,
                   driverRating: activeData.driverRating,
                   vehicleInfo: activeData.vehicleInfo,
