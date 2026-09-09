@@ -39,17 +39,12 @@ class AppMapWidget extends StatefulWidget {
   State<AppMapWidget> createState() => _AppMapWidgetState();
 }
 
-class _AppMapWidgetState extends State<AppMapWidget> with SingleTickerProviderStateMixin {
-  late final AnimationController _pulseController;
+class _AppMapWidgetState extends State<AppMapWidget> {
   Timer? _jsCheckTimer;
 
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    )..repeat();
 
     if (kIsWeb && !isGoogleMapJsLoaded()) {
       _startJsLoadPolling();
@@ -71,7 +66,6 @@ class _AppMapWidgetState extends State<AppMapWidget> with SingleTickerProviderSt
   @override
   void dispose() {
     _jsCheckTimer?.cancel();
-    _pulseController.dispose();
     super.dispose();
   }
 
