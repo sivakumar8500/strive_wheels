@@ -83,6 +83,10 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
   bool _isLocationStale = false;
   bool _isFollowingVehicle = true;
 
+  bool _isFetchingRoute = false;
+  DateTime? _lastRouteFetchTime;
+  LatLng? _lastRouteFetchPos;
+
   final DraggableScrollableController _sheetController = DraggableScrollableController();
   final Dio _dio = Dio();
 
@@ -239,7 +243,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
           if (sl.isRegistered<ActiveBookingService>()) {
             sl<ActiveBookingService>().updateBookingStatus('TRIP_STARTED');
           }
-          _fetchRealRoadRoute(from: _currentVehiclePos, to: widget.dropLatLng);
+          _fetchRealRoadRoute(from: _currentVehiclePos, to: widget.dropLatLng, force: true);
         } else if (event == 'booking.completed' || event == 'rider.trip_completed' || event == 'booking.trip_completed') {
           if (sl.isRegistered<ActiveBookingService>()) {
             sl<ActiveBookingService>().clearActiveBooking();
@@ -278,6 +282,28 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
   void _onRiderLocationUpdate(LatLng newPos) {
     final rotation = _calculateBearing(_currentVehiclePos, newPos);
 
+    _currentVehiclePos = newPos;
+    _currentVehicleRotation = rotation;
+    _lastLocationTime = DateTime.now();
+    _isLocationStale = false;
+
+    // 1. Smoothly slice remaining route points locally so the route never disappears
+    if (_routePoints.length > 1) {
+      int closestIdx = 0;
+      double minDistance = double.infinity;
+      for (int i = 0; i < _routePoints.length; i++) {
+        final dist = NavigationService.calculateDistanceMeters(newPos, _routePoints[i]);
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestIdx = i;
+        }
+      }
+      if (closestIdx > 0 && closestIdx < _routePoints.length) {
+        _routePoints = [newPos, ..._routePoints.sublist(closestIdx)];
+      }
+    }
+
+    // 2. Update current step and distance to step
     NavigationStep? nextStep;
     double distToStep = 0.0;
     if (_routeSteps.isNotEmpty) {
@@ -290,17 +316,14 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
       }
     }
 
-    setState(() {
-      _currentVehiclePos = newPos;
-      _currentVehicleRotation = rotation;
-      _lastLocationTime = DateTime.now();
-      _isLocationStale = false;
-      if (nextStep != null) {
-        _currentStep = nextStep;
-        _distanceToStepMeters = distToStep;
-      }
-    });
+    if (nextStep != null) {
+      _currentStep = nextStep;
+      _distanceToStepMeters = distToStep;
+    }
 
+    setState(() {});
+
+    // 3. Animate 3D tilted camera to track vehicle
     if (_isFollowingVehicle && _mapController != null) {
       _mapController!.animateCamera(
         CameraUpdate.newCameraPosition(
@@ -314,8 +337,22 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
       );
     }
 
-    final target = _phase == TripPhase.inTransit ? widget.dropLatLng : widget.pickupLatLng;
-    _fetchRealRoadRoute(from: newPos, to: target);
+    // 4. Debounce OSRM network route refreshes (refetch only if no route, or moved > 50m after 15s)
+    bool shouldRefetch = _routePoints.isEmpty;
+    if (_lastRouteFetchTime != null && _lastRouteFetchPos != null) {
+      final secondsSinceLastFetch = DateTime.now().difference(_lastRouteFetchTime!).inSeconds;
+      final moveDistance = NavigationService.calculateDistanceMeters(newPos, _lastRouteFetchPos!);
+      if (secondsSinceLastFetch >= 15 && moveDistance > 50) {
+        shouldRefetch = true;
+      }
+    } else {
+      shouldRefetch = true;
+    }
+
+    if (shouldRefetch) {
+      final target = _phase == TripPhase.inTransit ? widget.dropLatLng : widget.pickupLatLng;
+      _fetchRealRoadRoute(from: newPos, to: target);
+    }
   }
 
   /// Create custom dynamic high-resolution vehicle car cursor icon and location pin icons
@@ -369,9 +406,28 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
   }
 
   /// Fetches real road-accurate turn-by-turn geometry points & step maneuvers from OSRM
-  Future<void> _fetchRealRoadRoute({LatLng? from, LatLng? to}) async {
+  Future<void> _fetchRealRoadRoute({LatLng? from, LatLng? to, bool force = false}) async {
+    if (_isFetchingRoute && !force) return;
+
     final startPt = from ?? _currentVehiclePos;
     final endPt = to ?? (_phase == TripPhase.inTransit ? widget.dropLatLng : widget.pickupLatLng);
+
+    // Guard against coincident endpoints (< 15 meters) to prevent OSRM 400 Bad Request
+    final distanceBetween = NavigationService.calculateDistanceMeters(startPt, endPt);
+    if (distanceBetween < 15.0) {
+      if (mounted) {
+        setState(() {
+          _routePoints = [startPt, endPt];
+          _remainingMilesVal = 0.0;
+          _remainingMinsVal = 0;
+        });
+      }
+      return;
+    }
+
+    _isFetchingRoute = true;
+    _lastRouteFetchTime = DateTime.now();
+    _lastRouteFetchPos = startPt;
 
     try {
       final navService = sl.isRegistered<NavigationService>()
@@ -406,6 +462,8 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
       }
     } catch (e) {
       debugPrint('[LiveTripTrackingPage] Failed OSRM route fetch: $e');
+    } finally {
+      _isFetchingRoute = false;
     }
   }
 
