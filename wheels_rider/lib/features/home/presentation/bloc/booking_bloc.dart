@@ -12,12 +12,11 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
   final GetRideRequestsStreamUseCase getRideRequestsStream;
   final GetBookingSuccessStreamUseCase getBookingSuccessStream;
   final GetBookingErrorStreamUseCase getBookingErrorStream;
-  final GetRideCancelledStreamUseCase? getRideCancelledStream;
+  final SendLocationPingUseCase sendLocationPing;
 
   StreamSubscription? _requestsSubscription;
   StreamSubscription? _successSubscription;
   StreamSubscription? _errorSubscription;
-  StreamSubscription? _cancelledSubscription;
 
   BookingBloc({
     required this.connectToBookingSocket,
@@ -26,7 +25,7 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     required this.getRideRequestsStream,
     required this.getBookingSuccessStream,
     required this.getBookingErrorStream,
-    this.getRideCancelledStream,
+    required this.sendLocationPing,
   }) : super(BookingInitial()) {
     on<ConnectWebSocketEvent>(_onConnectWebSocket);
     on<DisconnectWebSocketEvent>(_onDisconnectWebSocket);
@@ -35,7 +34,7 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     on<DeclineRideEvent>(_onDeclineRide);
     on<BookingSuccessEvent>(_onBookingSuccess);
     on<BookingErrorEvent>(_onBookingError);
-    on<RideCancelledEvent>(_onRideCancelled);
+    on<SendLocationPingEvent>(_onSendLocationPing);
   }
 
   void _onConnectWebSocket(ConnectWebSocketEvent event, Emitter<BookingState> emit) {
@@ -56,14 +55,6 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     _errorSubscription = getBookingErrorStream().listen((errorMsg) {
       add(BookingErrorEvent(errorMsg));
     });
-
-    _cancelledSubscription?.cancel();
-    if (getRideCancelledStream != null) {
-      _cancelledSubscription = getRideCancelledStream!().listen((data) {
-        final reason = data['reason']?.toString() ?? 'Ride was cancelled by customer';
-        add(RideCancelledEvent(reason: reason));
-      });
-    }
   }
 
   void _onDisconnectWebSocket(DisconnectWebSocketEvent event, Emitter<BookingState> emit) {
@@ -71,7 +62,6 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     _requestsSubscription?.cancel();
     _successSubscription?.cancel();
     _errorSubscription?.cancel();
-    _cancelledSubscription?.cancel();
     emit(BookingInitial());
   }
 
@@ -96,8 +86,13 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     emit(BookingErrorState(event.message));
   }
 
-  void _onRideCancelled(RideCancelledEvent event, Emitter<BookingState> emit) {
-    emit(RideCancelledState(event.reason));
+  void _onSendLocationPing(SendLocationPingEvent event, Emitter<BookingState> emit) {
+    sendLocationPing(
+      lat: event.lat,
+      lng: event.lng,
+      heading: event.heading,
+      speedKmh: event.speedKmh,
+    );
   }
 
   @override
@@ -106,7 +101,6 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     _requestsSubscription?.cancel();
     _successSubscription?.cancel();
     _errorSubscription?.cancel();
-    _cancelledSubscription?.cancel();
     return super.close();
   }
 }

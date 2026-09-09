@@ -61,12 +61,22 @@ class GetBookingErrorStreamUseCase {
   }
 }
 
-class GetRideCancelledStreamUseCase {
+class SendLocationPingUseCase {
   final BookingRepository repository;
 
-  GetRideCancelledStreamUseCase(this.repository);
+  SendLocationPingUseCase(this.repository);
 
-  Stream<Map<String, dynamic>> call() {
-    return repository.rideCancelledStream;
+  void call({
+    required double lat,
+    required double lng,
+    double heading = 0.0,
+    double speedKmh = 0.0,
+  }) {
+    repository.sendLocationPing(
+      lat: lat,
+      lng: lng,
+      heading: heading,
+      speedKmh: speedKmh,
+    );
   }
 }

@@ -1,3 +1,5 @@
+import 'registration_data.dart';
+
 class RegistrationStepResponse {
   final bool success;
   final String message;
@@ -40,6 +42,7 @@ class RegistrationStepData {
   final List<int> completedSteps;
   final int? nextStep;
   final String message;
+  final RegistrationData? registrationData;
 
   const RegistrationStepData({
     this.registrationId,
@@ -50,6 +53,7 @@ class RegistrationStepData {
     this.completedSteps = const [],
     this.nextStep,
     this.message = '',
+    this.registrationData,
   });
 
   factory RegistrationStepData.fromJson(
@@ -74,6 +78,7 @@ class RegistrationStepData {
       completedSteps: completedList,
       nextStep: json['next_step'] as int?,
       message: msg,
+      registrationData: RegistrationData.fromJson(json),
     );
   }
 }

@@ -30,7 +30,16 @@ class BookingErrorEvent extends BookingEvent {
   BookingErrorEvent(this.message);
 }
 
-class RideCancelledEvent extends BookingEvent {
-  final String reason;
-  RideCancelledEvent({this.reason = 'Ride was cancelled by customer'});
+class SendLocationPingEvent extends BookingEvent {
+  final double lat;
+  final double lng;
+  final double heading;
+  final double speedKmh;
+
+  SendLocationPingEvent({
+    required this.lat,
+    required this.lng,
+    this.heading = 0.0,
+    this.speedKmh = 0.0,
+  });
 }

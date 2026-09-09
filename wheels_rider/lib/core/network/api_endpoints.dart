@@ -9,7 +9,13 @@ class ApiEndpoints {
     final cleanPath = path.trim();
     if (cleanPath.startsWith('http://') ||
         cleanPath.startsWith('https://') ||
-        cleanPath.startsWith('blob:')) {
+        cleanPath.startsWith('blob:') ||
+        cleanPath.startsWith('file://') ||
+        cleanPath.startsWith('/data/') ||
+        cleanPath.startsWith('/var/') ||
+        cleanPath.startsWith('/private/') ||
+        cleanPath.startsWith('/Users/') ||
+        cleanPath.contains(RegExp(r'^[a-zA-Z]:\\'))) {
       return cleanPath;
     }
     if (!cleanPath.startsWith('/')) {
@@ -27,11 +33,13 @@ class ApiEndpoints {
 
   // WebSocket
   // Note: For staging/prod, change to wss:// if applicable.
-  static const String wsConnect = 'ws://15.252.129.37:8200/api/v1/ws/v1/connect';
-  static String wsDriverConnect(int driverId) => 'ws://15.252.129.37:8200/api/v1/ws/driver/$driverId';
+  static const String wsBaseUrl = 'ws://15.252.129.37:8200/api/v1';
+  static const String wsConnect = '$wsBaseUrl/ws/v1/connect';
+  static String wsDriverConnect(int driverId) => '$wsBaseUrl/ws/driver/$driverId';
 
   // Rider Trip Endpoints
   static const String riderAvailability = '$baseUrl/rider/availability';
+  static const String riderAvailabilitySchedule = '$baseUrl/rider/availability-schedule';
   static const String riderLocation = '$baseUrl/rider/location';
   static const String riderProfile = '$baseUrl/rider/profile';
   static String acceptBooking(int id) => '$baseUrl/rider/booking-requests/$id/accept';

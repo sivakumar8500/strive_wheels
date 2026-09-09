@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/widgets/app_text_field.dart';
@@ -18,6 +21,36 @@ class _Step7EmergencyContactState extends State<Step7EmergencyContact> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   String? _selectedRelation;
+
+  Future<void> _pickContact() async {
+    final status = await Permission.contacts.request();
+    if (status.isGranted) {
+      final contact = await FlutterContacts.native.showPicker(
+        properties: {ContactProperty.phone},
+      );
+      if (contact != null && mounted) {
+        setState(() {
+          _nameController.text = contact.displayName ?? '';
+          if (contact.phones.isNotEmpty) {
+            String phone = contact.phones.first.number;
+            phone = phone.replaceAll(RegExp(r'[^\d+]'), '');
+            if (phone.startsWith('+91')) {
+              phone = phone.substring(3);
+            } else if (phone.startsWith('0') && phone.length > 10) {
+              phone = phone.substring(1);
+            }
+            _phoneController.text = phone;
+          }
+        });
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Contact permission is required to pick from contacts')),
+        );
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -82,35 +115,37 @@ class _Step7EmergencyContactState extends State<Step7EmergencyContact> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Add from Contacts Button (dashed style)
-                  Container(
-                    height: 48,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppColors.primaryBlue.withValues(alpha: 0.5),
-                        // Dashed effect is hard with plain Border, but we can simulate or use solid for now
-                        style: BorderStyle.solid,
+                  // Add from Contacts Button
+                  GestureDetector(
+                    onTap: _pickContact,
+                    child: Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.primaryBlue.withValues(alpha: 0.5),
+                          style: BorderStyle.solid,
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.contact_phone_outlined,
-                          color: AppColors.darkBlue,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Add from Contacts',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.contact_phone_outlined,
                             color: AppColors.darkBlue,
+                            size: 18,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 8),
+                          Text(
+                            'Add from Contacts',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.darkBlue,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -200,9 +235,13 @@ class _Step7EmergencyContactState extends State<Step7EmergencyContact> {
                   const SizedBox(height: 16),
                   AppTextField(
                     label: 'Phone Number',
-                    hintText: '',
+                    hintText: '10-digit mobile number',
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
+                    maxLength: 10,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                    ],
                     prefixIcon: Padding(
                       padding: const EdgeInsets.only(left: 16, right: 8),
                       child: Row(
@@ -237,11 +276,35 @@ class _Step7EmergencyContactState extends State<Step7EmergencyContact> {
               height: 56,
               child: ElevatedButton(
                 onPressed: () {
+                  final name = _nameController.text.trim();
+                  final phone = _phoneController.text.trim();
+                  
+                  if (name.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please enter contact name')),
+                    );
+                    return;
+                  }
+                  
+                  if (_selectedRelation == null || _selectedRelation!.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please select relationship')),
+                    );
+                    return;
+                  }
+                  
+                  if (phone.isEmpty || phone.length != 10) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please enter a valid 10-digit mobile number')),
+                    );
+                    return;
+                  }
+
                   context.read<RegistrationBloc>().add(
                     UpdateEmergencyContactEvent(
-                      emergencyContactName: _nameController.text,
+                      emergencyContactName: name,
                       emergencyContactRelation: _selectedRelation,
-                      emergencyContactPhone: _phoneController.text,
+                      emergencyContactPhone: phone,
                     ),
                   );
                 },

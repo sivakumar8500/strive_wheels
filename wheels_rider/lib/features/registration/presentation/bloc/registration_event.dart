@@ -77,6 +77,7 @@ class UpdateIdentityVerificationEvent extends RegistrationEvent {
   final String? dlNumber;
   final String? dlFrontPath;
   final String? dlBackPath;
+  final String? nocCertificatePath;
 
   const UpdateIdentityVerificationEvent({
     this.selfiePath,
@@ -88,6 +89,7 @@ class UpdateIdentityVerificationEvent extends RegistrationEvent {
     this.dlNumber,
     this.dlFrontPath,
     this.dlBackPath,
+    this.nocCertificatePath,
   });
 }
 

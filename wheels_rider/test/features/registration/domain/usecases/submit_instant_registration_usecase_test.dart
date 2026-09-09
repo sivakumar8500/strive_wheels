@@ -37,8 +37,8 @@ void main() {
 
     expect(result, tResponse);
     expect(result.success, isTrue);
-    expect(result.data.currentStep, 2);
-    expect(result.data.nextStep, 2);
+    expect(result.data?.currentStep, 2);
+    expect(result.data?.nextStep, 2);
     verify(() => mockRepository.submitInstantRegistration()).called(1);
   });
 }

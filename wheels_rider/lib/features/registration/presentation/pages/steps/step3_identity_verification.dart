@@ -33,6 +33,7 @@ class _Step3IdentityVerificationState extends State<Step3IdentityVerification> {
   String? _panFrontPath;
   String? _dlFrontPath;
   String? _dlBackPath;
+  String? _nocCertificatePath;
 
   Future<void> _pickImage(
     Function(String) onPicked, {
@@ -61,6 +62,7 @@ class _Step3IdentityVerificationState extends State<Step3IdentityVerification> {
     _panFrontPath = data.panFrontPath;
     _dlFrontPath = data.dlFrontPath;
     _dlBackPath = data.dlBackPath;
+    _nocCertificatePath = data.nocCertificatePath;
   }
 
   @override
@@ -439,6 +441,38 @@ class _Step3IdentityVerificationState extends State<Step3IdentityVerification> {
                 ],
               ),
             ),
+            const SizedBox(height: 24),
+
+            // 5. Police NOC
+            _buildSectionCard(
+              isDark: isDark,
+              title: 'Police NOC',
+              statusTag: _nocCertificatePath != null ? 'Uploaded' : 'Pending',
+              statusColor: _nocCertificatePath != null ? Colors.green : Colors.orange,
+              statusBg: _nocCertificatePath != null
+                  ? Colors.green.withValues(alpha: 0.1)
+                  : Colors.orange.withValues(alpha: 0.1),
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Provide a clear scan of your No Objection Certificate (NOC) from Police.',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildUploadBlock(
+                    isDark: isDark,
+                    label: 'NOC Document',
+                    imagePath: _nocCertificatePath,
+                    onTap: () => _pickImage((path) => _nocCertificatePath = path),
+                  ),
+                ],
+              ),
+            ),
+
             const SizedBox(height: 32),
 
             // Save & Continue Button
@@ -531,6 +565,14 @@ class _Step3IdentityVerificationState extends State<Step3IdentityVerification> {
                     return;
                   }
 
+                  // 5. Police NOC validation
+                  if (_nocCertificatePath == null || _nocCertificatePath!.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please upload Police NOC Certificate')),
+                    );
+                    return;
+                  }
+
                   context.read<RegistrationBloc>().add(
                     UpdateIdentityVerificationEvent(
                       selfiePath: _selfiePath,
@@ -542,6 +584,7 @@ class _Step3IdentityVerificationState extends State<Step3IdentityVerification> {
                       dlNumber: dlNumber,
                       dlFrontPath: _dlFrontPath,
                       dlBackPath: _dlBackPath,
+                      nocCertificatePath: _nocCertificatePath,
                     ),
                   );
                 },
