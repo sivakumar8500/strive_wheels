@@ -62,7 +62,9 @@ class _EarningsViewState extends State<EarningsView> {
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: AnimatedEmptyState(
                     title: 'Oops!',
-                    subtitle: 'Failed to load earnings. Please pull down to refresh.',
+                    subtitle: state.message.isNotEmpty
+                        ? state.message
+                        : 'Failed to load earnings. Please pull down to refresh.',
                     icon: Icons.cloud_off,
                   ),
                 ),
