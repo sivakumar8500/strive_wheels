@@ -27,12 +27,14 @@ class TripsPage extends StatefulWidget {
 class _TripsPageState extends State<TripsPage> {
   int _currentIndex = 1; // Trips is selected
   String _selectedFilter = 'All Rides';
-  late final TripsBloc _tripsBloc;
+  TripsBloc? _tripsBloc;
 
   @override
   void initState() {
     super.initState();
-    _tripsBloc = sl<TripsBloc>()..add(GetTripsEvent());
+    if (sl.isRegistered<TripsBloc>()) {
+      _tripsBloc = sl<TripsBloc>()..add(GetTripsEvent());
+    }
   }
 
   @override
@@ -45,10 +47,13 @@ class _TripsPageState extends State<TripsPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFF9F9FC);
 
+    final effectiveTripsBloc = _tripsBloc ?? context.read<TripsBloc>();
+
     return MultiBlocProvider(
       providers: [
-        BlocProvider.value(value: _tripsBloc),
-        BlocProvider(create: (_) => sl<ProfileBloc>()..add(GetProfileEvent())),
+        BlocProvider.value(value: effectiveTripsBloc),
+        if (sl.isRegistered<ProfileBloc>())
+          BlocProvider(create: (_) => sl<ProfileBloc>()..add(GetProfileEvent())),
       ],
       child: Scaffold(
       backgroundColor: bgColor,
@@ -102,106 +107,112 @@ class _TripsPageState extends State<TripsPage> {
   }
 
   Widget _buildTopBar(bool isDark) {
+    Widget buildHeader(String name, String rating, String imageUrl) {
+      return Row(
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: Colors.grey.shade200,
+                backgroundImage: imageUrl.isNotEmpty
+                    ? NetworkImage(imageUrl)
+                    : const AssetImage('assets/images/login.png') as ImageProvider,
+              ),
+              Positioned(
+                bottom: 0,
+                right: -2,
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0D6EFD), // Blue dot
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D6EFD),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Icon(Icons.drive_eta, size: 10, color: Colors.white),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    name,
+                    style: GoogleFonts.inter(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey.shade800 : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.star, color: Colors.amber, size: 12),
+                    const SizedBox(width: 4),
+                    Text(
+                      rating,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            ],
+          ),
+        ],
+      );
+    }
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        BlocBuilder<ProfileBloc, ProfileState>(
-          builder: (context, state) {
-            String name = 'Loading...';
-            String rating = '0.0';
-            String imageUrl = '';
+        sl.isRegistered<ProfileBloc>()
+            ? BlocBuilder<ProfileBloc, ProfileState>(
+                builder: (context, state) {
+                  String name = 'Loading...';
+                  String rating = '0.0';
+                  String imageUrl = '';
 
-            if (state is ProfileLoaded) {
-              name = state.profile.name;
-              rating = state.profile.rating.toString();
-              imageUrl = state.profile.profileImageUrl;
-            } else if (state is ProfileUpdateSuccess) {
-              name = state.profile.name;
-              rating = state.profile.rating.toString();
-              imageUrl = state.profile.profileImageUrl;
-            }
+                  if (state is ProfileLoaded) {
+                    name = state.profile.name;
+                    rating = state.profile.rating.toString();
+                    imageUrl = state.profile.profileImageUrl;
+                  } else if (state is ProfileUpdateSuccess) {
+                    name = state.profile.name;
+                    rating = state.profile.rating.toString();
+                    imageUrl = state.profile.profileImageUrl;
+                  }
 
-            return Row(
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    CircleAvatar(
-                      radius: 24,
-                      backgroundColor: Colors.grey.shade200,
-                      backgroundImage: imageUrl.isNotEmpty
-                          ? NetworkImage(imageUrl)
-                          : const AssetImage('assets/images/login.png') as ImageProvider,
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: -2,
-                      child: Container(
-                        width: 14,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0D6EFD), // Blue dot
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0D6EFD),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Icon(Icons.drive_eta, size: 10, color: Colors.white),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          name,
-                          style: GoogleFonts.inter(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.grey.shade800 : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 12),
-                          const SizedBox(width: 4),
-                          Text(
-                            rating,
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white : Colors.black87,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  ],
-                ),
-              ],
-            );
-          }
-        ),
+                  return buildHeader(name, rating, imageUrl);
+                },
+              )
+            : buildHeader('Alexander Smith', '4.98', ''),
         Stack(
           clipBehavior: Clip.none,
           children: [
