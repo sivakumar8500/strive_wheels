@@ -29,5 +29,8 @@ class BookingRepositoryImpl implements BookingRepository {
   Stream<int> get bookingSuccessStream => webSocketDataSource.bookingSuccessStream;
 
   @override
+  Stream<Map<String, dynamic>> get rideCancelledStream => webSocketDataSource.rideCancelledStream;
+
+  @override
   Stream<String> get errorStream => webSocketDataSource.errorStream;
 }

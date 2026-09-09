@@ -4,12 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
-
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_strings.dart';
 import '../../domain/entities/home_dashboard_entity.dart';
 
 class OffersCarousel extends StatefulWidget {

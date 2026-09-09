@@ -60,3 +60,13 @@ class GetBookingErrorStreamUseCase {
     return repository.errorStream;
   }
 }
+
+class GetRideCancelledStreamUseCase {
+  final BookingRepository repository;
+
+  GetRideCancelledStreamUseCase(this.repository);
+
+  Stream<Map<String, dynamic>> call() {
+    return repository.rideCancelledStream;
+  }
+}

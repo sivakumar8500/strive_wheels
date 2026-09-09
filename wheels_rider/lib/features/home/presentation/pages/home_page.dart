@@ -65,6 +65,22 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _bookingBloc = sl<BookingBloc>();
     _loadCustomMarker();
     _determinePositionAndSend();
+    _checkAndConnectWebSocket();
+  }
+
+  Future<void> _checkAndConnectWebSocket([ProfileState? currentState]) async {
+    final state = currentState ?? _profileBloc.state;
+    if (state is ProfileLoaded) {
+      final prefs = await SharedPreferences.getInstance();
+      final rawToken = prefs.getString('access_token') ??
+          prefs.getString('user_token') ??
+          prefs.getString('auth_token');
+      final token = (rawToken != null && rawToken.trim().isNotEmpty) ? rawToken.trim() : 'demo_token';
+      _bookingBloc.add(ConnectWebSocketEvent(
+        driverId: state.profile.id,
+        token: token,
+      ));
+    }
   }
 
   Future<void> _loadCustomMarker() async {
@@ -143,15 +159,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       body: MultiBlocListener(
         listeners: [
           BlocListener<ProfileBloc, ProfileState>(
-            listener: (context, state) async {
-              if (state is ProfileLoaded) {
-                final prefs = await SharedPreferences.getInstance();
-                final token = prefs.getString('user_token') ?? '';
-                _bookingBloc.add(ConnectWebSocketEvent(
-                  driverId: state.profile.id,
-                  token: token,
-                ));
-              }
+            listener: (context, state) {
+              _checkAndConnectWebSocket(state);
             },
           ),
           BlocListener<BookingBloc, BookingState>(
@@ -172,6 +181,17 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               } else if (state is BookingErrorState) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Error: ${state.message}')),
+                );
+              } else if (state is RideCancelledState) {
+                setState(() {
+                  _hasActiveRideRequest = false;
+                  _isRideRequestMinimized = false;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Ride was cancelled: ${state.reason}'),
+                    backgroundColor: const Color(0xFFEF4444),
+                  ),
                 );
               } else if (state is BookingConnected) {
                 setState(() {

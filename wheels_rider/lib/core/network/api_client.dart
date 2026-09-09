@@ -6,7 +6,7 @@ class ApiClient {
   final Dio _dio;
   final SharedPreferences _sharedPreferences;
 
-  ApiClient({required this._dio, required this._sharedPreferences}) {
+  ApiClient(this._dio, this._sharedPreferences) {
     _dio.options.connectTimeout = const Duration(seconds: 30);
     _dio.options.receiveTimeout = const Duration(seconds: 30);
     _dio.options.headers = {

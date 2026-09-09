@@ -119,3 +119,28 @@ class BookVehicleNowEvent extends BookingEvent {
 class ResetVehicleResultsEvent extends BookingEvent {
   const ResetVehicleResultsEvent();
 }
+
+class LoadVehicleTypesEvent extends BookingEvent {
+  const LoadVehicleTypesEvent();
+}
+
+class SelectVehicleTypeEvent extends BookingEvent {
+  final int vehicleTypeId;
+  final String vehicleTypeName;
+
+  const SelectVehicleTypeEvent({
+    required this.vehicleTypeId,
+    required this.vehicleTypeName,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SelectVehicleTypeEvent &&
+          runtimeType == other.runtimeType &&
+          vehicleTypeId == other.vehicleTypeId &&
+          vehicleTypeName == other.vehicleTypeName;
+
+  @override
+  int get hashCode => vehicleTypeId.hashCode ^ vehicleTypeName.hashCode;
+}

@@ -3,18 +3,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:wheels_user/core/constants/app_strings.dart';
 import 'package:wheels_user/features/booking/domain/entities/recent_journey_entity.dart';
 import 'package:wheels_user/features/booking/domain/entities/vehicle_option_entity.dart';
 import 'package:wheels_user/features/booking/presentation/bloc/booking_bloc.dart';
 import 'package:wheels_user/features/booking/presentation/bloc/booking_event.dart';
 import 'package:wheels_user/features/booking/presentation/bloc/booking_state.dart';
 import 'package:wheels_user/features/booking/presentation/pages/location_search_page.dart';
+import 'package:wheels_user/features/booking/presentation/pages/ride_route_map_page.dart';
+import 'package:wheels_user/features/favourites/domain/entities/favorite_place_entity.dart';
+import 'package:wheels_user/features/favourites/domain/entities/favourites_entity.dart';
+import 'package:wheels_user/features/favourites/presentation/bloc/favourites_bloc.dart';
+import 'package:wheels_user/features/favourites/presentation/bloc/favourites_event.dart';
+import 'package:wheels_user/features/favourites/presentation/bloc/favourites_state.dart';
 
 class MockBookingBloc extends MockBloc<BookingEvent, BookingState>
     implements BookingBloc {}
 
+class MockFavouritesBloc extends MockBloc<FavouritesEvent, FavouritesState>
+    implements FavouritesBloc {}
+
 void main() {
-  late MockBookingBloc mockBloc;
+  late MockBookingBloc mockBookingBloc;
+  late MockFavouritesBloc mockFavouritesBloc;
 
   const tJourneys = [
     RecentJourneyEntity(
@@ -38,68 +49,131 @@ void main() {
     ),
   ];
 
+  const tFavourites = FavouritesEntity(
+    shortcutTitle: 'Places you ride to most',
+    shortcutSubtitle: 'Tap a place to use as your destination',
+    places: [
+      FavoritePlaceEntity(
+        id: 'fav-1',
+        title: 'home-2',
+        address: '603, 9th Phase Rd, KPHB Phase III, KPHB Ph...',
+        iconType: 'home',
+        latitude: 17.4925,
+        longitude: 78.3950,
+      ),
+    ],
+  );
+
   setUpAll(() {
     registerFallbackValue(const LoadBookingDataEvent());
-    registerFallbackValue(const SearchVehiclesEvent());
+    registerFallbackValue(const LoadFavouritesEvent());
   });
 
   setUp(() {
-    mockBloc = MockBookingBloc();
+    mockBookingBloc = MockBookingBloc();
+    mockFavouritesBloc = MockFavouritesBloc();
+    when(() => mockFavouritesBloc.state).thenReturn(
+      const FavouritesState(
+        isLoading: false,
+        favouritesEntity: tFavourites,
+      ),
+    );
   });
 
   Widget buildTestWidget() {
     return MaterialApp(
-      home: BlocProvider<BookingBloc>.value(
-        value: mockBloc,
+      home: MultiBlocProvider(
+        providers: [
+          BlocProvider<BookingBloc>.value(value: mockBookingBloc),
+          BlocProvider<FavouritesBloc>.value(value: mockFavouritesBloc),
+        ],
         child: const LocationSearchPage(),
       ),
     );
   }
 
   testWidgets('renders loading indicator when state is loading', (tester) async {
-    when(() => mockBloc.state).thenReturn(const BookingState(isLoading: true));
+    when(() => mockBookingBloc.state).thenReturn(const BookingState(isLoading: true));
 
     await tester.pumpWidget(buildTestWidget());
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 
-  testWidgets('renders pickup, destination, ride type pills, and Search Vehicles button when loaded', (tester) async {
-    when(() => mockBloc.state).thenReturn(const BookingState(
+  testWidgets('renders Drop screen header, for me chip, route card, and action pills', (tester) async {
+    when(() => mockBookingBloc.state).thenReturn(const BookingState(
       isLoading: false,
       pickupLocation: '5th Avenue, NYC',
-      destination: 'Where to?',
+      destination: '',
       recentJourneys: tJourneys,
       availableVehicles: tVehicles,
     ));
 
     await tester.pumpWidget(buildTestWidget());
 
-    expect(find.text('Pickup Location'), findsOneWidget);
-    expect(find.text('5th Avenue, NYC'), findsOneWidget);
-    expect(find.text('Destination'), findsOneWidget);
-    expect(find.text('Where to?'), findsOneWidget);
-    expect(find.text('Instant'), findsOneWidget);
-    expect(find.text('One Way'), findsOneWidget);
-    expect(find.text('Round Trip'), findsOneWidget);
-    expect(find.text('Recent Journeys'), findsOneWidget);
-    expect(find.text('JFK International Airport'), findsOneWidget);
-    expect(find.text('Search Vehicles'), findsOneWidget);
+    expect(find.text(AppStrings.dropTitle), findsOneWidget);
+    expect(find.text(AppStrings.forMe), findsOneWidget);
+    expect(find.byKey(const Key('route_pickup_text_field')), findsOneWidget);
+    expect(find.byKey(const Key('route_drop_text_field')), findsOneWidget);
+    expect(find.text(AppStrings.selectOnMap), findsOneWidget);
+    expect(find.text(AppStrings.addStops), findsOneWidget);
+    expect(find.text('home-2'), findsOneWidget);
   });
 
-  testWidgets('tapping Search Vehicles button fires SearchVehiclesEvent', (tester) async {
-    when(() => mockBloc.state).thenReturn(const BookingState(
+  testWidgets('Book Now button is always visible on bottom, initially disabled, and enables when From and To are selected', (tester) async {
+    when(() => mockBookingBloc.state).thenReturn(const BookingState(
       isLoading: false,
+      pickupLocation: '5th Avenue, NYC',
+      destination: '',
       recentJourneys: tJourneys,
       availableVehicles: tVehicles,
     ));
 
     await tester.pumpWidget(buildTestWidget());
 
-    await tester.ensureVisible(find.byKey(const Key('search_vehicles_button')));
-    await tester.tap(find.byKey(const Key('search_vehicles_button')));
-    await tester.pump();
+    // 1. Book Now button is rendered at the bottom initially
+    final bookBtnFinder = find.byKey(const Key('book_location_button'));
+    expect(bookBtnFinder, findsOneWidget);
+    expect(find.text(AppStrings.bookNow), findsOneWidget);
 
-    verify(() => mockBloc.add(const SearchVehiclesEvent())).called(1);
+    // 2. Button is disabled before drop is selected
+    var bookBtn = tester.widget<ElevatedButton>(bookBtnFinder);
+    expect(bookBtn.enabled, isFalse);
+
+    // 3. Select a saved location for drop
+    final placeFinder = find.text('home-2');
+    expect(placeFinder, findsOneWidget);
+    await tester.tap(placeFinder);
+    await tester.pumpAndSettle();
+
+    // 4. Button is now enabled
+    bookBtn = tester.widget<ElevatedButton>(bookBtnFinder);
+    expect(bookBtn.enabled, isTrue);
+  });
+
+  testWidgets('tapping enabled Book Now button navigates to RideRouteMapPage', (tester) async {
+    when(() => mockBookingBloc.state).thenReturn(const BookingState(
+      isLoading: false,
+      pickupLocation: 'Mindspace Madhapur, Hyderabad',
+      destination: '',
+      recentJourneys: tJourneys,
+      availableVehicles: tVehicles,
+    ));
+
+    await tester.pumpWidget(buildTestWidget());
+
+    // Select drop place
+    await tester.tap(find.text('home-2'));
+    await tester.pumpAndSettle();
+
+    final bookBtn = find.byKey(const Key('book_location_button'));
+    expect(bookBtn, findsOneWidget);
+    expect(tester.widget<ElevatedButton>(bookBtn).enabled, isTrue);
+
+    await tester.tap(bookBtn);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(RideRouteMapPage), findsOneWidget);
   });
 }
+

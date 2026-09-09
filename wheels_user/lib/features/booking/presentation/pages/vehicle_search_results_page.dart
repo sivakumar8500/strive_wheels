@@ -10,8 +10,6 @@ import '../../../home/presentation/bloc/home_event.dart';
 import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
 import '../../../trip_overview/presentation/bloc/trip_overview_bloc.dart';
 import '../../../trip_overview/presentation/pages/trip_overview_page.dart';
-import '../../../vehicle_details/presentation/bloc/vehicle_details_bloc.dart';
-import '../../../vehicle_details/presentation/pages/vehicle_details_page.dart';
 import '../../domain/entities/vehicle_option_entity.dart';
 import '../bloc/booking_bloc.dart';
 import '../bloc/booking_event.dart';
@@ -317,16 +315,7 @@ class VehicleSearchResultsPage extends StatelessWidget {
                                     vehicleName: vehicle.name,
                                   ),
                                 );
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => BlocProvider<VehicleDetailsBloc>(
-                                  create: (_) => sl<VehicleDetailsBloc>(),
-                                  child: VehicleDetailsPage(
-                                    vehicleId: vehicle.id,
-                                  ),
-                                ),
-                              ),
-                            );
+                            _showVehicleDetailsBottomSheet(context, vehicle);
                           },
                           onBookNowTap: () {
                             context.read<BookingBloc>().add(

@@ -19,7 +19,21 @@ class WebSocketClient {
     if (_isConnected) return;
 
     try {
-      final uri = Uri.parse('${ApiEndpoints.wsDriverConnect(driverId)}?token=$token');
+      var cleanToken = token.trim();
+      if (cleanToken.endsWith('#')) {
+        cleanToken = cleanToken.substring(0, cleanToken.length - 1);
+      }
+      if (cleanToken.isEmpty) {
+        cleanToken = 'demo_token';
+      }
+      final encodedToken = Uri.encodeComponent(cleanToken);
+      var rawUrl = '${ApiEndpoints.wsDriverConnect(driverId)}?token=$encodedToken';
+      if (rawUrl.startsWith('http://')) {
+        rawUrl = rawUrl.replaceFirst('http://', 'ws://');
+      } else if (rawUrl.startsWith('https://')) {
+        rawUrl = rawUrl.replaceFirst('https://', 'wss://');
+      }
+      final uri = Uri.parse(rawUrl);
       _channel = WebSocketChannel.connect(uri);
       
       _isConnected = true;

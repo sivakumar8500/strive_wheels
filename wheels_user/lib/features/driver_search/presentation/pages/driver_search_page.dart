@@ -1,27 +1,187 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../../../core/utils/jwt_utils.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../../core/network/customer_ws_controller.dart';
+import '../../../../core/services/active_booking_service.dart';
 import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
+import '../../../booking/presentation/pages/booking_confirmed_page.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../bloc/driver_search_bloc.dart';
 import '../bloc/driver_search_event.dart';
 import '../bloc/driver_search_state.dart';
+import '../widgets/circular_radar_wave_widget.dart';
 
-/// Searching for Nearby Drivers Page matching reference UI design.
+/// Searching for Nearby Drivers Page matching reference UI design with real-time WebSocket updates.
 class DriverSearchPage extends StatefulWidget {
-  const DriverSearchPage({super.key});
+  final int vehicleTypeId;
+  final double pickupLat;
+  final double pickupLng;
+  final String pickupAddress;
+  final double dropLat;
+  final double dropLng;
+  final String dropAddress;
+  final String serviceMode;
+  final String bookingMode;
+  final String tripType;
+  final String paymentMethod;
+
+  const DriverSearchPage({
+    super.key,
+    required this.vehicleTypeId,
+    required this.pickupLat,
+    required this.pickupLng,
+    required this.pickupAddress,
+    required this.dropLat,
+    required this.dropLng,
+    required this.dropAddress,
+    this.serviceMode = 'NORMAL',
+    this.bookingMode = 'INSTANT',
+    this.tripType = 'ONE_WAY',
+    this.paymentMethod = 'CASH',
+  });
 
   @override
   State<DriverSearchPage> createState() => _DriverSearchPageState();
 }
 
-class _DriverSearchPageState extends State<DriverSearchPage> {
+class _DriverSearchPageState extends State<DriverSearchPage>
+    with SingleTickerProviderStateMixin {
+  int _currentStep = 1;
+  CustomerWSController? _wsController;
+  StreamSubscription? _wsSubscription;
+  int? _bookingId;
+  String _notificationText = 'Searching for nearby drivers...';
+  String? _startOtp;
+  Map<String, dynamic>? _riderData;
+  Map<String, dynamic>? _vehicleData;
+  final String _orderTime = '10:42 AM';
+
   @override
   void initState() {
     super.initState();
     context.read<DriverSearchBloc>().add(const LoadDriverSearchEvent());
+    _setupWebSocket();
+  }
+
+  void _setupWebSocket() {
+    if (sl.isRegistered<CustomerWSController>()) {
+      _wsController = sl<CustomerWSController>();
+
+      final prefs = sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : null;
+      final rawToken = prefs?.getString('access_token') ??
+          prefs?.getString('auth_token') ??
+          prefs?.getString('user_token');
+      final token = (rawToken != null && rawToken.trim().isNotEmpty) ? rawToken.trim() : 'demo_token';
+
+      int? userId = prefs?.getInt('user_id') ?? prefs?.getInt('customer_id');
+      if (userId == null && rawToken != null && rawToken.trim().isNotEmpty) {
+        userId = JwtUtils.getUserIdFromJwt(rawToken);
+      }
+      userId ??= 1;
+
+      _wsController!.initCustomerWebSocket(userId, token);
+
+      // Send booking.create event over WS
+      _wsController!.requestRide(
+        vehicleTypeId: widget.vehicleTypeId,
+        pickupLat: widget.pickupLat,
+        pickupLng: widget.pickupLng,
+        pickupAddress: widget.pickupAddress,
+        dropLat: widget.dropLat,
+        dropLng: widget.dropLng,
+        dropAddress: widget.dropAddress,
+        serviceMode: widget.serviceMode,
+        bookingMode: widget.bookingMode,
+        tripType: widget.tripType,
+        paymentMethod: widget.paymentMethod,
+      );
+
+      // Listen for server events
+      _wsSubscription = _wsController!.bookingEventStream.listen((eventData) {
+        final event = eventData['event'];
+        final data = eventData['data'] ?? {};
+
+        if (!mounted) return;
+
+        if (event == 'booking.created') {
+          final booking = data['booking'] ?? {};
+          setState(() {
+            _bookingId = booking['id'];
+            _currentStep = 2;
+            _notificationText = 'Booking #${_bookingId ?? ''} created! Scanning for nearby drivers...';
+          });
+        } else if (event == 'booking.rider_accepted') {
+          final booking = data['booking'] ?? {};
+          final rider = booking['rider'] as Map<String, dynamic>?;
+          final vehicle = booking['vehicle'] as Map<String, dynamic>?;
+          final bId = booking['id']?.toString() ?? '9921-X4B';
+          final dName = rider?['full_name']?.toString() ?? 'Marcus Thorne';
+          final dRating = (rider?['rating'] is num) ? (rider!['rating'] as num).toDouble() : 4.9;
+          final vMake = vehicle?['make']?.toString() ?? 'BMW';
+          final vModel = vehicle?['model']?.toString() ?? 'i7 xDrive60';
+          final lPlate = vehicle?['license_plate']?.toString() ?? '7396';
+          final estFare = (booking['estimated_fare'] != null) ? '₹${booking['estimated_fare']}' : '₹124.00';
+
+          setState(() {
+            _bookingId = booking['id'];
+            _startOtp = booking['start_otp']?.toString();
+            _riderData = rider;
+            _vehicleData = vehicle;
+            _currentStep = 4;
+            _notificationText = 'Driver accepted! $dName is on the way.';
+          });
+
+          // Navigate to BookingConfirmedPage
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => BookingConfirmedPage(
+                bookingId: 'ER-$bId',
+                driverName: dName,
+                driverRating: dRating,
+                vehicleModel: '$vMake $vModel',
+                licensePlate: lPlate,
+                pickupAddress: widget.pickupAddress,
+                dropAddress: widget.dropAddress,
+                pickupLatLng: LatLng(widget.pickupLat, widget.pickupLng),
+                dropLatLng: LatLng(widget.dropLat, widget.dropLng),
+                totalAmount: estFare,
+                startOtp: _startOtp,
+              ),
+            ),
+          );
+        } else if (event == 'notification.new') {
+          final notif = data['notification'] ?? {};
+          final body = notif['body']?.toString();
+          if (body != null) {
+            final match = RegExp(r'OTP:\s*(\d{4,6})', caseSensitive: false).firstMatch(body);
+            if (match != null) {
+              _startOtp = match.group(1);
+            }
+            setState(() {
+              _notificationText = body;
+            });
+          }
+        }
+      });
+    }
+  }
+
+  String get riderName => _riderData?['full_name']?.toString() ?? 'Ramesh Kumar';
+  String get vehicleDetails =>
+      '${_vehicleData?['make'] ?? 'Honda'} ${_vehicleData?['model'] ?? 'Amaze'} • ${_vehicleData?['license_plate'] ?? 'TS09FA1234'}';
+
+  @override
+  void dispose() {
+    _wsSubscription?.cancel();
+    super.dispose();
   }
 
   @override
@@ -64,16 +224,13 @@ class _DriverSearchPageState extends State<DriverSearchPage> {
       body: BlocConsumer<DriverSearchBloc, DriverSearchState>(
         listener: (context, state) {
           if (state.isCancelled) {
+            if (sl.isRegistered<ActiveBookingService>()) {
+              sl<ActiveBookingService>().clearActiveBooking();
+            }
             Navigator.of(context).pop();
           }
         },
         builder: (context, state) {
-          if (state.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppColors.primaryBlue),
-            );
-          }
-
           final data = state.driverSearch;
 
           return SingleChildScrollView(
@@ -81,9 +238,15 @@ class _DriverSearchPageState extends State<DriverSearchPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Top Map Radar Card
+                // Top Map Radar Card with circular expanding ripple waves
                 _buildRadarCard(context, isDark, data),
                 const SizedBox(height: 16),
+
+                // Driver & OTP Banner when accepted
+                if (_startOtp != null) ...[
+                  _buildDriverAssignedBanner(context, isDark),
+                  const SizedBox(height: 16),
+                ],
 
                 // Estimated Confirmation Card
                 _buildEstimatedCard(context, isDark, data),
@@ -98,6 +261,9 @@ class _DriverSearchPageState extends State<DriverSearchPage> {
                   height: 52,
                   child: OutlinedButton(
                     onPressed: () {
+                      if (sl.isRegistered<ActiveBookingService>()) {
+                        sl<ActiveBookingService>().clearActiveBooking();
+                      }
                       context
                           .read<DriverSearchBloc>()
                           .add(const CancelDriverSearchEvent());
@@ -143,7 +309,7 @@ class _DriverSearchPageState extends State<DriverSearchPage> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -152,59 +318,17 @@ class _DriverSearchPageState extends State<DriverSearchPage> {
       child: Column(
         children: [
           Container(
-            height: 200,
+            height: 230,
+            width: double.infinity,
             decoration: BoxDecoration(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
             ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Concentric Radar Rings
-                Container(
-                  width: 170,
-                  height: 170,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppColors.primaryBlue.withOpacity(0.2),
-                      width: 1.5,
-                    ),
-                  ),
-                ),
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppColors.primaryBlue.withOpacity(0.4),
-                      width: 1.5,
-                    ),
-                  ),
-                ),
-                // Center Car Badge
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryBlue,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primaryBlue.withOpacity(0.4),
-                        blurRadius: 16,
-                        spreadRadius: 4,
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.directions_car_filled_rounded,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ),
-              ],
+            child: const Center(
+              child: CircularRadarWaveWidget(
+                size: 220,
+                vehicleIcon: Icons.directions_car_filled_rounded,
+              ),
             ),
           ),
           Padding(
@@ -212,7 +336,9 @@ class _DriverSearchPageState extends State<DriverSearchPage> {
             child: Column(
               children: [
                 Text(
-                  data?.statusTitle ?? 'Searching for nearby drivers...',
+                  _currentStep >= 3
+                      ? 'Driver Found!'
+                      : (data?.statusTitle ?? 'Searching for nearby drivers...'),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 18,
@@ -222,7 +348,7 @@ class _DriverSearchPageState extends State<DriverSearchPage> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  data?.statusSubtitle ?? 'Connecting you to the nearest premium vehicle.',
+                  _notificationText,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 13,
@@ -237,6 +363,77 @@ class _DriverSearchPageState extends State<DriverSearchPage> {
     );
   }
 
+  Widget _buildDriverAssignedBanner(BuildContext context, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF132A1C) : const Color(0xFFECFDF5),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: const Color(0xFF10B981),
+            child: const Icon(Icons.person, color: Colors.white),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  riderName,
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: isDark ? AppColors.textPrimaryDark : const Color(0xFF065F46),
+                  ),
+                ),
+                Text(
+                  vehicleDetails,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: isDark ? AppColors.textSecondaryDark : const Color(0xFF047857),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_startOtp != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'OTP',
+                    style: GoogleFonts.poppins(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white.withValues(alpha: 0.9),
+                    ),
+                  ),
+                  Text(
+                    _startOtp!,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEstimatedCard(BuildContext context, bool isDark, dynamic data) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -245,7 +442,7 @@ class _DriverSearchPageState extends State<DriverSearchPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -319,7 +516,7 @@ class _DriverSearchPageState extends State<DriverSearchPage> {
             isDark: isDark,
             icon: const Icon(Icons.check_circle_rounded, color: AppColors.primaryBlue, size: 24),
             title: 'Requested',
-            subtitle: '${data?.orderTime ?? "10:42 AM"} • Order confirmed',
+            subtitle: '${data?.orderTime ?? _orderTime} • Order confirmed',
             isDone: true,
             hasLine: true,
           ),
@@ -329,41 +526,44 @@ class _DriverSearchPageState extends State<DriverSearchPage> {
             icon: Container(
               width: 24,
               height: 24,
-              decoration: const BoxDecoration(
-                color: AppColors.primaryBlue,
+              decoration: BoxDecoration(
+                color: _currentStep >= 2 ? AppColors.primaryBlue : const Color(0xFF94A3B8),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.sync_rounded, color: Colors.white, size: 16),
             ),
             title: 'Searching',
             subtitle: data?.scanRadiusText ?? 'Scanning 1.2km radius...',
-            isCurrent: true,
+            isCurrent: _currentStep == 2,
+            isDone: _currentStep > 2,
             hasLine: true,
           ),
           _buildTimelineStep(
             context: context,
             isDark: isDark,
             icon: Icon(
-              Icons.circle_outlined,
-              color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+              _currentStep >= 3 ? Icons.check_circle_rounded : Icons.circle_outlined,
+              color: _currentStep >= 3 ? AppColors.primaryBlue : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
               size: 24,
             ),
             title: 'Accepted',
-            subtitle: 'Waiting for driver',
-            isPending: true,
+            subtitle: _currentStep >= 3 ? 'Driver accepted ride' : 'Waiting for driver',
+            isCurrent: _currentStep == 3,
+            isDone: _currentStep > 3,
             hasLine: true,
           ),
           _buildTimelineStep(
             context: context,
             isDark: isDark,
             icon: Icon(
-              Icons.location_on_outlined,
-              color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+              _currentStep >= 4 ? Icons.location_on_rounded : Icons.location_on_outlined,
+              color: _currentStep >= 4 ? AppColors.primaryBlue : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
               size: 24,
             ),
             title: 'Assigned',
-            subtitle: 'Vehicle details arrival',
-            isPending: true,
+            subtitle: _currentStep >= 4 ? 'Vehicle details: $vehicleDetails' : 'Vehicle details arrival',
+            isCurrent: _currentStep == 4,
+            isDone: _currentStep >= 4,
             hasLine: false,
           ),
         ],
@@ -379,7 +579,6 @@ class _DriverSearchPageState extends State<DriverSearchPage> {
     required String subtitle,
     bool isDone = false,
     bool isCurrent = false,
-    bool isPending = false,
     required bool hasLine,
   }) {
     Color titleColor;

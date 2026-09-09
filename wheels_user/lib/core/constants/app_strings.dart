@@ -162,5 +162,17 @@ abstract class AppStrings {
   static const String sedanSpecs = '4 Seats · AC · Automatic';
   static const String vanSpecs = '12 Seats · AC · Luggage';
   static const String miniBusSpecs = '20 Seats · AC · Express';
+
+  // Drop & Location Search Strings
+  static const String dropTitle = 'Drop';
+  static const String pickupTitle = 'Pickup';
+  static const String forMe = 'For me';
+  static const String forSomeoneElse = 'For someone else';
+  static const String selectOnMap = 'Select on map';
+  static const String addStops = 'Add stops';
+  static const String dropLocation = 'Drop location';
+  static const String bookRide = 'Book';
+  static const String confirmBooking = 'Confirm Booking';
+  static const String popularAndSavedPlaces = 'Saved & Recent Places';
 }
 

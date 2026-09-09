@@ -6,12 +6,19 @@ import 'package:dio/dio.dart';
 import '../network/api_client.dart';
 import '../network/api_constants.dart';
 import '../network/auth_interceptor.dart';
+import '../network/websocket_service.dart';
+import '../network/customer_ws_controller.dart';
+import '../services/route_condition_service.dart';
+import '../services/active_booking_service.dart';
 
 import '../../features/booking/data/datasources/booking_local_datasource.dart';
+import '../../features/booking/data/datasources/booking_remote_datasource.dart';
 import '../../features/booking/data/repositories/booking_repository_impl.dart';
 import '../../features/booking/domain/repositories/booking_repository.dart';
 import '../../features/booking/domain/usecases/get_available_vehicles_usecase.dart';
+import '../../features/booking/domain/usecases/get_fare_estimate_usecase.dart';
 import '../../features/booking/domain/usecases/get_recent_journeys_usecase.dart';
+import '../../features/booking/domain/usecases/get_vehicle_types_usecase.dart';
 import '../../features/booking/presentation/bloc/booking_bloc.dart';
 import '../../features/permissions/data/datasources/permissions_local_datasource.dart';
 import '../../features/permissions/data/repositories/permissions_repository_impl.dart';
@@ -139,6 +146,32 @@ Future<void> initDependencyInjection() async {
     sl.registerLazySingleton<ApiClient>(() => ApiClient(sl<Dio>()));
   }
 
+  if (!sl.isRegistered<RouteConditionService>()) {
+    sl.registerLazySingleton<RouteConditionService>(
+      () => RouteConditionService(),
+    );
+  }
+
+  if (!sl.isRegistered<WebSocketService>()) {
+    sl.registerLazySingleton<WebSocketService>(
+      () => WebSocketService(),
+    );
+  }
+
+  if (!sl.isRegistered<CustomerWSController>()) {
+    sl.registerLazySingleton<CustomerWSController>(
+      () => CustomerWSController(ws: sl<WebSocketService>()),
+    );
+  }
+
+  if (!sl.isRegistered<ActiveBookingService>()) {
+    sl.registerLazySingleton<ActiveBookingService>(
+      () => ActiveBookingService(
+        sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : sharedPreferences!,
+      ),
+    );
+  }
+
   // Data Sources
   if (!sl.isRegistered<ThemeLocalDataSource>()) {
     sl.registerLazySingleton<ThemeLocalDataSource>(
@@ -209,6 +242,11 @@ Future<void> initDependencyInjection() async {
       () => const BookingLocalDataSourceImpl(),
     );
   }
+  if (!sl.isRegistered<BookingRemoteDataSource>()) {
+    sl.registerLazySingleton<BookingRemoteDataSource>(
+      () => BookingRemoteDataSourceImpl(dio: sl()),
+    );
+  }
 
   // Repositories
   if (!sl.isRegistered<ThemeRepository>()) {
@@ -264,7 +302,10 @@ Future<void> initDependencyInjection() async {
   }
   if (!sl.isRegistered<BookingRepository>()) {
     sl.registerLazySingleton<BookingRepository>(
-      () => BookingRepositoryImpl(localDataSource: sl()),
+      () => BookingRepositoryImpl(
+        localDataSource: sl(),
+        remoteDataSource: sl(),
+      ),
     );
   }
 
@@ -373,6 +414,18 @@ Future<void> initDependencyInjection() async {
     );
   }
 
+  if (!sl.isRegistered<GetVehicleTypesUseCase>()) {
+    sl.registerLazySingleton<GetVehicleTypesUseCase>(
+      () => GetVehicleTypesUseCase(sl()),
+    );
+  }
+
+  if (!sl.isRegistered<GetFareEstimateUseCase>()) {
+    sl.registerLazySingleton<GetFareEstimateUseCase>(
+      () => GetFareEstimateUseCase(sl()),
+    );
+  }
+
   // BLoCs
   if (!sl.isRegistered<ThemeBloc>()) {
     sl.registerFactory<ThemeBloc>(
@@ -455,6 +508,7 @@ Future<void> initDependencyInjection() async {
       () => BookingBloc(
         getRecentJourneysUseCase: sl(),
         getAvailableVehiclesUseCase: sl(),
+        getVehicleTypesUseCase: sl(),
       ),
     );
   }

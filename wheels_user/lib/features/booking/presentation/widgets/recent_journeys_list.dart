@@ -62,7 +62,7 @@ class RecentJourneysList extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             itemCount: journeys.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            separatorBuilder: (_, _) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
               final journey = journeys[index];
               final cardBg = isDark ? AppColors.cardBgDark : Colors.white;

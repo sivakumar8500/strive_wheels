@@ -1,5 +1,6 @@
 import '../../domain/entities/recent_journey_entity.dart';
 import '../../domain/entities/vehicle_option_entity.dart';
+import '../../domain/entities/vehicle_type_entity.dart';
 
 class BookingState {
   final bool isLoading;
@@ -8,6 +9,8 @@ class BookingState {
   final int selectedRideTypeIndex; // 0: Instant, 1: One Way, 2: Round Trip
   final List<RecentJourneyEntity> recentJourneys;
   final List<VehicleOptionEntity> availableVehicles;
+  final List<VehicleTypeEntity> vehicleTypes;
+  final VehicleTypeEntity? selectedVehicleType;
   final bool isShowingVehicleResults;
   final String? actionMessage;
   final String? errorMessage;
@@ -19,6 +22,8 @@ class BookingState {
     this.selectedRideTypeIndex = 0,
     this.recentJourneys = const [],
     this.availableVehicles = const [],
+    this.vehicleTypes = const [],
+    this.selectedVehicleType,
     this.isShowingVehicleResults = false,
     this.actionMessage,
     this.errorMessage,
@@ -31,6 +36,8 @@ class BookingState {
     int? selectedRideTypeIndex,
     List<RecentJourneyEntity>? recentJourneys,
     List<VehicleOptionEntity>? availableVehicles,
+    List<VehicleTypeEntity>? vehicleTypes,
+    VehicleTypeEntity? selectedVehicleType,
     bool? isShowingVehicleResults,
     String? actionMessage,
     String? errorMessage,
@@ -43,6 +50,8 @@ class BookingState {
           selectedRideTypeIndex ?? this.selectedRideTypeIndex,
       recentJourneys: recentJourneys ?? this.recentJourneys,
       availableVehicles: availableVehicles ?? this.availableVehicles,
+      vehicleTypes: vehicleTypes ?? this.vehicleTypes,
+      selectedVehicleType: selectedVehicleType ?? this.selectedVehicleType,
       isShowingVehicleResults:
           isShowingVehicleResults ?? this.isShowingVehicleResults,
       actionMessage: actionMessage,

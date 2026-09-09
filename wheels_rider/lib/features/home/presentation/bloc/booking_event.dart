@@ -29,3 +29,8 @@ class BookingErrorEvent extends BookingEvent {
   final String message;
   BookingErrorEvent(this.message);
 }
+
+class RideCancelledEvent extends BookingEvent {
+  final String reason;
+  RideCancelledEvent({this.reason = 'Ride was cancelled by customer'});
+}

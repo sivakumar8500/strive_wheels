@@ -14,6 +14,7 @@ class HomeSearchBar extends StatefulWidget {
   final VoidCallback? onMicTap;
   final VoidCallback? onNotificationTap;
   final VoidCallback? onAvatarTap;
+  final bool readOnly;
 
   const HomeSearchBar({
     super.key,
@@ -25,6 +26,7 @@ class HomeSearchBar extends StatefulWidget {
     this.onMicTap,
     this.onNotificationTap,
     this.onAvatarTap,
+    this.readOnly = false,
   });
 
   @override
@@ -96,12 +98,16 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
           ),
 
           // Search Field Prefix Icon
-          Padding(
-            padding: const EdgeInsets.only(left: 4, right: 8),
-            child: Icon(
-              Icons.search,
-              color: hintColor,
-              size: 20,
+          GestureDetector(
+            onTap: widget.onTap,
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 4, right: 8),
+              child: Icon(
+                Icons.search,
+                color: hintColor,
+                size: 20,
+              ),
             ),
           ),
 
@@ -110,6 +116,7 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
             child: TextField(
               key: const Key('home_search_text_field'),
               controller: _effectiveController,
+              readOnly: widget.readOnly,
               onTap: widget.onTap,
               onChanged: widget.onChanged,
               onSubmitted: widget.onSubmitted,

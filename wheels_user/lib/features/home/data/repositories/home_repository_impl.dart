@@ -2,7 +2,6 @@ import '../../domain/entities/home_dashboard_entity.dart';
 import '../../domain/repositories/home_repository.dart';
 import '../datasources/home_local_datasource.dart';
 import '../datasources/home_remote_data_source.dart';
-import '../models/home_dashboard_model.dart';
 
 class HomeRepositoryImpl implements HomeRepository {
   final HomeLocalDataSource localDataSource;

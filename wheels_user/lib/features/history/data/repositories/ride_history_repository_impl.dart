@@ -20,15 +20,11 @@ class RideHistoryRepositoryImpl implements RideHistoryRepository {
     final localEntity = localModel.toEntity();
 
     final remoteBookings = await remoteDataSource.getBookingHistory();
-    
-    // If no remote bookings, fallback to local (mock) data, else map remote data
-    final pastRides = remoteBookings.isNotEmpty 
-        ? remoteBookings.map((m) => m.toEntity()).toList()
-        : localEntity.pastRides;
+    final pastRides = remoteBookings.map((m) => m.toEntity()).toList();
 
     return RideHistoryEntity(
       monthlySummaryTitle: localEntity.monthlySummaryTitle,
-      tripCountText: localEntity.tripCountText,
+      tripCountText: '${pastRides.length} Trips',
       distanceText: localEntity.distanceText,
       spentText: localEntity.spentText,
       pastRides: pastRides,

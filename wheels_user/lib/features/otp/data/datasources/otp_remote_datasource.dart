@@ -3,6 +3,7 @@ import '../models/otp_verification_model.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/network/api_constants.dart';
+import '../../../../core/utils/jwt_utils.dart';
 
 abstract class OtpRemoteDataSource {
   Future<bool> verifyOtp(OtpVerificationModel model);
@@ -30,8 +31,19 @@ class OtpRemoteDataSourceImpl implements OtpRemoteDataSource {
         final token = data['access_token'] ?? data['token'] ?? data['access'];
         
         if (token != null && token.toString().isNotEmpty) {
-          print('====== SAVING TOKEN ======');
-          await sharedPreferences.setString('access_token', token.toString());
+          final tokenStr = token.toString();
+          print('====== SAVING TOKEN & USER ID ======');
+          await sharedPreferences.setString('access_token', tokenStr);
+
+          final rawUserId = data['user_id'] ?? data['customer_id'] ?? data['id'] ?? data['customer_profile']?['id'];
+          int? userId = rawUserId != null ? int.tryParse(rawUserId.toString()) : null;
+          userId ??= JwtUtils.getUserIdFromJwt(tokenStr);
+
+          if (userId != null) {
+            await sharedPreferences.setInt('user_id', userId);
+            await sharedPreferences.setInt('customer_id', userId);
+            print('====== SAVED USER ID: $userId ======');
+          }
         } else {
           print('====== WARNING: NO TOKEN FOUND IN RESPONSE ======');
         }

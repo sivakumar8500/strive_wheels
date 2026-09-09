@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:wheels_user/core/di/injection_container.dart';
+import 'package:wheels_user/features/booking/presentation/bloc/booking_bloc.dart';
+import 'package:wheels_user/features/booking/presentation/bloc/booking_event.dart';
+import 'package:wheels_user/features/booking/presentation/bloc/booking_state.dart';
+import 'package:wheels_user/features/booking/presentation/pages/location_search_page.dart';
 import 'package:wheels_user/features/home/domain/entities/home_dashboard_entity.dart';
 import 'package:wheels_user/features/home/presentation/bloc/home_bloc.dart';
 import 'package:wheels_user/features/home/presentation/bloc/home_event.dart';
@@ -10,9 +15,20 @@ import 'package:wheels_user/features/home/presentation/bloc/home_state.dart';
 import 'package:wheels_user/features/home/presentation/pages/home_page.dart';
 
 class MockHomeBloc extends MockBloc<HomeEvent, HomeState> implements HomeBloc {}
+class MockBookingBloc extends MockBloc<BookingEvent, BookingState> implements BookingBloc {}
 
 void main() {
   late MockHomeBloc mockHomeBloc;
+  late MockBookingBloc mockBookingBloc;
+
+  setUpAll(() {
+    registerFallbackValue(const LoadBookingDataEvent());
+    mockBookingBloc = MockBookingBloc();
+    when(() => mockBookingBloc.state).thenReturn(const BookingState());
+    if (!sl.isRegistered<BookingBloc>()) {
+      sl.registerFactory<BookingBloc>(() => mockBookingBloc);
+    }
+  });
 
   setUp(() {
     mockHomeBloc = MockHomeBloc();
@@ -96,10 +112,30 @@ void main() {
     final searchTextField = find.byKey(const Key('home_search_text_field'));
     expect(searchTextField, findsOneWidget);
 
-    await widgetTester.tap(searchTextField);
     await widgetTester.enterText(searchTextField, 'Charminar');
     await widgetTester.pump();
     verify(() => mockHomeBloc.add(const SearchQueryChangedEvent('Charminar'))).called(greaterThanOrEqualTo(1));
+  });
+
+  testWidgets('tapping search bar navigates to LocationSearchPage',
+      (widgetTester) async {
+    when(() => mockHomeBloc.state).thenReturn(
+      const HomeState(
+        isLoading: false,
+        dashboardEntity: tEntity,
+        selectedNavIndex: 0,
+      ),
+    );
+
+    await widgetTester.pumpWidget(createWidgetUnderTest());
+    await widgetTester.pump();
+    await widgetTester.pump(const Duration(milliseconds: 500));
+
+    final searchTextField = find.byKey(const Key('home_search_text_field'));
+    await widgetTester.tap(searchTextField);
+    await widgetTester.pumpAndSettle();
+
+    expect(find.byType(LocationSearchPage), findsOneWidget);
   });
 
   testWidgets('tapping menu, mic, notifications, and avatar buttons triggers respective events',

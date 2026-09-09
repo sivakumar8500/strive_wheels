@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import '../../../../core/network/websocket_client.dart';
 import '../models/ride_request_model.dart';
 
@@ -8,6 +9,7 @@ abstract class BookingWebSocketDataSource {
   void acceptBooking(int bookingId);
   Stream<RideRequestModel> get rideRequestsStream;
   Stream<int> get bookingSuccessStream;
+  Stream<Map<String, dynamic>> get rideCancelledStream;
   Stream<String> get errorStream;
 }
 
@@ -16,6 +18,7 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
 
   final _rideRequestController = StreamController<RideRequestModel>.broadcast();
   final _bookingSuccessController = StreamController<int>.broadcast();
+  final _rideCancelledController = StreamController<Map<String, dynamic>>.broadcast();
   final _errorController = StreamController<String>.broadcast();
   
   StreamSubscription? _subscription;
@@ -35,9 +38,18 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
 
       switch (event) {
         case 'booking.new_request':
-          final bookingData = data['booking'] as Map<String, dynamic>?;
-          if (bookingData != null) {
-            _rideRequestController.add(RideRequestModel.fromJson(bookingData));
+        case 'booking.created':
+        case 'booking.requested':
+        case 'booking.create':
+        case 'ride_request':
+        case 'new_booking':
+          final bookingData = (data['booking'] as Map<String, dynamic>?) ?? data;
+          if (bookingData.isNotEmpty) {
+            try {
+              _rideRequestController.add(RideRequestModel.fromJson(bookingData));
+            } catch (e) {
+              debugPrint('[BookingWS] Error parsing RideRequestModel: $e');
+            }
           }
           break;
         case 'booking.accepted_success':
@@ -45,6 +57,14 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
           if (bookingId != null) {
             _bookingSuccessController.add(bookingId);
           }
+          break;
+        case 'booking.cancelled':
+        case 'booking.customer_cancelled':
+        case 'booking.request_cancelled':
+        case 'booking.cancel':
+        case 'booking.cancel_success':
+          debugPrint('[BookingWS] Cancellation event received: $event with data: $data');
+          _rideCancelledController.add(data);
           break;
         case 'error':
           final errorMessage = data['message'] as String? ?? 'Unknown WebSocket Error';
@@ -75,6 +95,9 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
 
   @override
   Stream<int> get bookingSuccessStream => _bookingSuccessController.stream;
+
+  @override
+  Stream<Map<String, dynamic>> get rideCancelledStream => _rideCancelledController.stream;
 
   @override
   Stream<String> get errorStream => _errorController.stream;

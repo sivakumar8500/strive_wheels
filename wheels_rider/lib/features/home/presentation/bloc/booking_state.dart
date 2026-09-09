@@ -22,3 +22,8 @@ class BookingErrorState extends BookingState {
   final String message;
   BookingErrorState(this.message);
 }
+
+class RideCancelledState extends BookingState {
+  final String reason;
+  RideCancelledState(this.reason);
+}
