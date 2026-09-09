@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -9,6 +10,7 @@ import '../../../../core/network/customer_ws_controller.dart';
 import '../../../../core/services/active_booking_service.dart';
 import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
 import 'live_trip_tracking_page.dart';
+import '../../../../core/widgets/app_map_widget.dart';
 
 /// Screen displayed after rider accepts the ride request matching the exact design specification.
 class BookingConfirmedPage extends StatefulWidget {
@@ -54,10 +56,69 @@ class BookingConfirmedPage extends StatefulWidget {
 }
 
 class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
+  bool _isRideCompleted = false;
+  StreamSubscription? _wsSubscription;
+
   @override
   void initState() {
     super.initState();
     _saveActiveBookingState();
+    _listenForRideCompletion();
+  }
+
+  void _listenForRideCompletion() {
+    if (!sl.isRegistered<CustomerWSController>()) return;
+    _wsSubscription = sl<CustomerWSController>().bookingEventStream.listen((message) {
+      final event = message['event'] as String? ?? '';
+
+      // OTP verified by rider — go home, show floating active ride card
+      if (event == 'booking.started' ||
+          event == 'rider.trip_started' ||
+          event == 'booking.trip_started') {
+        if (sl.isRegistered<ActiveBookingService>()) {
+          sl<ActiveBookingService>().updateBookingStatus('TRIP_STARTED');
+        }
+        if (mounted) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+        return;
+      }
+
+      // Rider cancelled — clear and go home with notification
+      if (event == 'booking.cancelled' ||
+          event == 'booking.rider_cancelled' ||
+          event == 'ride.cancelled' ||
+          event == 'booking.cancel_success') {
+        if (sl.isRegistered<ActiveBookingService>()) {
+          sl<ActiveBookingService>().clearActiveBooking();
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Your ride was cancelled by the rider.'),
+              backgroundColor: Color(0xFFEF4444),
+              duration: Duration(seconds: 4),
+            ),
+          );
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+        return;
+      }
+
+      if (event == 'booking.completed' ||
+          event == 'rider.trip_completed' ||
+          event == 'booking.trip_completed') {
+        if (mounted) {
+          setState(() => _isRideCompleted = true);
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _wsSubscription?.cancel();
+    super.dispose();
   }
 
   void _saveActiveBookingState() {
@@ -296,10 +357,10 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
         borderRadius: BorderRadius.circular(20),
         child: Stack(
           children: [
-            GoogleMap(
+            AppMapWidget(
               initialCameraPosition: CameraPosition(
                 target: widget.pickupLatLng,
-                zoom: 14.5,
+                zoom: 18.0,
               ),
               zoomControlsEnabled: false,
               myLocationButtonEnabled: false,
@@ -690,39 +751,42 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
           ),
           const SizedBox(height: 12),
 
-          // Download Invoice Button
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: OutlinedButton(
-              onPressed: () {},
-              style: OutlinedButton.styleFrom(
-                backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFE8F1FF),
-                side: BorderSide.none,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+          // Download Invoice Button — only visible after ride is completed
+          if (_isRideCompleted) ...[
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton(
+                onPressed: () {},
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFE8F1FF),
+                  side: BorderSide.none,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.download_rounded, color: AppColors.primaryBlue, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Download Invoice',
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryBlue,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.download_rounded, color: AppColors.primaryBlue, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Download Invoice',
-                    style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primaryBlue,
-                    ),
-                  ),
-                ],
-              ),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+          ],
 
-          // Cancel Ride Red Button
+          // Cancel Ride — hidden after completion
+          if (!_isRideCompleted)
           SizedBox(
             width: double.infinity,
             height: 52,

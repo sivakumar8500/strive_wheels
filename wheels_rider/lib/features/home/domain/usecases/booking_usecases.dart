@@ -80,3 +80,13 @@ class SendLocationPingUseCase {
     );
   }
 }
+
+class GetRideCancelledStreamUseCase {
+  final BookingRepository repository;
+
+  GetRideCancelledStreamUseCase(this.repository);
+
+  Stream<Map<String, dynamic>> call() {
+    return repository.rideCancelledStream;
+  }
+}

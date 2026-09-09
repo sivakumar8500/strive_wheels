@@ -29,6 +29,7 @@ import '../widgets/offers_carousel.dart';
 import '../widgets/popular_locations_grid.dart';
 import '../widgets/quick_services_grid.dart';
 import '../widgets/recent_ride_card.dart';
+import '../../../../core/widgets/app_map_widget.dart';
 
 /// Main Home Dashboard Page matching exact reference UI design.
 class HomePage extends StatefulWidget {
@@ -40,8 +41,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   GoogleMapController? _mapController;
-  LatLng _currentPosition = const LatLng(37.7749, -122.4194); // Default fallback (San Francisco)
-  bool _loadingLocation = true;
+  LatLng _currentPosition = const LatLng(17.4924, 78.3639); // Default fallback
 
   late final AnimationController _pulseController;
   BitmapDescriptor? _customMarker;
@@ -74,15 +74,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   Future<void> _startLocationUpdates() async {
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return;
-
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
-          return;
-        }
+      }
+      if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
+        return;
       }
 
       _positionStreamSubscription = Geolocator.getPositionStream(
@@ -95,8 +92,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         if (mounted) {
           setState(() {
             _currentPosition = newLatLng;
-            _loadingLocation = false;
           });
+          _mapController?.animateCamera(
+            CameraUpdate.newCameraPosition(
+              CameraPosition(
+                target: newLatLng,
+                zoom: 18.0,
+              ),
+            ),
+          );
         }
       });
     } catch (e) {
@@ -113,52 +117,35 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   Future<void> _getCurrentLocation() async {
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        setState(() { _loadingLocation = false; });
-        return;
-      }
-
       LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          setState(() { _loadingLocation = false; });
-          return;
+      }
+
+      if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+        Position position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        );
+
+        final newLatLng = LatLng(position.latitude, position.longitude);
+
+        if (mounted) {
+          setState(() {
+            _currentPosition = newLatLng;
+          });
         }
-      }
 
-      if (permission == LocationPermission.deniedForever) {
-        setState(() { _loadingLocation = false; });
-        return;
-      }
-
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      final newLatLng = LatLng(position.latitude, position.longitude);
-
-      if (mounted) {
-        setState(() {
-          _currentPosition = newLatLng;
-          _loadingLocation = false;
-        });
-      }
-
-      _mapController?.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: newLatLng,
-            zoom: 16.0,
+        _mapController?.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(
+              target: newLatLng,
+              zoom: 18.0,
+            ),
           ),
-        ),
-      );
+        );
+      }
     } catch (e) {
       debugPrint('Error getting current location: $e');
-      if (mounted) {
-        setState(() { _loadingLocation = false; });
-      }
     }
   }
 
@@ -377,9 +364,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         },
         builder: (context, state) {
           if (state.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.primaryBlue,
+            return Container(
+              color: isDark ? AppColors.onboardingBgDark : Colors.white,
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: AppColors.primaryBlue,
+                ),
               ),
             );
           }
@@ -435,67 +425,42 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               children: [
                 // 1. Map Layer Background
                 Positioned.fill(
-                  child: GoogleMap(
+                  child: AppMapWidget(
                     initialCameraPosition: CameraPosition(
                       target: _currentPosition,
-                      zoom: 16.0,
+                      zoom: 18.0,
                     ),
+                    onMapCreated: (controller) {
+                      _mapController = controller;
+                      _mapController?.animateCamera(
+                        CameraUpdate.newCameraPosition(
+                          CameraPosition(
+                            target: _currentPosition,
+                            zoom: 18.0,
+                          ),
+                        ),
+                      );
+                    },
+                    mapType: MapType.normal,
                     zoomControlsEnabled: false,
                     myLocationEnabled: false,
                     myLocationButtonEnabled: false,
                     compassEnabled: false,
                     mapToolbarEnabled: false,
-                    onMapCreated: (controller) {
-                      _mapController = controller;
-                    },
                     markers: {
                       Marker(
                         markerId: const MarkerId('current_location'),
                         position: _currentPosition,
                         infoWindow: const InfoWindow(title: 'Current Location'),
                         icon: _customMarker ??
-                            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+                            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
                         anchor: const Offset(0.5, 0.5),
                       ),
                     },
-                    circles: {
-                      Circle(
-                        circleId: const CircleId('user_pulse'),
-                        center: _currentPosition,
-                        radius: 100,
-                        fillColor: AppColors.primaryBlue.withValues(alpha: 0.2),
-                        strokeWidth: 2,
-                        strokeColor: AppColors.primaryBlue.withValues(alpha: 0.5),
-                      ),
-                    },
                   ),
                 ),
 
-                // 2. Floating Location Recenter Button
-                Positioned(
-                  top: MediaQuery.of(context).padding.top + 70,
-                  right: 16,
-                  child: FloatingActionButton.small(
-                    heroTag: 'gps_recenter',
-                    backgroundColor: isDark ? AppColors.cardBgDark : Colors.white,
-                    foregroundColor: AppColors.primaryBlue,
-                    onPressed: () {
-                      if (_mapController != null) {
-                        _mapController!.animateCamera(
-                          CameraUpdate.newCameraPosition(
-                            CameraPosition(
-                              target: _currentPosition,
-                              zoom: 16.0,
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                    child: const Icon(Icons.my_location),
-                  ),
-                ),
-
-                // 3. Floating Top Search Bar
+                // 2. Floating Top Search Bar
                 Positioned(
                   top: MediaQuery.of(context).padding.top + 8,
                   left: 0,
@@ -531,14 +496,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   ),
                 ),
 
-                // 4. Main Scrollable Floating Sheet
+                // 3. Main Scrollable Floating Sheet (collapsed at 35% so map is primary view)
                 Positioned.fill(
                   child: DraggableScrollableSheet(
-                    initialChildSize: 0.65,
-                    minChildSize: 0.3,
+                    initialChildSize: 0.35,
+                    minChildSize: 0.25,
                     maxChildSize: 0.9,
                     snap: true,
-                    snapSizes: const [0.3, 0.65, 0.9],
+                    snapSizes: const [0.25, 0.35, 0.9],
                     builder: (BuildContext context, ScrollController scrollController) {
                       return Container(
                         decoration: BoxDecoration(
@@ -699,6 +664,46 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   },
                 ),
               ),
+
+                // 4. Floating GPS Recenter Button (positioned above bottom sheet)
+                Positioned(
+                  bottom: (MediaQuery.of(context).size.height * 0.35) + 16,
+                  right: 16,
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.my_location,
+                        color: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                        size: 22,
+                      ),
+                      onPressed: () {
+                        if (_mapController != null) {
+                          _mapController!.animateCamera(
+                            CameraUpdate.newCameraPosition(
+                              CameraPosition(
+                                target: _currentPosition,
+                                zoom: 18.0,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                ),
             ],
             );
           }

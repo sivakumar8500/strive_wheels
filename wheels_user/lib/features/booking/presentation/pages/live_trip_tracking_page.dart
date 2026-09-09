@@ -13,10 +13,11 @@ import '../../../../core/network/api_constants.dart';
 import '../../../../core/network/customer_ws_controller.dart';
 import '../../../../core/services/active_booking_service.dart';
 import 'journey_complete_page.dart';
+import '../../../../core/widgets/app_map_widget.dart';
 
 enum TripPhase { navToPickup, driverArrived, inTransit, tripCompleted }
 
-/// Live Trip Tracking Screen showing real road OSRM turn-by-turn route, smooth animated moving rider car icon with bearing rotation, live socket updates, ETA card, driver actions, SOS, and Add Stop buttons.
+/// Live Trip Tracking Page matching reference UI design with real-time route progress & OTP state machine.
 class LiveTripTrackingPage extends StatefulWidget {
   final String driverName;
   final double driverRating;
@@ -59,8 +60,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
   late LatLng _currentVehiclePos;
   double _currentVehicleRotation = 0.0;
 
-  Timer? _stepTimer;
-  int _currentStepIndex = 0;
   List<LatLng> _routePoints = [];
 
   BitmapDescriptor? _carMarkerIcon;
@@ -107,8 +106,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
     // 4. Listen to live WebSocket events (rider.location_updated, booking.arrived, booking.started, etc.)
     _setupWebSocketListener();
 
-    // 5. Start vehicle simulation timer along street route
-    _startVehicleAnimationTimer();
+    // NOTE: No simulation timer — marker only moves from real WS location updates
   }
 
   void _saveActiveBookingState() {
@@ -224,6 +222,24 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
               ),
             ),
           );
+        } else if (event == 'booking.cancelled' ||
+            event == 'booking.rider_cancelled' ||
+            event == 'ride.cancelled' ||
+            event == 'booking.cancel_success') {
+          // Rider cancelled — clear state and go to home
+          if (sl.isRegistered<ActiveBookingService>()) {
+            sl<ActiveBookingService>().clearActiveBooking();
+          }
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Your ride was cancelled by the rider.'),
+                backgroundColor: Color(0xFFEF4444),
+                duration: Duration(seconds: 4),
+              ),
+            );
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          }
         }
       });
     }
@@ -331,8 +347,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
             if (mounted) {
               setState(() {
                 _routePoints = fetchedPoints;
-                _currentStepIndex = 0;
-                _currentVehiclePos = _routePoints[0];
+                // Do NOT reset vehicle position — keep the real WS-updated position
                 if (_routePoints.length > 1) {
                   _currentVehicleRotation =
                       _calculateBearing(_routePoints[0], _routePoints[1]);
@@ -344,7 +359,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
               });
 
               _fitMapBounds();
-              _restartVehicleAnimationTimer();
+              // No animation timer restart — real position from WebSocket only
             }
           }
         }
@@ -373,39 +388,8 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
     return points;
   }
 
-  /// Starts or restarts vehicle animation stepping along street route coordinates
-  void _startVehicleAnimationTimer() {
-    _stepTimer?.cancel();
-    _stepTimer = Timer.periodic(const Duration(milliseconds: 700), (timer) {
-      if (!mounted) return;
-      if (_routePoints.isEmpty) return;
-
-      if (_currentStepIndex < _routePoints.length - 1) {
-        final prevPos = _routePoints[_currentStepIndex];
-        final nextPos = _routePoints[_currentStepIndex + 1];
-
-        setState(() {
-          _currentStepIndex++;
-          _currentVehiclePos = nextPos;
-          _currentVehicleRotation = _calculateBearing(prevPos, nextPos);
-
-          final remainingRatio = 1.0 - (_currentStepIndex / (_routePoints.length - 1));
-          _remainingMilesVal = max(0.1, 2.4 * remainingRatio);
-          _remainingMinsVal = max(1, (12 * remainingRatio).round());
-        });
-
-        _mapController?.animateCamera(
-          CameraUpdate.newLatLng(_currentVehiclePos),
-        );
-      } else {
-        _stepTimer?.cancel();
-      }
-    });
-  }
-
-  void _restartVehicleAnimationTimer() {
-    _startVehicleAnimationTimer();
-  }
+  // Vehicle animation timer removed — rider position comes from real WebSocket events only
+  // See _onRiderLocationUpdate() for real-time location handling
 
   /// Calculates bearing angle between start and end coordinates
   double _calculateBearing(LatLng start, LatLng end) {
@@ -452,7 +436,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
   @override
   void dispose() {
     _wsSubscription?.cancel();
-    _stepTimer?.cancel();
     super.dispose();
   }
 
@@ -529,10 +512,10 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
       body: Stack(
         children: [
           // Full Screen Google Map with Turn-by-Turn Road Route & Animated Moving Car Cursor
-          GoogleMap(
+          AppMapWidget(
             initialCameraPosition: CameraPosition(
               target: widget.pickupLatLng,
-              zoom: 15.0,
+              zoom: 18.0,
             ),
             onMapCreated: (controller) {
               _mapController = controller;

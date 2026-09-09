@@ -4,8 +4,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/app_map_widget.dart';
 import '../../../../core/di/injection_container.dart';
-import '../../domain/usecases/mark_arrived_usecase.dart';
 import '../../domain/usecases/start_trip_usecase.dart';
 import '../../domain/usecases/complete_trip_usecase.dart';
 
@@ -22,6 +22,8 @@ class ActiveTripPage extends StatefulWidget {
   final double? dropLng;
   final double? riderLat;
   final double? riderLng;
+  /// Called when OTP is verified and the trip transitions to in-progress.
+  final VoidCallback? onTripStarted;
 
   const ActiveTripPage({
     super.key,
@@ -35,6 +37,7 @@ class ActiveTripPage extends StatefulWidget {
     this.dropLng,
     this.riderLat,
     this.riderLng,
+    this.onTripStarted,
   });
 
   @override
@@ -67,10 +70,23 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
   late final StartTripUseCase _startTripUseCase;
   late final CompleteTripUseCase _completeTripUseCase;
 
-  static const CameraPosition _initialCamera = CameraPosition(
-    target: LatLng(17.4126, 78.3498),
-    zoom: 14.5,
-  );
+  CameraPosition get _initialCameraPosition {
+    double lat = 17.4924;
+    double lng = 78.3639;
+
+    if (widget.pickupLat != null && widget.pickupLat != 0.0) {
+      lat = widget.pickupLat!;
+      lng = widget.pickupLng ?? 78.3639;
+    } else if (widget.riderLat != null && widget.riderLat != 0.0) {
+      lat = widget.riderLat!;
+      lng = widget.riderLng ?? 78.3639;
+    }
+
+    return CameraPosition(
+      target: LatLng(lat, lng),
+      zoom: 18.0,
+    );
+  }
 
   @override
   void initState() {
@@ -138,6 +154,7 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
         _isLoading = false;
         _tripStatus = TripStatus.inProgress;
       });
+      widget.onTripStarted?.call();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('OTP Verified! Ride Started Successfully.')),
@@ -148,6 +165,7 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
         _isLoading = false;
         _tripStatus = TripStatus.inProgress;
       });
+      widget.onTripStarted?.call();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Ride Started Successfully.')),
@@ -402,8 +420,8 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                         borderRadius: BorderRadius.circular(24),
                         child: Stack(
                           children: [
-                            GoogleMap(
-                              initialCameraPosition: _initialCamera,
+                            AppMapWidget(
+                              initialCameraPosition: _initialCameraPosition,
                               zoomControlsEnabled: false,
                               myLocationButtonEnabled: false,
                             ),

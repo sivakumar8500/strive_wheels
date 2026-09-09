@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -43,19 +41,20 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   List<DateTime> _corporateSelectedDates = [];
   bool _isRideRequestMinimized = false;
   bool _hasActiveRideRequest = true;
+  /// True once the rider verifies OTP — unlocks pickup→drop route on map
+  bool _isTripStarted = false;
 
   int? _driverId;
   String _userToken = '';
   Timer? _locationTimer;
   RideRequestEntity? _currentRideRequest;
-  bool _hasAutoExpandedBottomSheet = false;
 
   // ignore: unused_field
   GoogleMapController? _mapController;
 
   static const CameraPosition _initialPosition = CameraPosition(
-    target: LatLng(17.4924, 78.3639),
-    zoom: 18.0,
+    target: LatLng(37.7800, -122.4050),
+    zoom: 14.5,
   );
 
   late final HomeBloc _homeBloc;
@@ -63,37 +62,23 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   late final BookingBloc _bookingBloc;
   
   BitmapDescriptor? _customMarker;
-  LatLng? _currentLatLng = const LatLng(17.4924, 78.3639);
-  List<LatLng> _fetchedRiderToPickupPoints = [];
-  List<LatLng> _fetchedPickupToDropPoints = [];
+  LatLng? _currentLatLng;
 
   @override
   void initState() {
     super.initState();
-
-    _currentRideRequest ??= const RideRequestEntity(
-      id: 1,
-      pickupAddress: 'Chanda Naik Thanda, HITEC City, Hyderabad',
-      dropAddress: 'ISB Student Village 1 (SV1)',
-      estimatedFare: 199.45,
-      pickupLat: 17.4486,
-      pickupLng: 78.3908,
-      dropLat: 17.4375,
-      dropLng: 78.3428,
-    );
 
     _homeBloc = sl<HomeBloc>();
     _profileBloc = sl<ProfileBloc>()..add(GetProfileEvent());
     _bookingBloc = sl<BookingBloc>();
     _loadCustomMarker();
     _startLocationTracking();
-    _fetchRoutePolylines();
   }
 
   void _startLocationTracking() {
     _locationTimer?.cancel();
     _determinePositionAndSend();
-    _locationTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+    _locationTimer = Timer.periodic(const Duration(seconds: 8), (_) {
       if (_isOnDuty) {
         _determinePositionAndSend();
       }
@@ -151,6 +136,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         setState(() {
           _currentLatLng = LatLng(position.latitude, position.longitude);
         });
+        if (_mapController != null && _currentLatLng != null) {
+          _mapController!.animateCamera(CameraUpdate.newLatLng(_currentLatLng!));
+        }
         _homeBloc.add(
           HomeEvent.updateLocation(
             lat: position.latitude,
@@ -166,7 +154,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               speedKmh: position.speed * 3.6,
             ),
           );
-          _checkPickupProximityAndAutoExpand(LatLng(position.latitude, position.longitude));
         }
       }
     } catch (e) {
@@ -217,29 +204,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   _currentRideRequest = state.rideRequest;
                 });
               } else if (state is RideAcceptedSuccessState) {
-                final acceptedRequest = _currentRideRequest;
                 setState(() {
                   _hasActiveRideRequest = false;
+                  // Keep _currentRideRequest so mini card stays visible
                 });
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Ride accepted successfully!')),
-                );
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ActiveTripPage(
-                      bookingId: state.bookingId,
-                      pickupAddress: acceptedRequest?.pickupAddress,
-                      dropAddress: acceptedRequest?.dropAddress,
-                      estimatedFare: acceptedRequest?.estimatedFare,
-                      pickupLat: acceptedRequest?.pickupLat,
-                      pickupLng: acceptedRequest?.pickupLng,
-                      dropLat: acceptedRequest?.dropLat,
-                      dropLng: acceptedRequest?.dropLng,
-                      riderLat: _currentLatLng?.latitude,
-                      riderLng: _currentLatLng?.longitude,
-                    ),
-                  ),
+                  const SnackBar(content: Text('Ride accepted! Check trip details below.')),
                 );
               } else if (state is BookingErrorState) {
                 String userMessage = state.message;
@@ -248,6 +218,21 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 }
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(userMessage)),
+                );
+              } else if (state is RideCancelledState) {
+                // User cancelled — reset all ride state on rider side
+                setState(() {
+                  _hasActiveRideRequest = false;
+                  _currentRideRequest = null;
+                  _isTripStarted = false;
+                  _isRideRequestMinimized = false;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.reason.isNotEmpty ? state.reason : 'Ride cancelled by customer'),
+                    backgroundColor: const Color(0xFFEF4444),
+                    duration: const Duration(seconds: 4),
+                  ),
                 );
               } else if (state is BookingConnected) {
                 setState(() {
@@ -262,13 +247,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           // 1. Map Layer
           Positioned.fill(
             child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: _currentLatLng ?? const LatLng(17.4924, 78.3639),
-                zoom: 18.0,
-              ),
+              initialCameraPosition: _currentLatLng != null
+                  ? CameraPosition(target: _currentLatLng!, zoom: 15)
+                  : _initialPosition,
               onMapCreated: (controller) {
                 _mapController = controller;
-                _fitMapToRouteBounds();
+                if (_currentLatLng != null) {
+                  controller.animateCamera(CameraUpdate.newLatLngZoom(_currentLatLng!, 15));
+                }
               },
               mapType: MapType.normal,
               zoomControlsEnabled: false,
@@ -286,7 +272,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             top: MediaQuery.of(context).padding.top + 180,
             left: 16,
             child: _buildFloatingButton(Icons.my_location, isDark, onTap: () {
-              _fitMapToRouteBounds();
+              if (_mapController != null && _currentLatLng != null) {
+                _mapController!.animateCamera(CameraUpdate.newLatLng(_currentLatLng!));
+              }
             }),
           ),
           Positioned(
@@ -1153,136 +1141,47 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-  static const List<LatLng> _sampleStreetRoutePoints = [
-    LatLng(17.4486, 78.3908), // Pickup (Madhapur)
-    LatLng(17.4470, 78.3880), // Madhapur main road
-    LatLng(17.4450, 78.3830), // HITEC City Flyover
-    LatLng(17.4420, 78.3800), // Mindspace Junction
-    LatLng(17.4380, 78.3780), // Near IKEA Hyderabad
-    LatLng(17.4340, 78.3730), // Cyberabad Police Station Road
-    LatLng(17.4360, 78.3660), // Old Mumbai Highway junction
-    LatLng(17.4390, 78.3600), // Near AIG Hospitals
-    LatLng(17.4410, 78.3540), // Gachibowli Flyover
-    LatLng(17.4380, 78.3480), // Gachibowli turn
-    LatLng(17.4360, 78.3450), // Outer Ring Road access
-    LatLng(17.4375, 78.3428), // Dropoff (ISB Student Village 1)
-  ];
-
-  static const List<LatLng> _riderToPickupStreetPoints = [
-    LatLng(17.4924, 78.3639), // Rider location (Miyapur)
-    LatLng(17.4850, 78.3660), // Miyapur X Roads
-    LatLng(17.4780, 78.3700), // Hafeezpet Flyover
-    LatLng(17.4700, 78.3750), // Kondapur main road
-    LatLng(17.4600, 78.3800), // Near Sarath City Capital Mall
-    LatLng(17.4520, 78.3860), // Madhapur 100 Feet Road
-    LatLng(17.4486, 78.3908), // Customer Pickup (Madhapur)
-  ];
-
-  List<LatLng> _generateStreetGridNavigationPoints(LatLng origin, LatLng destination) {
-    if (origin.latitude == 0 || destination.latitude == 0) return [origin, destination];
-
-    final dLat = destination.latitude - origin.latitude;
-    final dLng = destination.longitude - origin.longitude;
-
-    return [
-      origin,
-      LatLng(origin.latitude + dLat * 0.45, origin.longitude),
-      LatLng(origin.latitude + dLat * 0.45, destination.longitude),
-      destination,
-    ];
-  }
-
-  Future<List<LatLng>> _fetchRoadRoutePoints(LatLng start, LatLng end) async {
-    try {
-      final url = Uri.parse(
-        'https://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson',
-      );
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final routes = data['routes'] as List;
-        if (routes.isNotEmpty) {
-          final geometry = routes[0]['geometry'];
-          final coordinates = geometry['coordinates'] as List;
-          return coordinates.map<LatLng>((coord) {
-            return LatLng(
-              (coord[1] as num).toDouble(),
-              (coord[0] as num).toDouble(),
-            );
-          }).toList();
-        }
-      }
-    } catch (e) {
-      debugPrint("OSRM Directions fetch error: $e");
-    }
-    return [start, end];
-  }
-
-  Future<void> _fetchRoutePolylines() async {
-    if (_currentRideRequest == null) return;
-    final riderPos = _currentLatLng ?? const LatLng(17.4924, 78.3639);
-
-    if (_currentRideRequest!.pickupLat != 0.0 && _currentRideRequest!.pickupLng != 0.0) {
-      final pickupTarget = LatLng(_currentRideRequest!.pickupLat, _currentRideRequest!.pickupLng);
-      final points1 = await _fetchRoadRoutePoints(riderPos, pickupTarget);
-      if (mounted && points1.isNotEmpty) {
-        setState(() {
-          _fetchedRiderToPickupPoints = points1;
-        });
-      }
-    }
-
-    if (_currentRideRequest!.dropLat != 0.0 && _currentRideRequest!.dropLng != 0.0) {
-      final pickupTarget = LatLng(_currentRideRequest!.pickupLat, _currentRideRequest!.pickupLng);
-      final dropTarget = LatLng(_currentRideRequest!.dropLat, _currentRideRequest!.dropLng);
-      final points2 = await _fetchRoadRoutePoints(pickupTarget, dropTarget);
-      if (mounted && points2.isNotEmpty) {
-        setState(() {
-          _fetchedPickupToDropPoints = points2;
-        });
-      }
-    }
-  }
-
   Set<Polyline> _buildPolylines() {
-    if (_currentRideRequest == null) return const <Polyline>{};
+    // No route while ride request is pending or no data
+    if (_hasActiveRideRequest || _currentRideRequest == null || _currentLatLng == null) {
+      return const <Polyline>{};
+    }
 
     final polylines = <Polyline>{};
-    final riderPos = _currentLatLng ?? const LatLng(17.4924, 78.3639);
 
-    // 1. Rider to Customer Pickup Real Turn-by-Turn Road Navigation Polyline
-    final riderPoints = _fetchedRiderToPickupPoints.isNotEmpty
-        ? _fetchedRiderToPickupPoints
-        : _generateStreetGridNavigationPoints(riderPos, LatLng(_currentRideRequest!.pickupLat, _currentRideRequest!.pickupLng));
+    // Always show rider → pickup after accepting
+    if (_currentRideRequest!.pickupLat != 0 && _currentRideRequest!.pickupLng != 0) {
+      polylines.add(
+        Polyline(
+          polylineId: const PolylineId('rider_to_pickup'),
+          points: [
+            _currentLatLng!,
+            LatLng(_currentRideRequest!.pickupLat, _currentRideRequest!.pickupLng),
+          ],
+          color: const Color(0xFF0D6EFD),
+          width: 5,
+          patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+        ),
+      );
+    }
 
-    polylines.add(
-      Polyline(
-        polylineId: const PolylineId('rider_to_pickup_street_route'),
-        points: riderPoints,
-        color: const Color(0xFF0D6EFD), // Bright Navigation Blue
-        width: 7,
-        jointType: JointType.round,
-        startCap: Cap.roundCap,
-        endCap: Cap.roundCap,
-      ),
-    );
-
-    // 2. Customer Pickup to Dropoff Trip Real Turn-by-Turn Road Navigation Polyline
-    final tripPoints = _fetchedPickupToDropPoints.isNotEmpty
-        ? _fetchedPickupToDropPoints
-        : _sampleStreetRoutePoints;
-
-    polylines.add(
-      Polyline(
-        polylineId: const PolylineId('pickup_to_drop_street_route'),
-        points: tripPoints,
-        color: const Color(0xFF003399), // Deep Navy Blue
-        width: 7,
-        jointType: JointType.round,
-        startCap: Cap.roundCap,
-        endCap: Cap.roundCap,
-      ),
-    );
+    // Only show pickup → drop AFTER OTP is verified
+    if (_isTripStarted &&
+        _currentRideRequest!.pickupLat != 0 &&
+        _currentRideRequest!.dropLat != 0 &&
+        _currentRideRequest!.dropLng != 0) {
+      polylines.add(
+        Polyline(
+          polylineId: const PolylineId('pickup_to_drop'),
+          points: [
+            LatLng(_currentRideRequest!.pickupLat, _currentRideRequest!.pickupLng),
+            LatLng(_currentRideRequest!.dropLat, _currentRideRequest!.dropLng),
+          ],
+          color: const Color(0xFF10A142),
+          width: 5,
+        ),
+      );
+    }
 
     return polylines;
   }
@@ -1324,6 +1223,65 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     return markers;
   }
 
+  void _showActiveTripBottomSheet(BuildContext ctx) {
+    if (_currentRideRequest == null) return;
+    showModalBottomSheet(
+      context: ctx,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.88,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (_, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(ctx).brightness == Brightness.dark
+                ? const Color(0xFF121212)
+                : const Color(0xFFF7F8FC),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              // Drag handle
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 10, bottom: 4),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  child: ActiveTripPage(
+                    bookingId: _currentRideRequest!.id,
+                    pickupAddress: _currentRideRequest!.pickupAddress,
+                    dropAddress: _currentRideRequest!.dropAddress,
+                    estimatedFare: _currentRideRequest!.estimatedFare,
+                    pickupLat: _currentRideRequest!.pickupLat,
+                    pickupLng: _currentRideRequest!.pickupLng,
+                    dropLat: _currentRideRequest!.dropLat,
+                    dropLng: _currentRideRequest!.dropLng,
+                    riderLat: _currentLatLng?.latitude,
+                    riderLng: _currentLatLng?.longitude,
+                    onTripStarted: () {
+                      // OTP verified — unlock pickup→drop route on the home map
+                      if (mounted) setState(() => _isTripStarted = true);
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildActiveTripMiniCard(bool isDark) {
     if (_currentRideRequest == null) return const SizedBox.shrink();
 
@@ -1331,211 +1289,118 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       bottom: 20,
       left: 16,
       right: 16,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 15,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      child: GestureDetector(
+        onTap: () => _showActiveTripBottomSheet(context),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.surfaceDark : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Drag hint handle
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0D6EFD).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.directions_car, size: 14, color: Color(0xFF0D6EFD)),
-                      const SizedBox(width: 4),
-                      Text(
-                        'TRIP IN PROGRESS',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF0D6EFD),
+                ),
+              ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D6EFD).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.directions_car, size: 14, color: Color(0xFF0D6EFD)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'TRIP IN PROGRESS',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF0D6EFD),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const Spacer(),
-                Text(
-                  '₹${_currentRideRequest!.estimatedFare.toStringAsFixed(2)}',
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.my_location, size: 16, color: Color(0xFF0D6EFD)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _currentRideRequest!.pickupAddress,
+                  const Spacer(),
+                  Text(
+                    '₹${_currentRideRequest!.estimatedFare.toStringAsFixed(2)}',
                     style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                       color: isDark ? Colors.white : Colors.black87,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                const Icon(Icons.location_on, size: 16, color: Colors.redAccent),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _currentRideRequest!.dropAddress,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.expand_less_rounded,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Icon(Icons.my_location, size: 16, color: Color(0xFF0D6EFD)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _currentRideRequest!.pickupAddress,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            ElevatedButton(
-              onPressed: () {
-                _showActiveTripBottomSheet(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0D6EFD),
-                minimumSize: const Size.fromHeight(44),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
+                ],
               ),
-              child: Text(
-                'Expand Trip Details',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.location_on, size: 16, color: Colors.redAccent),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _currentRideRequest!.dropAddress,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _checkPickupProximityAndAutoExpand(LatLng riderPos) {
-    if (_currentRideRequest == null || _hasAutoExpandedBottomSheet) return;
-    if (_currentRideRequest!.pickupLat == 0.0 || _currentRideRequest!.pickupLng == 0.0) return;
-
-    final distanceMeters = Geolocator.distanceBetween(
-      riderPos.latitude,
-      riderPos.longitude,
-      _currentRideRequest!.pickupLat,
-      _currentRideRequest!.pickupLng,
-    );
-
-    if (distanceMeters <= 200.0) {
-      _hasAutoExpandedBottomSheet = true;
-      _showActiveTripBottomSheet(context);
-    }
-  }
-
-  void _showActiveTripBottomSheet(BuildContext context) {
-    if (_currentRideRequest == null) return;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.88,
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? const Color(0xFF121212)
-              : const Color(0xFFF7F8FC),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          child: ActiveTripPage(
-            bookingId: _currentRideRequest!.id,
-            pickupAddress: _currentRideRequest!.pickupAddress,
-            dropAddress: _currentRideRequest!.dropAddress,
-            estimatedFare: _currentRideRequest!.estimatedFare,
-            pickupLat: _currentRideRequest!.pickupLat,
-            pickupLng: _currentRideRequest!.pickupLng,
-            dropLat: _currentRideRequest!.dropLat,
-            dropLng: _currentRideRequest!.dropLng,
-            riderLat: _currentLatLng?.latitude,
-            riderLng: _currentLatLng?.longitude,
+            ],
           ),
         ),
       ),
-    );
-  }
-
-  void _animateToStreetView() {
-    final targetPos = _currentLatLng ?? const LatLng(17.4924, 78.3639);
-    if (_mapController == null) return;
-    _mapController!.animateCamera(
-      CameraUpdate.newCameraPosition(
-        CameraPosition(
-          target: targetPos,
-          zoom: 18.0,
-        ),
-      ),
-    );
-  }
-
-  void _fitMapToRouteBounds() {
-    if (_mapController == null) return;
-    final allPoints = <LatLng>[
-      ..._sampleStreetRoutePoints,
-      ..._riderToPickupStreetPoints,
-    ];
-    
-    double minLat = allPoints.first.latitude;
-    double maxLat = allPoints.first.latitude;
-    double minLng = allPoints.first.longitude;
-    double maxLng = allPoints.first.longitude;
-
-    for (final p in allPoints) {
-      if (p.latitude < minLat) minLat = p.latitude;
-      if (p.latitude > maxLat) maxLat = p.latitude;
-      if (p.longitude < minLng) minLng = p.longitude;
-      if (p.longitude > maxLng) maxLng = p.longitude;
-    }
-
-    final bounds = LatLngBounds(
-      southwest: LatLng(minLat - 0.005, minLng - 0.005),
-      northeast: LatLng(maxLat + 0.005, maxLng + 0.005),
-    );
-
-    _mapController!.animateCamera(
-      CameraUpdate.newLatLngBounds(bounds, 60),
     );
   }
 }

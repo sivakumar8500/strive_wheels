@@ -14,35 +14,43 @@ class HomeRepositoryImpl implements HomeRepository {
 
   @override
   Future<HomeDashboardEntity> getHomeDashboard() async {
+    // Always start with local data so the screen renders even if network fails
     final localModel = await localDataSource.getHomeDashboardData();
-    
-    // Fetch dynamic data in parallel
-    final results = await Future.wait([
-      remoteDataSource.getQuickServices(),
-      remoteDataSource.getPopularLocations(),
-      remoteDataSource.getActiveCoupons(),
-    ]);
 
-    final quickServices = (results[0] as List).map((m) => QuickServiceEntity(
-      id: m.id.toString(),
-      title: m.title,
-      subtitle: m.subtitle,
-      iconUrl: m.iconUrl ?? '',
-    )).toList();
+    // Fetch remote data individually — any failure returns an empty list
+    List<QuickServiceEntity> quickServices = [];
+    List<PopularLocationEntity> popularLocations = [];
+    List<CouponEntity> coupons = [];
 
-    final popularLocations = (results[1] as List).map((m) => PopularLocationEntity(
-      id: m.id.toString(),
-      title: m.title,
-      address: m.address,
-      type: m.type,
-    )).toList();
+    try {
+      final rawServices = await remoteDataSource.getQuickServices();
+      quickServices = rawServices.map((m) => QuickServiceEntity(
+        id: (m.id ?? 0).toString(),
+        title: m.title ?? '',
+        subtitle: m.subtitle ?? '',
+        iconUrl: m.iconUrl ?? '',
+      )).toList();
+    } catch (_) {}
 
-    final coupons = (results[2] as List).map((m) => CouponEntity(
-      id: m.id.toString(),
-      title: '${m.discountValue ?? 0} OFF',
-      code: m.code ?? '',
-      description: m.discountType ?? '',
-    )).toList();
+    try {
+      final rawLocations = await remoteDataSource.getPopularLocations();
+      popularLocations = rawLocations.map((m) => PopularLocationEntity(
+        id: (m.id ?? 0).toString(),
+        title: m.title ?? '',
+        address: m.address ?? '',
+        type: m.type ?? '',
+      )).toList();
+    } catch (_) {}
+
+    try {
+      final rawCoupons = await remoteDataSource.getActiveCoupons();
+      coupons = rawCoupons.map((m) => CouponEntity(
+        id: (m.id ?? 0).toString(),
+        title: '${m.discountValue ?? 0} OFF',
+        code: m.code ?? '',
+        description: m.discountType ?? '',
+      )).toList();
+    } catch (_) {}
 
     return HomeDashboardEntity(
       userName: localModel.userName,

@@ -13,6 +13,8 @@ import '../../domain/entities/vehicle_type_entity.dart';
 import '../../domain/usecases/get_vehicle_types_usecase.dart';
 import 'ride_summary_page.dart';
 
+import '../../../../core/widgets/app_map_widget.dart';
+
 /// Detailed Ride Route Map Page with native Google Maps street view, turn-by-turn routing,
 /// brand-themed draggable bottom sheet with swipe-down dismissal, and ride selection.
 class RideRouteMapPage extends StatefulWidget {
@@ -595,7 +597,7 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
       CameraUpdate.newCameraPosition(
         CameraPosition(
           target: widget.pickupLatLng,
-          zoom: 16.5,
+          zoom: 18.0,
         ),
       ),
     );
@@ -708,15 +710,14 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
         children: [
           // 1. Native Google Map View with Official Street View showing all roads, buildings, and names
           Positioned.fill(
-            child: GoogleMap(
+            child: AppMapWidget(
               initialCameraPosition: CameraPosition(
                 target: widget.pickupLatLng,
-                zoom: 15.0,
+                zoom: 18.0,
               ),
               mapType: _currentMapType,
               markers: markers,
               polylines: polylines,
-              buildingsEnabled: true,
               zoomControlsEnabled: false,
               myLocationButtonEnabled: false,
               compassEnabled: true,

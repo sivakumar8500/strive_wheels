@@ -360,7 +360,7 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
                         child: GoogleMap(
                           initialCameraPosition: CameraPosition(
                             target: LatLng(midLat, midLng),
-                            zoom: 12.0,
+                            zoom: 18.0,
                           ),
                           markers: markers,
                           polylines: polylines,

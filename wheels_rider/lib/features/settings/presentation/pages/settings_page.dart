@@ -37,7 +37,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
-    _profileBloc.close();
     super.dispose();
   }
 

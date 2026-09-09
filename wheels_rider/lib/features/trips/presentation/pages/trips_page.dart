@@ -37,7 +37,6 @@ class _TripsPageState extends State<TripsPage> {
 
   @override
   void dispose() {
-    _tripsBloc.close();
     super.dispose();
   }
 

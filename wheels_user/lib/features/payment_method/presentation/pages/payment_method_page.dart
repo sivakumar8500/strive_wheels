@@ -78,7 +78,15 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
               MaterialPageRoute(
                 builder: (_) => BlocProvider<DriverSearchBloc>(
                   create: (_) => sl<DriverSearchBloc>(),
-                  child: const DriverSearchPage(),
+                  child: const DriverSearchPage(
+                    vehicleTypeId: 1,
+                    pickupLat: 17.4126,
+                    pickupLng: 78.3498,
+                    pickupAddress: 'Hitech City, Hyderabad',
+                    dropLat: 17.4435,
+                    dropLng: 78.3772,
+                    dropAddress: 'Gachibowli, Hyderabad',
+                  ),
                 ),
               ),
             );

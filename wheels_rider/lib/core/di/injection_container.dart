@@ -105,8 +105,8 @@ Future<void> initDependencyInjection() async {
   // Network
   if (!sl.isRegistered<ApiClient>()) {
     sl.registerLazySingleton<ApiClient>(() => ApiClient(
-      dio: sl(),
-      sharedPreferences: sl(),
+      sl(),
+      sl(),
     ));
   }
 
@@ -306,6 +306,11 @@ Future<void> initDependencyInjection() async {
       () => GetBookingErrorStreamUseCase(sl()),
     );
   }
+  if (!sl.isRegistered<GetRideCancelledStreamUseCase>()) {
+    sl.registerLazySingleton<GetRideCancelledStreamUseCase>(
+      () => GetRideCancelledStreamUseCase(sl()),
+    );
+  }
   if (!sl.isRegistered<SendLocationPingUseCase>()) {
     sl.registerLazySingleton<SendLocationPingUseCase>(
       () => SendLocationPingUseCase(sl()),
@@ -494,6 +499,7 @@ Future<void> initDependencyInjection() async {
         getRideRequestsStream: sl(),
         getBookingSuccessStream: sl(),
         getBookingErrorStream: sl(),
+        getRideCancelledStream: sl(),
         sendLocationPing: sl(),
       ),
     );
