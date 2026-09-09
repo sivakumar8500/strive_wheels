@@ -9,6 +9,7 @@ import '../network/auth_interceptor.dart';
 import '../network/websocket_service.dart';
 import '../network/customer_ws_controller.dart';
 import '../services/route_condition_service.dart';
+import '../services/navigation_service.dart';
 import '../services/active_booking_service.dart';
 
 import '../../features/booking/data/datasources/booking_local_datasource.dart';
@@ -149,6 +150,12 @@ Future<void> initDependencyInjection() async {
   if (!sl.isRegistered<RouteConditionService>()) {
     sl.registerLazySingleton<RouteConditionService>(
       () => RouteConditionService(),
+    );
+  }
+
+  if (!sl.isRegistered<NavigationService>()) {
+    sl.registerLazySingleton<NavigationService>(
+      () => NavigationService(dio: sl<Dio>()),
     );
   }
 

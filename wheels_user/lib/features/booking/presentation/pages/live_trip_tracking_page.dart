@@ -12,6 +12,8 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_constants.dart';
 import '../../../../core/network/customer_ws_controller.dart';
 import '../../../../core/services/active_booking_service.dart';
+import '../../../../core/services/navigation_service.dart';
+import '../widgets/maneuver_banner_widget.dart';
 import 'journey_complete_page.dart';
 import '../../../../core/widgets/app_map_widget.dart';
 
@@ -68,6 +70,11 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
 
   double _remainingMilesVal = 2.4;
   int _remainingMinsVal = 12;
+
+  List<NavigationStep> _routeSteps = [];
+  NavigationStep? _currentStep;
+  double _distanceToStepMeters = 0.0;
+  bool _isMuted = true;
 
   TripPhase _phase = TripPhase.navToPickup;
   StreamSubscription? _wsSubscription;
@@ -270,15 +277,41 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
 
   void _onRiderLocationUpdate(LatLng newPos) {
     final rotation = _calculateBearing(_currentVehiclePos, newPos);
+
+    NavigationStep? nextStep;
+    double distToStep = 0.0;
+    if (_routeSteps.isNotEmpty) {
+      final navService = sl.isRegistered<NavigationService>()
+          ? sl<NavigationService>()
+          : NavigationService(dio: _dio);
+      nextStep = navService.getCurrentStep(newPos, _routeSteps);
+      if (nextStep != null) {
+        distToStep = NavigationService.calculateDistanceMeters(newPos, nextStep.location);
+      }
+    }
+
     setState(() {
       _currentVehiclePos = newPos;
       _currentVehicleRotation = rotation;
       _lastLocationTime = DateTime.now();
       _isLocationStale = false;
+      if (nextStep != null) {
+        _currentStep = nextStep;
+        _distanceToStepMeters = distToStep;
+      }
     });
 
     if (_isFollowingVehicle && _mapController != null) {
-      _mapController!.animateCamera(CameraUpdate.newLatLng(newPos));
+      _mapController!.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: newPos,
+            zoom: 17.5,
+            tilt: 45.0,
+            bearing: rotation,
+          ),
+        ),
+      );
     }
 
     final target = _phase == TripPhase.inTransit ? widget.dropLatLng : widget.pickupLatLng;
@@ -335,58 +368,41 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
     }
   }
 
-  /// Fetches real road-accurate turn-by-turn geometry points from OSRM
+  /// Fetches real road-accurate turn-by-turn geometry points & step maneuvers from OSRM
   Future<void> _fetchRealRoadRoute({LatLng? from, LatLng? to}) async {
     final startPt = from ?? _currentVehiclePos;
     final endPt = to ?? (_phase == TripPhase.inTransit ? widget.dropLatLng : widget.pickupLatLng);
 
     try {
-      final url =
-          '${ApiConstants.osrmRoute}/${startPt.longitude},${startPt.latitude};${endPt.longitude},${endPt.latitude}?overview=full&geometries=geojson';
+      final navService = sl.isRegistered<NavigationService>()
+          ? sl<NavigationService>()
+          : NavigationService(dio: _dio);
 
-      final response = await _dio.get(
-        url,
-        options: Options(
-          responseType: ResponseType.json,
-          sendTimeout: const Duration(seconds: 4),
-          receiveTimeout: const Duration(seconds: 4),
-        ),
+      final navData = await navService.fetchRouteNavigation(
+        start: startPt,
+        destination: endPt,
       );
 
-      if (response.statusCode == 200 && response.data != null) {
-        final data = response.data is Map ? response.data : {};
-        final routes = data['routes'] as List<dynamic>?;
-        if (routes != null && routes.isNotEmpty) {
-          final firstRoute = routes.first as Map<String, dynamic>;
-          final geometry = firstRoute['geometry'] as Map<String, dynamic>?;
-          final coords = geometry?['coordinates'] as List<dynamic>?;
-
-          final distanceMeters = (firstRoute['distance'] as num?)?.toDouble() ?? 0;
-          final durationSecs = (firstRoute['duration'] as num?)?.toDouble() ?? 0;
-
-          if (coords != null && coords.length >= 2) {
-            final List<LatLng> fetchedPoints = coords.map((c) {
-              final lng = (c[0] as num).toDouble();
-              final lat = (c[1] as num).toDouble();
-              return LatLng(lat, lng);
-            }).toList();
-
-              if (mounted) {
-                setState(() {
-                  _routePoints = fetchedPoints;
-                  // Do NOT reset vehicle position — keep the real WS-updated position
-                  if (_routePoints.length > 1) {
-                    _currentVehicleRotation =
-                        _calculateBearing(_routePoints[0], _routePoints[1]);
-                  }
-                  if (distanceMeters > 0) {
-                    _remainingMilesVal = distanceMeters / 1609.34;
-                    _remainingMinsVal = max(1, (durationSecs / 60).round());
-                  }
-                });
-              }
+      if (navData.points.isNotEmpty && mounted) {
+        setState(() {
+          _routePoints = navData.points;
+          _routeSteps = navData.steps;
+          // Do NOT reset vehicle position — keep the real WS-updated position
+          if (_routePoints.length > 1) {
+            _currentVehicleRotation = _calculateBearing(_routePoints[0], _routePoints[1]);
           }
-        }
+          if (navData.totalDistanceMeters > 0) {
+            _remainingMilesVal = navData.totalDistanceMeters / 1609.34;
+            _remainingMinsVal = max(1, (navData.totalDurationSeconds / 60).round());
+          }
+          if (_routeSteps.isNotEmpty) {
+            final step = navService.getCurrentStep(_currentVehiclePos, _routeSteps);
+            if (step != null) {
+              _currentStep = step;
+              _distanceToStepMeters = NavigationService.calculateDistanceMeters(_currentVehiclePos, step.location);
+            }
+          }
+        });
       }
     } catch (e) {
       debugPrint('[LiveTripTrackingPage] Failed OSRM route fetch: $e');
@@ -611,9 +627,26 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
             },
           ),
 
-          // Floating Top ETA Card
+          // Next-Turn Maneuver Guidance Top Banner
           Positioned(
-            top: 16,
+            top: 10,
+            left: 10,
+            right: 10,
+            child: ManeuverBannerWidget(
+              currentStep: _currentStep,
+              distanceToStepMeters: _distanceToStepMeters,
+              isMuted: _isMuted,
+              onToggleMute: () => setState(() => _isMuted = !_isMuted),
+              onOverviewTap: () {
+                setState(() => _isFollowingVehicle = false);
+                _fitMapBounds();
+              },
+            ),
+          ),
+
+          // Floating Top ETA Summary Card
+          Positioned(
+            top: 110,
             left: 16,
             right: 16,
             child: Container(
@@ -716,7 +749,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
           // Stale Location Warning Banner
           if (_isLocationStale)
             Positioned(
-              top: 96,
+              top: 190,
               left: 20,
               right: 20,
               child: Container(

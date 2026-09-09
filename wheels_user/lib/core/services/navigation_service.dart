@@ -211,7 +211,7 @@ class NavigationService {
     double minDistance = double.infinity;
 
     for (final step in steps) {
-      final distance = _calculateDistanceMeters(currentPos, step.location);
+      final distance = calculateDistanceMeters(currentPos, step.location);
       if (distance < minDistance) {
         minDistance = distance;
         closestStep = step;
@@ -221,7 +221,7 @@ class NavigationService {
     return closestStep;
   }
 
-  static double _calculateDistanceMeters(LatLng p1, LatLng p2) {
+  static double calculateDistanceMeters(LatLng p1, LatLng p2) {
     const p = 0.017453292519943295;
     final a = 0.5 -
         cos((p2.latitude - p1.latitude) * p) / 2 +
