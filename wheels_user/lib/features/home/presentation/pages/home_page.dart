@@ -499,6 +499,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 // 3. Main Scrollable Floating Sheet (collapsed at 35% so map is primary view)
                 Positioned.fill(
                   child: DraggableScrollableSheet(
+                    key: const Key('home_draggable_sheet'),
                     initialChildSize: 0.35,
                     minChildSize: 0.25,
                     maxChildSize: 0.9,
