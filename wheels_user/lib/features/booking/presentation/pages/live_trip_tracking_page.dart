@@ -71,6 +71,10 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
 
   TripPhase _phase = TripPhase.navToPickup;
   StreamSubscription? _wsSubscription;
+  Timer? _staleTimer;
+  DateTime? _lastLocationTime;
+  bool _isLocationStale = false;
+  bool _isFollowingVehicle = true;
 
   final Dio _dio = Dio();
 
@@ -81,6 +85,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
     // Phase 1 Initial Node 123 (Rider Location) or Pickup ABC
     _currentVehiclePos = widget.initialRiderLatLng ??
         LatLng(widget.pickupLatLng.latitude - 0.005, widget.pickupLatLng.longitude - 0.005);
+    _lastLocationTime = DateTime.now();
 
     if (widget.initialStatus == 'TRIP_STARTED') {
       _phase = TripPhase.inTransit;
@@ -106,7 +111,24 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
     // 4. Listen to live WebSocket events (rider.location_updated, booking.arrived, booking.started, etc.)
     _setupWebSocketListener();
 
-    // NOTE: No simulation timer — marker only moves from real WS location updates
+    // 5. Start stale location check timer (15 second threshold)
+    _startStaleLocationTimer();
+  }
+
+  void _startStaleLocationTimer() {
+    _staleTimer?.cancel();
+    _staleTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted) return;
+      if (_lastLocationTime != null) {
+        final secondsSinceLastFix = DateTime.now().difference(_lastLocationTime!).inSeconds;
+        final isStaleNow = secondsSinceLastFix > 15;
+        if (isStaleNow != _isLocationStale) {
+          setState(() {
+            _isLocationStale = isStaleNow;
+          });
+        }
+      }
+    });
   }
 
   void _saveActiveBookingState() {
@@ -250,9 +272,13 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
     setState(() {
       _currentVehiclePos = newPos;
       _currentVehicleRotation = rotation;
+      _lastLocationTime = DateTime.now();
+      _isLocationStale = false;
     });
 
-    _mapController?.animateCamera(CameraUpdate.newLatLng(newPos));
+    if (_isFollowingVehicle && _mapController != null) {
+      _mapController!.animateCamera(CameraUpdate.newLatLng(newPos));
+    }
 
     final target = _phase == TripPhase.inTransit ? widget.dropLatLng : widget.pickupLatLng;
     _fetchRealRoadRoute(from: newPos, to: target);
@@ -670,35 +696,112 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
             ),
           ),
 
-          // Floating My Location / Center Vehicle Button
+          // Stale Location Warning Banner
+          if (_isLocationStale)
+            Positioned(
+              top: 96,
+              left: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFF59E0B)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFD97706)),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Updating location... (Driver connection weak)',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF92400E),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Floating Action Buttons (Route Overview & Recenter)
           Positioned(
             right: 16,
             bottom: 300,
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.cardBgDark : Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Route Overview Button
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.cardBgDark : Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: IconButton(
-                icon: Icon(
-                  Icons.my_location_rounded,
-                  color: isDark ? AppColors.textPrimaryDark : const Color(0xFF1E293B),
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.map_rounded,
+                      color: isDark ? AppColors.textPrimaryDark : const Color(0xFF1E293B),
+                    ),
+                    onPressed: () {
+                      setState(() => _isFollowingVehicle = false);
+                      _fitMapBounds();
+                    },
+                  ),
                 ),
-                onPressed: () {
-                  _mapController?.animateCamera(
-                    CameraUpdate.newLatLng(_currentVehiclePos),
-                  );
-                },
-              ),
+                const SizedBox(height: 12),
+
+                // Recenter / Follow Driver Button
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: _isFollowingVehicle ? AppColors.primaryBlue : (isDark ? AppColors.cardBgDark : Colors.white),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.my_location_rounded,
+                      color: _isFollowingVehicle ? Colors.white : (isDark ? AppColors.textPrimaryDark : const Color(0xFF1E293B)),
+                    ),
+                    onPressed: () {
+                      setState(() => _isFollowingVehicle = true);
+                      _mapController?.animateCamera(
+                        CameraUpdate.newLatLng(_currentVehiclePos),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -706,7 +809,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
-              padding: const EdgeInsets.only(left: 20, right: 20, top: 12, bottom: 24),
+              padding: const EdgeInsets.only(left: 20, right: 20, top: 12, bottom: 80),
               decoration: BoxDecoration(
                 color: cardBg,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),

@@ -20,11 +20,15 @@ import '../bloc/booking_event.dart';
 import '../bloc/booking_state.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:intl/intl.dart';
 import '../../../trips/presentation/pages/active_trip_page.dart';
 import '../../domain/entities/ride_request_entity.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/services/navigation_service.dart';
 import '../widgets/availability_dialog.dart';
+import '../widgets/maneuver_banner_widget.dart';
+import '../widgets/navigation_bottom_panel_widget.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -49,7 +53,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   Timer? _locationTimer;
   RideRequestEntity? _currentRideRequest;
 
-  // ignore: unused_field
   GoogleMapController? _mapController;
 
   static const CameraPosition _initialPosition = CameraPosition(
@@ -60,6 +63,18 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   late final HomeBloc _homeBloc;
   late final ProfileBloc _profileBloc;
   late final BookingBloc _bookingBloc;
+  late final NavigationService _navigationService;
+
+  List<LatLng> _navigationPolylinePoints = [];
+  List<NavigationStep> _navigationSteps = [];
+  NavigationStep? _currentManeuverStep;
+  double _distanceToStepMeters = 0.0;
+  double _remainingDistanceKm = 0.0;
+  int _remainingDurationMins = 0;
+  String _etaTimeString = '';
+  bool _isNavMuted = false;
+  bool _isManualPan = false;
+  bool _isLoadingAction = false;
   
   BitmapDescriptor? _customMarker;
   LatLng? _currentLatLng;
@@ -71,8 +86,81 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _homeBloc = sl<HomeBloc>();
     _profileBloc = sl<ProfileBloc>()..add(GetProfileEvent());
     _bookingBloc = sl<BookingBloc>();
+    _navigationService = sl<NavigationService>();
     _loadCustomMarker();
     _startLocationTracking();
+  }
+
+  Future<void> _fetchNavigationRoute() async {
+    if (_currentLatLng == null || _currentRideRequest == null) return;
+
+    final LatLng dest = _isTripStarted
+        ? LatLng(_currentRideRequest!.dropLat, _currentRideRequest!.dropLng)
+        : LatLng(_currentRideRequest!.pickupLat, _currentRideRequest!.pickupLng);
+
+    if (dest.latitude == 0 || dest.longitude == 0) return;
+
+    final navData = await _navigationService.fetchRouteNavigation(
+      start: _currentLatLng!,
+      destination: dest,
+    );
+
+    if (!mounted) return;
+
+    if (!navData.isEmpty) {
+      final step = _navigationService.getCurrentStep(_currentLatLng!, navData.steps);
+      final etaTime = DateTime.now().add(Duration(seconds: navData.totalDurationSeconds.round()));
+      final formattedEta = DateFormat('hh:mm a').format(etaTime);
+
+      setState(() {
+        _navigationPolylinePoints = navData.points;
+        _navigationSteps = navData.steps;
+        _currentManeuverStep = step;
+        _remainingDistanceKm = navData.totalDistanceMeters / 1000.0;
+        _remainingDurationMins = (navData.totalDurationSeconds / 60.0).round();
+        _etaTimeString = formattedEta;
+      });
+
+      if (!_isManualPan && _mapController != null) {
+        _mapController!.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(
+              target: _currentLatLng!,
+              zoom: 17.5,
+              tilt: 45.0,
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  void _fitNavigationBounds() {
+    if (_mapController == null) return;
+    if (_navigationPolylinePoints.isNotEmpty) {
+      double minLat = _navigationPolylinePoints.first.latitude;
+      double maxLat = _navigationPolylinePoints.first.latitude;
+      double minLng = _navigationPolylinePoints.first.longitude;
+      double maxLng = _navigationPolylinePoints.first.longitude;
+
+      for (final pt in _navigationPolylinePoints) {
+        if (pt.latitude < minLat) minLat = pt.latitude;
+        if (pt.latitude > maxLat) maxLat = pt.latitude;
+        if (pt.longitude < minLng) minLng = pt.longitude;
+        if (pt.longitude > maxLng) maxLng = pt.longitude;
+      }
+
+      _mapController!.animateCamera(
+        CameraUpdate.newLatLngBounds(
+          LatLngBounds(
+            southwest: LatLng(minLat, minLng),
+            northeast: LatLng(maxLat, maxLng),
+          ),
+          80,
+        ),
+      );
+      setState(() => _isManualPan = true);
+    }
   }
 
   void _startLocationTracking() {
@@ -136,9 +224,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         setState(() {
           _currentLatLng = LatLng(position.latitude, position.longitude);
         });
-        if (_mapController != null && _currentLatLng != null) {
+
+        // Trigger turn-by-turn route update if active ride is in progress
+        if (!_hasActiveRideRequest && _currentRideRequest != null) {
+          _fetchNavigationRoute();
+        } else if (_mapController != null && _currentLatLng != null && !_isManualPan) {
           _mapController!.animateCamera(CameraUpdate.newLatLng(_currentLatLng!));
         }
+
         _homeBloc.add(
           HomeEvent.updateLocation(
             lat: position.latitude,
@@ -206,10 +299,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               } else if (state is RideAcceptedSuccessState) {
                 setState(() {
                   _hasActiveRideRequest = false;
-                  // Keep _currentRideRequest so mini card stays visible
+                  _isManualPan = false;
                 });
+                _fetchNavigationRoute();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Ride accepted! Check trip details below.')),
+                  const SnackBar(content: Text('Ride accepted! Active navigation started.')),
                 );
               } else if (state is BookingErrorState) {
                 String userMessage = state.message;
@@ -226,6 +320,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   _currentRideRequest = null;
                   _isTripStarted = false;
                   _isRideRequestMinimized = false;
+                  _navigationPolylinePoints = [];
+                  _navigationSteps = [];
+                  _currentManeuverStep = null;
                 });
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -242,65 +339,120 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             },
           ),
         ],
-        child: Stack(
-          children: [
-          // 1. Map Layer
-          Positioned.fill(
-            child: GoogleMap(
-              initialCameraPosition: _currentLatLng != null
-                  ? CameraPosition(target: _currentLatLng!, zoom: 15)
-                  : _initialPosition,
-              onMapCreated: (controller) {
-                _mapController = controller;
-                if (_currentLatLng != null) {
-                  controller.animateCamera(CameraUpdate.newLatLngZoom(_currentLatLng!, 15));
-                }
-              },
-              mapType: MapType.normal,
-              zoomControlsEnabled: false,
-              myLocationEnabled: true,
-              myLocationButtonEnabled: false,
-              polylines: _buildPolylines(),
-              markers: _buildMarkers(),
-            ),
-          ),
+        child: Builder(
+          builder: (context) {
+            final isGuidanceActive = !_hasActiveRideRequest && _currentRideRequest != null;
 
+            return Stack(
+              children: [
+                // 1. Map Layer
+                Positioned.fill(
+                  child: GoogleMap(
+                    initialCameraPosition: _currentLatLng != null
+                        ? CameraPosition(target: _currentLatLng!, zoom: 15)
+                        : _initialPosition,
+                    onMapCreated: (controller) {
+                      _mapController = controller;
+                      if (_currentLatLng != null) {
+                        controller.animateCamera(CameraUpdate.newLatLngZoom(_currentLatLng!, 15));
+                      }
+                    },
+                    onCameraMoveStarted: () {
+                      if (!_isManualPan) {
+                        setState(() => _isManualPan = true);
+                      }
+                    },
+                    mapType: MapType.normal,
+                    zoomControlsEnabled: false,
+                    myLocationEnabled: true,
+                    myLocationButtonEnabled: false,
+                    polylines: _buildPolylines(),
+                    markers: _buildMarkers(),
+                  ),
+                ),
 
+                // 2. Active Guidance Top Maneuver Banner
+                if (isGuidanceActive)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: ManeuverBannerWidget(
+                      currentStep: _currentManeuverStep,
+                      distanceToStepMeters: _distanceToStepMeters,
+                      isMuted: _isNavMuted,
+                      onToggleMute: () => setState(() => _isNavMuted = !_isNavMuted),
+                      onOverviewTap: _fitNavigationBounds,
+                    ),
+                  ),
 
-          // 3. Floating Action Buttons (GPS and Filters)
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 180,
-            left: 16,
-            child: _buildFloatingButton(Icons.my_location, isDark, onTap: () {
-              if (_mapController != null && _currentLatLng != null) {
-                _mapController!.animateCamera(CameraUpdate.newLatLng(_currentLatLng!));
-              }
-            }),
-          ),
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 180,
-            right: 16,
-            child: _buildFloatingButton(Icons.tune, isDark),
-          ),
-
-          // 4. Top Dashboard Card
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 16,
-            left: 16,
-            right: 16,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.surfaceDark : Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 15,
-                    offset: const Offset(0, 4),
+                // 3. Regular Floating Action Buttons (GPS and Filters)
+                if (!isGuidanceActive) ...[
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 180,
+                    left: 16,
+                    child: _buildFloatingButton(Icons.my_location, isDark, onTap: () {
+                      if (_mapController != null && _currentLatLng != null) {
+                        _mapController!.animateCamera(CameraUpdate.newLatLng(_currentLatLng!));
+                      }
+                    }),
+                  ),
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 180,
+                    right: 16,
+                    child: _buildFloatingButton(Icons.tune, isDark),
                   ),
                 ],
-              ),
+
+                // 4. Floating Recenter & Overview Buttons in Active Guidance Mode
+                if (isGuidanceActive && _isManualPan)
+                  Positioned(
+                    right: 16,
+                    bottom: 190,
+                    child: FloatingActionButton.extended(
+                      heroTag: 'recenter_btn',
+                      onPressed: () {
+                        setState(() => _isManualPan = false);
+                        if (_mapController != null && _currentLatLng != null) {
+                          _mapController!.animateCamera(
+                            CameraUpdate.newCameraPosition(
+                              CameraPosition(
+                                target: _currentLatLng!,
+                                zoom: 17.5,
+                                tilt: 45.0,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      backgroundColor: AppColors.primaryBlue,
+                      icon: const Icon(Icons.navigation_rounded, color: Colors.white),
+                      label: Text(
+                        'Recenter',
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ),
+                  ),
+
+                // 5. Top Dashboard Card (Only when NOT in active navigation guidance)
+                if (!isGuidanceActive)
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 16,
+                    left: 16,
+                    right: 16,
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceDark : Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 15,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -651,12 +803,29 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               }
             ),
 
-          if (!_hasActiveRideRequest && _currentRideRequest != null && _isOnDuty)
-            _buildActiveTripMiniCard(isDark),
+          if (isGuidanceActive && _isOnDuty)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: NavigationBottomPanelWidget(
+                remainingMins: _remainingDurationMins > 0 ? _remainingDurationMins : 8,
+                remainingKm: _remainingDistanceKm > 0 ? _remainingDistanceKm : 2.4,
+                arrivalEta: _etaTimeString.isEmpty ? '10:45 AM' : _etaTimeString,
+                destinationAddress: _currentRideRequest!.dropAddress,
+                pickupAddress: _currentRideRequest!.pickupAddress,
+                isTripStarted: _isTripStarted,
+                isLoading: _isLoadingAction,
+                onMainActionTap: () => _showActiveTripBottomSheet(context),
+              ),
+            ),
         ],
-      ),
-      ),
-      bottomNavigationBar: Container(
+      );
+    }),
+    ),
+      bottomNavigationBar: (!_hasActiveRideRequest && _currentRideRequest != null)
+          ? null
+          : Container(
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
@@ -1149,7 +1318,22 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
     final polylines = <Polyline>{};
 
-    // Always show rider → pickup after accepting
+    if (_navigationPolylinePoints.isNotEmpty) {
+      polylines.add(
+        Polyline(
+          polylineId: const PolylineId('active_navigation_route'),
+          points: _navigationPolylinePoints,
+          color: _isTripStarted ? const Color(0xFF10B981) : const Color(0xFF0D6EFD),
+          width: 6,
+          jointType: JointType.round,
+          startCap: Cap.roundCap,
+          endCap: Cap.roundCap,
+        ),
+      );
+      return polylines;
+    }
+
+    // Fallback straight lines if OSRM geometry is still fetching
     if (_currentRideRequest!.pickupLat != 0 && _currentRideRequest!.pickupLng != 0) {
       polylines.add(
         Polyline(
@@ -1165,7 +1349,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       );
     }
 
-    // Only show pickup → drop AFTER OTP is verified
     if (_isTripStarted &&
         _currentRideRequest!.pickupLat != 0 &&
         _currentRideRequest!.dropLat != 0 &&

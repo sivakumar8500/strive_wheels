@@ -85,9 +85,16 @@ import '../../features/earnings/domain/repositories/earnings_repository.dart';
 import '../../features/earnings/domain/usecases/get_earnings_usecase.dart';
 import '../../features/earnings/presentation/bloc/earnings_bloc.dart';
 
+import '../services/navigation_service.dart';
+
 final sl = GetIt.instance;
 
 Future<void> initDependencyInjection() async {
+  // Services
+  if (!sl.isRegistered<NavigationService>()) {
+    sl.registerLazySingleton<NavigationService>(() => NavigationService());
+  }
+
   // External
   final sharedPreferences = await SharedPreferences.getInstance();
   if (!sl.isRegistered<SharedPreferences>()) {

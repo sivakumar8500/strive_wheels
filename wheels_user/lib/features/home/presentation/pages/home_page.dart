@@ -708,27 +708,54 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             );
           }
 
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: mainContent,
-              ),
+          return ValueListenableBuilder<ActiveBookingData?>(
+            valueListenable: sl.isRegistered<ActiveBookingService>()
+                ? sl<ActiveBookingService>().activeBookingNotifier
+                : ValueNotifier<ActiveBookingData?>(null),
+            builder: (context, activeData, _) {
+              Widget currentContent;
+              if (activeData != null &&
+                  activeData.status == 'TRIP_STARTED' &&
+                  state.selectedNavIndex == 0) {
+                currentContent = LiveTripTrackingPage(
+                  driverName: activeData.driverName,
+                  driverRating: activeData.driverRating,
+                  vehicleInfo: activeData.vehicleInfo,
+                  pickupAddress: activeData.pickupAddress,
+                  dropAddress: activeData.dropAddress,
+                  pickupLatLng: activeData.pickupLatLng,
+                  dropLatLng: activeData.dropLatLng,
+                  initialRiderLatLng: activeData.initialRiderLatLng,
+                  startOtp: activeData.startOtp,
+                  initialStatus: 'TRIP_STARTED',
+                );
+              } else {
+                currentContent = mainContent;
+              }
 
-              // Bottom Navigation Bar
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: HomeBottomNavBar(
-                  selectedIndex: state.selectedNavIndex,
-                  onTabSelected: (index) {
-                    context
-                        .read<HomeBloc>()
-                        .add(ChangeNavTabEvent(index));
-                  },
-                ),
-              ),
-            ],
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: currentContent,
+                  ),
+
+                  // Bottom Navigation Bar
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: HomeBottomNavBar(
+                      selectedIndex: state.selectedNavIndex,
+                      onTabSelected: (index) {
+                        context
+                            .read<HomeBloc>()
+                            .add(ChangeNavTabEvent(index));
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
           );
         },
       ),
