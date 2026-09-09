@@ -467,14 +467,32 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
   String get _headerLabel {
     switch (_phase) {
       case TripPhase.navToPickup:
-        return 'NAVIGATING TO PICKUP';
+        return 'DRIVER ARRIVING AT PICKUP';
       case TripPhase.driverArrived:
-        return 'DRIVER ARRIVED AT PICKUP';
+        return 'DRIVER HAS ARRIVED';
       case TripPhase.inTransit:
         return 'EN ROUTE TO DESTINATION';
       case TripPhase.tripCompleted:
         return 'TRIP COMPLETED';
     }
+  }
+
+  String get _formattedDuration {
+    if (_phase == TripPhase.driverArrived) return 'Arrived';
+    if (_phase == TripPhase.tripCompleted) return 'Completed';
+    if (_remainingMinsVal <= 1) return '1 min';
+    return '$_remainingMinsVal mins';
+  }
+
+  String get _formattedDistance {
+    if (_phase == TripPhase.driverArrived) return 'At Pickup';
+    if (_phase == TripPhase.tripCompleted) return '0 m';
+    final miles = _remainingMilesVal;
+    if (miles < 0.1) {
+      final meters = (miles * 1609.34).round();
+      return meters > 0 ? '$meters m' : '0.1 mi';
+    }
+    return '${miles.toStringAsFixed(1)} mi';
   }
 
   @override
@@ -645,7 +663,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                         Row(
                           children: [
                             Text(
-                              '$_remainingMinsVal mins',
+                              _formattedDuration,
                               style: GoogleFonts.poppins(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -654,7 +672,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              '${_remainingMilesVal.toStringAsFixed(1)} miles',
+                              _formattedDistance,
                               style: GoogleFonts.poppins(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
