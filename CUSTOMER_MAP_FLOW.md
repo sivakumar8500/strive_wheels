@@ -1,17 +1,17 @@
 # Customer Live Trip Map & Navigation Flow
 
-This document details the complete technical flow, state transitions, state management, socket contracts, and UI components for the **Customer Live Trip Map** in the `wheels_user` Flutter application.
+This document details the complete technical flow, state transitions, state management, map pointers/markers, "Track Vehicle" button logic, socket contracts, and UI components for the **Customer Live Trip Map** in the `wheels_user` Flutter application.
 
 ---
 
 ## 1. Overview & Architecture
 
-The Customer Live-Trip Map displays real-time driver progress, OSRM turn-by-turn road geometry, ETA updates, and active trip actions.
+The Customer Live-Trip Map displays real-time driver progress, OSRM turn-by-turn road geometry, ETA updates, map pointers/markers, and active trip actions.
 
 ### Architectural Layers
 - **Presentation Layer**:
-  - `LiveTripTrackingPage`: Primary live map screen featuring an interactive `GoogleMap`, floating top ETA card, minimizable bottom sheet, and action controls.
-  - `BookingConfirmedPage`: Intermediate screen shown after booking acceptance; automatically transitions to `LiveTripTrackingPage` upon OTP confirmation.
+  - `LiveTripTrackingPage`: Primary live map screen featuring an interactive `GoogleMap`, floating top ETA card, minimizable bottom sheet, map pointers, and action controls.
+  - `BookingConfirmedPage`: Intermediate screen shown after booking acceptance; features the "Track Vehicle" button and automatically transitions to `LiveTripTrackingPage` upon OTP confirmation.
   - `HomePage`: Hosts embedded live tracking navigation inside the main Home tab when a trip is active.
 - **State Management & Services**:
   - `ActiveBookingService`: Centralized singleton tracking active trip state (`RIDER_ACCEPTED`, `DRIVER_ARRIVED`, `TRIP_STARTED`, `COMPLETED`).
@@ -48,7 +48,68 @@ stateDiagram-v2
 
 ---
 
-## 3. Key UI Components & Interactions
+## 3. Map Pointers & Location Markers
+
+The map view renders 3 distinct high-resolution markers (pointers) to visually indicate positions:
+
+```
+[ Rider Vehicle Pointer ] ---> [ Pickup Pin (ABC) ] ---> [ Destination Pin (XYZ) ]
+ (Rotating Car Icon)            (Green / Azure Pin)             (Red Pin)
+```
+
+1. **Rider Vehicle Marker Pointer (`moving_vehicle`)**:
+   - Custom high-resolution vehicle cursor generated via `PictureRecorder` canvas (`_carMarkerIcon`).
+   - Dynamic rotation angle (`_currentVehicleRotation`) computed using spherical bearing between previous and updated coordinates.
+   - Configured with `flat: true` and `anchor: Offset(0.5, 0.5)` for smooth, realistic car motion on roads.
+
+2. **Pickup Location Marker Pointer (`pickup`)**:
+   - Azure/Green pin marker (`_pickupMarkerIcon`) at `widget.pickupLatLng`.
+   - InfoWindow displays `Pickup Location (ABC)`.
+
+3. **Destination Location Marker Pointer (`drop`)**:
+   - Red pin marker (`_dropMarkerIcon`) at `widget.dropLatLng`.
+   - InfoWindow displays `Destination (XYZ)`.
+
+---
+
+## 4. "Track Vehicle" Button & Navigation Trigger Logic
+
+Navigating to the live map screen occurs via two distinct user flows (Manual Button Tap & Automatic Socket Event):
+
+### A. Manual "Track Vehicle" Button Taps
+1. **From Booking Confirmation Screen (`BookingConfirmedPage`)**:
+   - The user taps the primary **"Track Vehicle"** button (`ElevatedButton` with `Icons.track_changes_rounded`).
+   - Executes `Navigator.of(context).push(MaterialPageRoute(builder: (_) => LiveTripTrackingPage(...)))`.
+2. **From Home Screen Active Ride Banner (`HomePage`)**:
+   - If an active ride exists, `HomePage` displays the `ACTIVE RIDE IN PROGRESS` banner.
+   - Tapping **"Go to Active Ride"** navigates directly to `LiveTripTrackingPage`.
+
+### B. Automatic Navigation Trigger (Rider OTP Verification)
+- When the rider enters and verifies the start OTP on the rider app:
+- Backend emits the `booking.started` / `rider.trip_started` WebSocket event to `CustomerWSController`.
+- `BookingConfirmedPage` listens to `bookingEventStream`.
+- Upon receiving `booking.started`, `BookingConfirmedPage` **automatically** executes `Navigator.of(context).pushReplacement(...)` to directly open `LiveTripTrackingPage` (no manual tap required).
+
+---
+
+## 5. Map Work & Navigation Mechanics
+
+### A. Visible OSRM Road Polyline
+- Prominent blue route polyline (`#0D6EFD`, width 6, `JointType.round`, `Cap.roundCap`).
+- Updates dynamically depending on active phase:
+  - **Phase 1 & 2**: Route connects Rider Vehicle $\rightarrow$ Pickup Location (ABC).
+  - **Phase 3**: Route connects Rider Vehicle $\rightarrow$ Destination (XYZ).
+
+### B. Uninterrupted Camera Motion (No Camera Jumping)
+- **Root Cause Fixed**: Previously, asynchronous route fetches called `_fitMapBounds()` repeatedly on every location update, overriding vehicle follow camera.
+- **Current Motion Logic**:
+  - **Vehicle Follow Mode (`_isFollowingVehicle == true`)**: Camera smoothly follows `_currentVehiclePos` as new WebSocket location updates arrive without jumping.
+  - **Route Overview Mode (`_isFollowingVehicle == false`)**: Triggered when the user manually taps the **Route Overview** button (`Icons.map_rounded`), zooming out to fit all route bounds (`LatLngBounds`).
+  - **Recenter Button (`Icons.my_location_rounded`)**: Restores Vehicle Follow Mode.
+
+---
+
+## 6. Key UI Components & Interactions
 
 ### A. Collapsible / Minimizable Tracking Sheet
 - **Component**: `DraggableScrollableSheet` with `DraggableScrollableController`.
@@ -65,22 +126,13 @@ stateDiagram-v2
   - Arrival state shows `Arrived` / `At Pickup` instead of `0 mins`.
 - ETA clock time (e.g. `14:45`).
 
-### C. Map Camera Controls
-- **Vehicle Follow Mode (`_isFollowingVehicle == true`)**:
-  - Automatically centers the map camera on the driver's live coordinate (`_currentVehiclePos`) as location updates arrive.
-  - Camera follows without camera jumping or repeated `fitBounds` resets.
-- **Route Overview Mode (`_isFollowingVehicle == false`)**:
-  - Triggered by tapping the **Route Overview** map button (`Icons.map_rounded`).
-  - Animates camera to fit full bounding box (`LatLngBounds`) of the active route.
-- **Recenter Button**: Tapping the GPS button (`Icons.my_location_rounded`) re-enables Vehicle Follow Mode.
-
-### D. Stale Location Warning Banner
+### C. Stale Location Warning Banner
 - Detects driver GPS fix delay exceeding 15 seconds.
 - Displays warning banner: `Updating location... (Driver connection weak)`.
 
 ---
 
-## 4. WebSocket Payload Contracts
+## 7. WebSocket Payload Contracts
 
 The customer app listens to `CustomerWSController.bookingEventStream`:
 
@@ -119,22 +171,25 @@ The customer app listens to `CustomerWSController.bookingEventStream`:
 
 ---
 
-## 5. File Mapping & Implementation References
+## 8. File Mapping & Implementation References
 
 | File Path | Description |
 | --- | --- |
-| [live_trip_tracking_page.dart](file:///d:/projects/live_projects/StriveWheels/wheels_user/lib/features/booking/presentation/pages/live_trip_tracking_page.dart) | Core customer live map, OSRM route fetcher, minimizable bottom sheet, and socket listener. |
-| [booking_confirmed_page.dart](file:///d:/projects/live_projects/StriveWheels/wheels_user/lib/features/booking/presentation/pages/booking_confirmed_page.dart) | Confirmation screen after rider accepts; auto-replaces with `LiveTripTrackingPage` on OTP verification. |
+| [live_trip_tracking_page.dart](file:///d:/projects/live_projects/StriveWheels/wheels_user/lib/features/booking/presentation/pages/live_trip_tracking_page.dart) | Core customer live map, map pointers, OSRM route fetcher, minimizable bottom sheet, and socket listener. |
+| [booking_confirmed_page.dart](file:///d:/projects/live_projects/StriveWheels/wheels_user/lib/features/booking/presentation/pages/booking_confirmed_page.dart) | Confirmation screen with "Track Vehicle" button; auto-replaces with `LiveTripTrackingPage` on OTP verification. |
 | [home_page.dart](file:///d:/projects/live_projects/StriveWheels/wheels_user/lib/features/home/presentation/pages/home_page.dart) | Embeds `LiveTripTrackingPage` directly into the Home tab when `status == 'TRIP_STARTED'`. |
 | [active_booking_service.dart](file:///d:/projects/live_projects/StriveWheels/wheels_user/lib/core/services/active_booking_service.dart) | Centralized state persistence for active bookings across app restarts. |
 
 ---
 
-## 6. Verification Checklist
+## 9. Verification Checklist
 
+- [x] High-resolution car marker pointer rotates dynamically with driver bearing.
+- [x] Pickup (Green) and Destination (Red) location marker pointers clearly displayed.
+- [x] Manual "Track Vehicle" button opens live map tracking view.
+- [x] Automatic navigation triggers when rider confirms OTP on rider side.
 - [x] OSRM turn-by-turn road polyline rendered in prominent blue (`#0D6EFD`).
 - [x] No camera jumping back and forth on WebSocket location updates.
 - [x] Minimizable bottom card snaps between 14%, 45%, and 85% height.
-- [x] Automatic navigation to map tracking view when rider verifies OTP on rider side.
 - [x] Android bottom system navigation bar safe-area insets preserved.
 - [x] Unit tests passing for `ActiveBookingService` and `NavigationService`.
