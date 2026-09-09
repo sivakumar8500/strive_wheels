@@ -240,6 +240,9 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
         } else if (event == 'booking.started' || event == 'rider.trip_started' || event == 'booking.trip_started') {
           setState(() {
             _phase = TripPhase.inTransit;
+            _routePoints = [];
+            _routeSteps = [];
+            _currentStep = null;
           });
           if (sl.isRegistered<ActiveBookingService>()) {
             sl<ActiveBookingService>().updateBookingStatus('TRIP_STARTED');
@@ -358,6 +361,20 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
 
   /// Create custom dynamic high-resolution vehicle car cursor icon and location pin icons
   Future<void> _loadCustomMarkerIcons() async {
+    final carIcon = await _createPinMarkerIcon(AppColors.primaryBlue, Icons.directions_car_rounded);
+    final pickupIcon = await _createPinMarkerIcon(const Color(0xFF10B981), Icons.trip_origin_rounded);
+    final dropIcon = await _createPinMarkerIcon(const Color(0xFFEF4444), Icons.location_on_rounded);
+
+    if (mounted) {
+      setState(() {
+        if (carIcon != null) _carMarkerIcon = carIcon;
+        if (pickupIcon != null) _pickupMarkerIcon = pickupIcon;
+        if (dropIcon != null) _dropMarkerIcon = dropIcon;
+      });
+    }
+  }
+
+  Future<BitmapDescriptor?> _createPinMarkerIcon(Color color, IconData iconData) async {
     try {
       final PictureRecorder pictureRecorder = PictureRecorder();
       final Canvas canvas = Canvas(pictureRecorder);
@@ -373,18 +390,18 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
       final Paint whitePaint = Paint()..color = Colors.white;
       canvas.drawCircle(const Offset(size / 2, size / 2), size / 2 - 6, whitePaint);
 
-      // Inner primary blue circle
-      final Paint bluePaint = Paint()..color = AppColors.primaryBlue;
-      canvas.drawCircle(const Offset(size / 2, size / 2), size / 2 - 12, bluePaint);
+      // Inner color circle
+      final Paint colorPaint = Paint()..color = color;
+      canvas.drawCircle(const Offset(size / 2, size / 2), size / 2 - 12, colorPaint);
 
-      // Car Icon
+      // Icon
       final TextPainter textPainter = TextPainter(textDirection: TextDirection.ltr);
       textPainter.text = TextSpan(
-        text: String.fromCharCode(Icons.directions_car_rounded.codePoint),
+        text: String.fromCharCode(iconData.codePoint),
         style: TextStyle(
           fontSize: 34.0,
-          fontFamily: Icons.directions_car_rounded.fontFamily,
-          package: Icons.directions_car_rounded.fontPackage,
+          fontFamily: iconData.fontFamily,
+          package: iconData.fontPackage,
           color: Colors.white,
         ),
       );
@@ -396,14 +413,13 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
 
       final img = await pictureRecorder.endRecording().toImage(size.toInt(), size.toInt());
       final data = await img.toByteData(format: ImageByteFormat.png);
-      if (data != null && mounted) {
-        setState(() {
-          _carMarkerIcon = BitmapDescriptor.fromBytes(data.buffer.asUint8List());
-        });
+      if (data != null) {
+        return BitmapDescriptor.fromBytes(data.buffer.asUint8List());
       }
     } catch (e) {
-      debugPrint('[LiveTripTrackingPage] Error creating car marker icon: $e');
+      debugPrint('[LiveTripTrackingPage] Error creating marker icon: $e');
     }
+    return null;
   }
 
   /// Fetches real road-accurate turn-by-turn geometry points & step maneuvers from OSRM
@@ -508,14 +524,21 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
 
   /// Fits camera view to show full route and markers with padding
   void _fitMapBounds() {
-    if (_mapController == null || _routePoints.isEmpty) return;
+    if (_mapController == null) return;
 
-    double minLat = _routePoints.first.latitude;
-    double maxLat = _routePoints.first.latitude;
-    double minLng = _routePoints.first.longitude;
-    double maxLng = _routePoints.first.longitude;
+    final List<LatLng> allPoints = [
+      _currentVehiclePos,
+      widget.pickupLatLng,
+      widget.dropLatLng,
+      ..._routePoints,
+    ];
 
-    for (final point in _routePoints) {
+    double minLat = allPoints.first.latitude;
+    double maxLat = allPoints.first.latitude;
+    double minLng = allPoints.first.longitude;
+    double maxLng = allPoints.first.longitude;
+
+    for (final point in allPoints) {
       if (point.latitude < minLat) minLat = point.latitude;
       if (point.latitude > maxLat) maxLat = point.latitude;
       if (point.longitude < minLng) minLng = point.longitude;
