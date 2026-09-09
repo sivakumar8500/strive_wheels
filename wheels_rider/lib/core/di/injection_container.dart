@@ -74,6 +74,9 @@ import '../../features/trips/data/repositories/trips_repository_impl.dart';
 import '../../features/trips/domain/repositories/rider_repository.dart';
 import '../../features/trips/domain/repositories/trips_repository.dart';
 import '../../features/trips/domain/usecases/get_trips_usecase.dart';
+import '../../features/trips/domain/usecases/mark_arrived_usecase.dart';
+import '../../features/trips/domain/usecases/start_trip_usecase.dart';
+import '../../features/trips/domain/usecases/complete_trip_usecase.dart';
 import '../../features/trips/presentation/bloc/rider_trip_bloc.dart';
 import '../../features/trips/presentation/bloc/trips_bloc.dart';
 import '../../features/earnings/data/datasources/earnings_remote_data_source.dart';
@@ -187,7 +190,10 @@ Future<void> initDependencyInjection() async {
   }
   if (!sl.isRegistered<BookingRepository>()) {
     sl.registerLazySingleton<BookingRepository>(
-      () => BookingRepositoryImpl(webSocketDataSource: sl()),
+      () => BookingRepositoryImpl(
+        webSocketDataSource: sl(),
+        remoteDataSource: sl(),
+      ),
     );
   }
   if (!sl.isRegistered<HomeRepository>()) {
@@ -300,6 +306,11 @@ Future<void> initDependencyInjection() async {
       () => GetBookingErrorStreamUseCase(sl()),
     );
   }
+  if (!sl.isRegistered<SendLocationPingUseCase>()) {
+    sl.registerLazySingleton<SendLocationPingUseCase>(
+      () => SendLocationPingUseCase(sl()),
+    );
+  }
   if (!sl.isRegistered<GetProfileUseCase>()) {
     sl.registerLazySingleton<GetProfileUseCase>(
       () => GetProfileUseCase(sl()),
@@ -313,6 +324,21 @@ Future<void> initDependencyInjection() async {
   if (!sl.isRegistered<GetTripsUseCase>()) {
     sl.registerLazySingleton<GetTripsUseCase>(
       () => GetTripsUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<MarkArrivedUseCase>()) {
+    sl.registerLazySingleton<MarkArrivedUseCase>(
+      () => MarkArrivedUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<StartTripUseCase>()) {
+    sl.registerLazySingleton<StartTripUseCase>(
+      () => StartTripUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<CompleteTripUseCase>()) {
+    sl.registerLazySingleton<CompleteTripUseCase>(
+      () => CompleteTripUseCase(sl()),
     );
   }
   if (!sl.isRegistered<GetEarningsUseCase>()) {
@@ -468,6 +494,7 @@ Future<void> initDependencyInjection() async {
         getRideRequestsStream: sl(),
         getBookingSuccessStream: sl(),
         getBookingErrorStream: sl(),
+        sendLocationPing: sl(),
       ),
     );
   }

@@ -33,8 +33,9 @@ class ApiEndpoints {
 
   // WebSocket
   // Note: For staging/prod, change to wss:// if applicable.
-  static const String wsConnect = 'ws://15.252.129.37:8200/ws/v1/connect';
-  static String wsDriverConnect(int driverId) => 'ws://15.252.129.37:8200/ws/driver/$driverId';
+  static const String wsBaseUrl = 'ws://15.252.129.37:8200/api/v1';
+  static const String wsConnect = '$wsBaseUrl/ws/v1/connect';
+  static String wsDriverConnect(int driverId) => '$wsBaseUrl/ws/driver/$driverId';
 
   // Rider Trip Endpoints
   static const String riderAvailability = '$baseUrl/rider/availability';

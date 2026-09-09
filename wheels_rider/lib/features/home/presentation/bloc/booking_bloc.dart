@@ -12,6 +12,7 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
   final GetRideRequestsStreamUseCase getRideRequestsStream;
   final GetBookingSuccessStreamUseCase getBookingSuccessStream;
   final GetBookingErrorStreamUseCase getBookingErrorStream;
+  final SendLocationPingUseCase sendLocationPing;
 
   StreamSubscription? _requestsSubscription;
   StreamSubscription? _successSubscription;
@@ -24,6 +25,7 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     required this.getRideRequestsStream,
     required this.getBookingSuccessStream,
     required this.getBookingErrorStream,
+    required this.sendLocationPing,
   }) : super(BookingInitial()) {
     on<ConnectWebSocketEvent>(_onConnectWebSocket);
     on<DisconnectWebSocketEvent>(_onDisconnectWebSocket);
@@ -32,6 +34,7 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     on<DeclineRideEvent>(_onDeclineRide);
     on<BookingSuccessEvent>(_onBookingSuccess);
     on<BookingErrorEvent>(_onBookingError);
+    on<SendLocationPingEvent>(_onSendLocationPing);
   }
 
   void _onConnectWebSocket(ConnectWebSocketEvent event, Emitter<BookingState> emit) {
@@ -81,6 +84,15 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
 
   void _onBookingError(BookingErrorEvent event, Emitter<BookingState> emit) {
     emit(BookingErrorState(event.message));
+  }
+
+  void _onSendLocationPing(SendLocationPingEvent event, Emitter<BookingState> emit) {
+    sendLocationPing(
+      lat: event.lat,
+      lng: event.lng,
+      heading: event.heading,
+      speedKmh: event.speedKmh,
+    );
   }
 
   @override

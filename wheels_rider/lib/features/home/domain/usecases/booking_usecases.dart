@@ -60,3 +60,23 @@ class GetBookingErrorStreamUseCase {
     return repository.errorStream;
   }
 }
+
+class SendLocationPingUseCase {
+  final BookingRepository repository;
+
+  SendLocationPingUseCase(this.repository);
+
+  void call({
+    required double lat,
+    required double lng,
+    double heading = 0.0,
+    double speedKmh = 0.0,
+  }) {
+    repository.sendLocationPing(
+      lat: lat,
+      lng: lng,
+      heading: heading,
+      speedKmh: speedKmh,
+    );
+  }
+}

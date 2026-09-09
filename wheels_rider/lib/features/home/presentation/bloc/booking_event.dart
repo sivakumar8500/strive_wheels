@@ -29,3 +29,17 @@ class BookingErrorEvent extends BookingEvent {
   final String message;
   BookingErrorEvent(this.message);
 }
+
+class SendLocationPingEvent extends BookingEvent {
+  final double lat;
+  final double lng;
+  final double heading;
+  final double speedKmh;
+
+  SendLocationPingEvent({
+    required this.lat,
+    required this.lng,
+    this.heading = 0.0,
+    this.speedKmh = 0.0,
+  });
+}

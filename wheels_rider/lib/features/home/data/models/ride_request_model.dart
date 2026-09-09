@@ -10,6 +10,8 @@ abstract class RideRequestModel with _$RideRequestModel {
 
   const factory RideRequestModel({
     @JsonKey(name: 'id') int? id,
+    @JsonKey(name: 'booking_id') int? bookingId,
+    @JsonKey(name: 'request_id') int? requestId,
     @JsonKey(name: 'pickup_address') String? pickupAddress,
     @JsonKey(name: 'drop_address') String? dropAddress,
     @JsonKey(name: 'estimated_fare') double? estimatedFare,
@@ -22,8 +24,9 @@ abstract class RideRequestModel with _$RideRequestModel {
   factory RideRequestModel.fromJson(Map<String, dynamic> json) => _$RideRequestModelFromJson(json);
 
   RideRequestEntity toEntity() {
+    final resolvedBookingId = bookingId ?? id ?? requestId ?? 0;
     return RideRequestEntity(
-      id: id ?? 0,
+      id: resolvedBookingId,
       pickupAddress: pickupAddress ?? 'Unknown Pickup',
       dropAddress: dropAddress ?? 'Unknown Dropoff',
       estimatedFare: estimatedFare ?? 0.0,

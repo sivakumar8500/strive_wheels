@@ -6,6 +6,13 @@ abstract class BookingWebSocketDataSource {
   void connect(int driverId, String token);
   void disconnect();
   void acceptBooking(int bookingId);
+  void notifyBookingSuccess(int bookingId);
+  void sendLocationPing({
+    required double lat,
+    required double lng,
+    double heading,
+    double speedKmh,
+  });
   Stream<RideRequestModel> get rideRequestsStream;
   Stream<int> get bookingSuccessStream;
   Stream<String> get errorStream;
@@ -35,13 +42,34 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
 
       switch (event) {
         case 'booking.new_request':
-          final bookingData = data['booking'] as Map<String, dynamic>?;
-          if (bookingData != null) {
-            _rideRequestController.add(RideRequestModel.fromJson(bookingData));
+          Map<String, dynamic> bookingMap = {};
+          if (data['booking'] is Map<String, dynamic>) {
+            bookingMap = Map<String, dynamic>.from(data['booking'] as Map<String, dynamic>);
+          } else {
+            bookingMap = Map<String, dynamic>.from(data);
           }
+
+          final int? trueBookingId = (bookingMap['booking_id'] as int?) ??
+              (bookingMap['id'] as int?) ??
+              (data['booking_id'] as int?) ??
+              (data['id'] as int?);
+
+          final int? reqId = (data['request_id'] as int?) ?? (bookingMap['request_id'] as int?);
+
+          if (trueBookingId != null) {
+            bookingMap['id'] = trueBookingId;
+            bookingMap['booking_id'] = trueBookingId;
+          }
+          if (reqId != null) {
+            bookingMap['request_id'] = reqId;
+          }
+
+          _rideRequestController.add(RideRequestModel.fromJson(bookingMap));
           break;
         case 'booking.accepted_success':
-          final bookingId = data['booking_id'] as int?;
+        case 'booking.rider_accepted':
+        case 'booking.accepted':
+          final bookingId = data['booking_id'] as int? ?? (data['booking'] as Map<String, dynamic>?)?['id'] as int?;
           if (bookingId != null) {
             _bookingSuccessController.add(bookingId);
           }
@@ -66,8 +94,30 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
       'event': 'booking.accept',
       'data': {
         'booking_id': bookingId,
+        'request_id': bookingId,
+        'id': bookingId,
       }
     });
+  }
+
+  @override
+  void notifyBookingSuccess(int bookingId) {
+    _bookingSuccessController.add(bookingId);
+  }
+
+  @override
+  void sendLocationPing({
+    required double lat,
+    required double lng,
+    double heading = 0.0,
+    double speedKmh = 0.0,
+  }) {
+    webSocketClient.sendLocationPing(
+      lat: lat,
+      lng: lng,
+      heading: heading,
+      speedKmh: speedKmh,
+    );
   }
 
   @override

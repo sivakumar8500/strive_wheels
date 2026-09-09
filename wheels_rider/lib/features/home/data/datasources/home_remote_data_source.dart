@@ -83,7 +83,6 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
         }
       }
       throw Exception(errorMessage);
-      throw Exception('An unexpected error occurred');
     }
   }
 
