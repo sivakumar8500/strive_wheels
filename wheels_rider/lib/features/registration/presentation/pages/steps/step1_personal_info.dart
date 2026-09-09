@@ -257,12 +257,12 @@ class _Step1PersonalInfoState extends State<Step1PersonalInfo> {
               ),
               onTap: () async {
                 final now = DateTime.now();
-                final eighteenYearsAgo = DateTime(now.year - 18, now.month, now.day);
+                final twentyOneYearsAgo = DateTime(now.year - 21, now.month, now.day);
                 final date = await showDatePicker(
                   context: context,
-                  initialDate: eighteenYearsAgo,
+                  initialDate: twentyOneYearsAgo,
                   firstDate: DateTime(1900),
-                  lastDate: eighteenYearsAgo,
+                  lastDate: twentyOneYearsAgo,
                 );
                 if (date != null) {
                   setState(() {
@@ -361,7 +361,7 @@ class _Step1PersonalInfoState extends State<Step1PersonalInfo> {
                           return;
                         }
 
-                        // Age validation: Must be at least 18 years old
+                        // Age validation: Must be at least 21 years old
                         try {
                           final parts = dob.split('/');
                           if (parts.length == 3) {
@@ -370,10 +370,10 @@ class _Step1PersonalInfoState extends State<Step1PersonalInfo> {
                             final year = int.parse(parts[2]);
                             final birthDate = DateTime(year, month, day);
                             final now = DateTime.now();
-                            final eighteenYearsAgo = DateTime(now.year - 18, now.month, now.day);
-                            if (birthDate.isAfter(eighteenYearsAgo)) {
+                            final twentyOneYearsAgo = DateTime(now.year - 21, now.month, now.day);
+                            if (birthDate.isAfter(twentyOneYearsAgo)) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('You must be at least 18 years old to register')),
+                                const SnackBar(content: Text('You must be at least 21 years old to register')),
                               );
                               return;
                             }

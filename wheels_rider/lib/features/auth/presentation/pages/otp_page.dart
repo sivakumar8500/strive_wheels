@@ -12,8 +12,10 @@ import '../bloc/otp_event.dart';
 import '../bloc/otp_state.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../../home/presentation/pages/home_page.dart';
-import 'registration_landing_page.dart';
+
+
 import '../../../registration/presentation/pages/registration_page.dart';
+import '../../../registration/presentation/pages/steps/step9_success.dart';
 
 class OtpPage extends StatefulWidget {
   final String phoneNumber;
@@ -111,7 +113,7 @@ class _OtpPageState extends State<OtpPage> {
                 MaterialPageRoute(builder: (_) => const HomePage()),
                 (route) => false,
               );
-            } else if (authStatus == AuthStatus.registrationDraft) {
+            } else if (authStatus == AuthStatus.registrationDraft || authStatus == AuthStatus.registrationPending) {
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(
                   builder: (_) => RegistrationPage(
@@ -122,15 +124,15 @@ class _OtpPageState extends State<OtpPage> {
                 (route) => false,
               );
             } else if (authStatus == AuthStatus.registrationSubmitted) {
-              // TODO: Navigate to Pending Approval Screen. 
-              // For now, redirect to Landing Page to show status.
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => RegistrationLandingPage(phoneNumber: widget.phoneNumber)),
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const Step9Success()),
+                (route) => false,
               );
             } else {
-              // Covers registrationPending, registrationRejected, and default
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => RegistrationLandingPage(phoneNumber: widget.phoneNumber)),
+              // Covers registrationRejected, and default
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const Step9Success()),
+                (route) => false,
               );
             }
           } else if (state is OtpFailure) {

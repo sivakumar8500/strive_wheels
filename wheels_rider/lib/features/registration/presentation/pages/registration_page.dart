@@ -62,7 +62,8 @@ class RegistrationPage extends StatelessWidget {
     return BlocProvider(
       create: (_) {
         final bloc = sl<RegistrationBloc>()
-          ..add(UpdatePersonalInfoEvent(mobileNumber: phoneNumber));
+          ..add(UpdatePersonalInfoEvent(mobileNumber: phoneNumber))
+          ..add(FetchRegistrationStateEvent());
         if (initialStep != 2) {
           bloc.add(SetInitialStepEvent(step: initialStep));
         }

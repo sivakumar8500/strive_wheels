@@ -12,5 +12,6 @@ abstract class HomeEvent with _$HomeEvent {
   const factory HomeEvent.updateAvailability({
     required String availabilityMode,
     required bool isOnline,
+    List<DateTime>? selectedDates,
   }) = _UpdateAvailability;
 }

@@ -56,22 +56,35 @@ class AuthRepositoryImpl implements AuthRepository {
       final status = driverRegistration.status?.toUpperCase() ?? '';
       final currentStep = driverRegistration.currentStep;
       
+      AuthStatus finalAuthStatus;
       switch(status) {
         case 'DRAFT':
         case 'IN_PROGRESS':
-          return AuthResult(
-            authStatus: AuthStatus.registrationDraft,
-            currentStep: currentStep,
-          );
+          finalAuthStatus = AuthStatus.registrationDraft;
+          break;
         case 'SUBMITTED':
-          return const AuthResult(authStatus: AuthStatus.registrationSubmitted);
+          finalAuthStatus = AuthStatus.registrationSubmitted;
+          break;
         case 'APPROVED':
-          return const AuthResult(authStatus: AuthStatus.approved);
+          finalAuthStatus = AuthStatus.approved;
+          break;
         case 'REJECTED':
-          return const AuthResult(authStatus: AuthStatus.registrationRejected);
+          finalAuthStatus = AuthStatus.registrationRejected;
+          break;
         default:
-          return const AuthResult(authStatus: AuthStatus.registrationPending);
+          finalAuthStatus = AuthStatus.registrationPending;
+          break;
       }
+
+      await localDataSource.cacheAuthData(
+        isAuthenticated: true,
+        authStatus: finalAuthStatus.name,
+        currentStep: currentStep,
+        phoneNumber: phoneNumber,
+      );
+
+      return AuthResult(authStatus: finalAuthStatus, currentStep: currentStep);
+
     } catch (e) {
       final msg = e.toString().replaceAll('Exception: ', '');
       throw Exception(msg);

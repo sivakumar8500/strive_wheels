@@ -122,11 +122,11 @@ return updateAvailability(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( double lat,  double lng)?  updateLocation,TResult Function( String availabilityMode,  bool isOnline)?  updateAvailability,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( double lat,  double lng)?  updateLocation,TResult Function( String availabilityMode,  bool isOnline,  List<DateTime>? selectedDates)?  updateAvailability,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _UpdateLocation() when updateLocation != null:
 return updateLocation(_that.lat,_that.lng);case _UpdateAvailability() when updateAvailability != null:
-return updateAvailability(_that.availabilityMode,_that.isOnline);case _:
+return updateAvailability(_that.availabilityMode,_that.isOnline,_that.selectedDates);case _:
   return orElse();
 
 }
@@ -144,11 +144,11 @@ return updateAvailability(_that.availabilityMode,_that.isOnline);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( double lat,  double lng)  updateLocation,required TResult Function( String availabilityMode,  bool isOnline)  updateAvailability,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( double lat,  double lng)  updateLocation,required TResult Function( String availabilityMode,  bool isOnline,  List<DateTime>? selectedDates)  updateAvailability,}) {final _that = this;
 switch (_that) {
 case _UpdateLocation():
 return updateLocation(_that.lat,_that.lng);case _UpdateAvailability():
-return updateAvailability(_that.availabilityMode,_that.isOnline);case _:
+return updateAvailability(_that.availabilityMode,_that.isOnline,_that.selectedDates);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -165,11 +165,11 @@ return updateAvailability(_that.availabilityMode,_that.isOnline);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( double lat,  double lng)?  updateLocation,TResult? Function( String availabilityMode,  bool isOnline)?  updateAvailability,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( double lat,  double lng)?  updateLocation,TResult? Function( String availabilityMode,  bool isOnline,  List<DateTime>? selectedDates)?  updateAvailability,}) {final _that = this;
 switch (_that) {
 case _UpdateLocation() when updateLocation != null:
 return updateLocation(_that.lat,_that.lng);case _UpdateAvailability() when updateAvailability != null:
-return updateAvailability(_that.availabilityMode,_that.isOnline);case _:
+return updateAvailability(_that.availabilityMode,_that.isOnline,_that.selectedDates);case _:
   return null;
 
 }
@@ -249,11 +249,20 @@ as double,
 
 
 class _UpdateAvailability implements HomeEvent {
-  const _UpdateAvailability({required this.availabilityMode, required this.isOnline});
+  const _UpdateAvailability({required this.availabilityMode, required this.isOnline, final  List<DateTime>? selectedDates}): _selectedDates = selectedDates;
   
 
  final  String availabilityMode;
  final  bool isOnline;
+ final  List<DateTime>? _selectedDates;
+ List<DateTime>? get selectedDates {
+  final value = _selectedDates;
+  if (value == null) return null;
+  if (_selectedDates is EqualUnmodifiableListView) return _selectedDates;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(value);
+}
+
 
 /// Create a copy of HomeEvent
 /// with the given fields replaced by the non-null parameter values.
@@ -265,16 +274,16 @@ _$UpdateAvailabilityCopyWith<_UpdateAvailability> get copyWith => __$UpdateAvail
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UpdateAvailability&&(identical(other.availabilityMode, availabilityMode) || other.availabilityMode == availabilityMode)&&(identical(other.isOnline, isOnline) || other.isOnline == isOnline));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UpdateAvailability&&(identical(other.availabilityMode, availabilityMode) || other.availabilityMode == availabilityMode)&&(identical(other.isOnline, isOnline) || other.isOnline == isOnline)&&const DeepCollectionEquality().equals(other._selectedDates, _selectedDates));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,availabilityMode,isOnline);
+int get hashCode => Object.hash(runtimeType,availabilityMode,isOnline,const DeepCollectionEquality().hash(_selectedDates));
 
 @override
 String toString() {
-  return 'HomeEvent.updateAvailability(availabilityMode: $availabilityMode, isOnline: $isOnline)';
+  return 'HomeEvent.updateAvailability(availabilityMode: $availabilityMode, isOnline: $isOnline, selectedDates: $selectedDates)';
 }
 
 
@@ -285,7 +294,7 @@ abstract mixin class _$UpdateAvailabilityCopyWith<$Res> implements $HomeEventCop
   factory _$UpdateAvailabilityCopyWith(_UpdateAvailability value, $Res Function(_UpdateAvailability) _then) = __$UpdateAvailabilityCopyWithImpl;
 @useResult
 $Res call({
- String availabilityMode, bool isOnline
+ String availabilityMode, bool isOnline, List<DateTime>? selectedDates
 });
 
 
@@ -302,11 +311,12 @@ class __$UpdateAvailabilityCopyWithImpl<$Res>
 
 /// Create a copy of HomeEvent
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? availabilityMode = null,Object? isOnline = null,}) {
+@pragma('vm:prefer-inline') $Res call({Object? availabilityMode = null,Object? isOnline = null,Object? selectedDates = freezed,}) {
   return _then(_UpdateAvailability(
 availabilityMode: null == availabilityMode ? _self.availabilityMode : availabilityMode // ignore: cast_nullable_to_non_nullable
 as String,isOnline: null == isOnline ? _self.isOnline : isOnline // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,selectedDates: freezed == selectedDates ? _self._selectedDates : selectedDates // ignore: cast_nullable_to_non_nullable
+as List<DateTime>?,
   ));
 }
 

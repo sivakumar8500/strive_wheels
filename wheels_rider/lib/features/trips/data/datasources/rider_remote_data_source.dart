@@ -24,7 +24,10 @@ class RiderRemoteDataSourceImpl implements RiderRemoteDataSource {
       ApiEndpoints.riderAvailability,
       data: {
         'mode': mode,
+        'availability_mode': mode,
         'is_online': isOnline,
+        'is_available': isOnline,
+        'is_on_duty': isOnline,
       },
     );
     return AvailabilityResponse.fromJson(response.data);
@@ -37,6 +40,8 @@ class RiderRemoteDataSourceImpl implements RiderRemoteDataSource {
       data: {
         'lat': lat,
         'lng': lng,
+        'latitude': lat,
+        'longitude': lng,
       },
     );
     return LocationUpdateResponse.fromJson(response.data);
@@ -44,8 +49,18 @@ class RiderRemoteDataSourceImpl implements RiderRemoteDataSource {
 
   @override
   Future<BookingActionResponse> acceptBooking(int bookingId) async {
-    final response = await apiClient.post(ApiEndpoints.acceptBooking(bookingId));
-    return BookingActionResponse.fromJson(response.data);
+    try {
+      final response = await apiClient.post(ApiEndpoints.acceptBooking(bookingId));
+      return BookingActionResponse.fromJson(response.data);
+    } catch (e) {
+      try {
+        final fallbackUrl = '${ApiEndpoints.baseUrl}/rider/bookings/$bookingId/accept';
+        final response = await apiClient.post(fallbackUrl);
+        return BookingActionResponse.fromJson(response.data);
+      } catch (_) {
+        rethrow;
+      }
+    }
   }
 
   @override

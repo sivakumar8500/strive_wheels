@@ -1,6 +1,10 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../main.dart';
+import '../../features/auth/presentation/pages/login_page.dart';
 
 class ApiClient {
   final Dio _dio;
@@ -38,6 +42,22 @@ class ApiClient {
             print('responce : ${response.data}');
             print('===========================');
           }
+
+          final data = response.data;
+          if (data is Map && data['success'] == false) {
+            final message = data['message']?.toString() ?? '';
+            final errorCode = data['error'] != null && data['error'] is Map ? data['error']['code'] : null;
+            if (message == 'Invalid access token.' || errorCode == 'UNAUTHORIZED') {
+              _sharedPreferences.remove('user_token');
+              if (navigatorKey.currentContext != null) {
+                Navigator.of(navigatorKey.currentContext!).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                  (route) => false,
+                );
+              }
+            }
+          }
+          
           return handler.next(response);
         },
         onError: (DioException e, handler) {
@@ -54,6 +74,21 @@ class ApiClient {
             print('responce : ${e.response?.data ?? e.message}');
             print('===========================');
           }
+          
+          final data = e.response?.data;
+          final message = data is Map ? data['message']?.toString() : null;
+          final errorCode = data is Map && data['error'] != null && data['error'] is Map ? data['error']['code'] : null;
+          
+          if (e.response?.statusCode == 401 || message == 'Invalid access token.' || errorCode == 'UNAUTHORIZED') {
+            _sharedPreferences.remove('user_token');
+            if (navigatorKey.currentContext != null) {
+              Navigator.of(navigatorKey.currentContext!).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginPage()),
+                (route) => false,
+              );
+            }
+          }
+          
           return handler.next(e);
         },
       ),

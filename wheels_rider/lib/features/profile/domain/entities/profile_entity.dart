@@ -17,5 +17,6 @@ abstract class ProfileEntity with _$ProfileEntity {
     required String email,
     required String dob,
     required String gender,
+    required String status,
   }) = _ProfileEntity;
 }

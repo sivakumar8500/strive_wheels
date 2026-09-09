@@ -6,6 +6,7 @@ abstract class AppColors {
   static const Color primaryBlue = Color(0xFF0038A8);
   static const Color accentOrange = Color(0xFFFF6600);
   static const Color darkBlue = Color(0xFF002266);
+  static const Color error = Color(0xFFEF4444);
 
   // Surface & Background Colors
   static const Color backgroundLight = Color(0xFFF8F9FD);

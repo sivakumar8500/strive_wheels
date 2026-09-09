@@ -19,15 +19,15 @@ class Step5VehicleDetails extends StatefulWidget {
 class _Step5VehicleDetailsState extends State<Step5VehicleDetails> {
   int? _selectedVehicleTypeId;
   String? _selectedVehicleTypeName;
-  String? _selectedManufacturer;
-  String? _selectedModel;
+  final _manufacturerController = TextEditingController();
+  final _modelController = TextEditingController();
   final _regNumberController = TextEditingController();
-  String? _selectedYear;
-  String? _selectedColor;
+  final _yearController = TextEditingController();
+  final _colorController = TextEditingController();
   final _chassisNumberController = TextEditingController();
   final _engineNumberController = TextEditingController();
-  String? _selectedTotalSeats;
-  String? _selectedFuelType;
+  final _totalSeatsController = TextEditingController();
+  final _fuelTypeController = TextEditingController();
 
   List<Map<String, dynamic>> _vehicleTypes = [];
   bool _isLoadingVehicleTypes = false;
@@ -38,15 +38,15 @@ class _Step5VehicleDetailsState extends State<Step5VehicleDetails> {
     final data = context.read<RegistrationBloc>().state.data;
     _selectedVehicleTypeId = data.vehicleTypeId;
     _selectedVehicleTypeName = data.vehicleType;
-    _selectedManufacturer = data.vehicleManufacturer;
-    _selectedModel = data.vehicleModel;
+    _manufacturerController.text = data.vehicleManufacturer ?? '';
+    _modelController.text = data.vehicleModel ?? '';
     _regNumberController.text = data.vehicleRegNumber ?? '';
-    _selectedYear = data.vehicleYear;
-    _selectedColor = data.vehicleColor;
+    _yearController.text = data.vehicleYear ?? '';
+    _colorController.text = data.vehicleColor ?? '';
     _chassisNumberController.text = data.vehicleChassisNumber ?? '';
     _engineNumberController.text = data.vehicleEngineNumber ?? '';
-    _selectedTotalSeats = data.vehicleTotalSeats;
-    _selectedFuelType = data.vehicleFuelType;
+    _totalSeatsController.text = data.vehicleTotalSeats ?? '';
+    _fuelTypeController.text = data.vehicleFuelType ?? '';
 
     _fetchVehicleTypes();
   }
@@ -115,9 +115,15 @@ class _Step5VehicleDetailsState extends State<Step5VehicleDetails> {
 
   @override
   void dispose() {
+    _manufacturerController.dispose();
+    _modelController.dispose();
     _regNumberController.dispose();
+    _yearController.dispose();
+    _colorController.dispose();
     _chassisNumberController.dispose();
     _engineNumberController.dispose();
+    _totalSeatsController.dispose();
+    _fuelTypeController.dispose();
     super.dispose();
   }
 
@@ -254,40 +260,16 @@ class _Step5VehicleDetailsState extends State<Step5VehicleDetails> {
               isDark: isDark,
               child: Column(
                 children: [
-                  _buildDropdown(
+                  AppTextField(
                     label: 'Manufacturer / Company Name',
-                    hint: 'Maruti Suzuki',
-                    value: _selectedManufacturer,
-                    items: [
-                      'Maruti Suzuki',
-                      'Hyundai',
-                      'Tata',
-                      'Mahindra',
-                      'Toyota',
-                      'Honda',
-                      'Kia',
-                    ],
-                    onChanged: (val) =>
-                        setState(() => _selectedManufacturer = val),
-                    isDark: isDark,
+                    hintText: 'e.g. Maruti Suzuki',
+                    controller: _manufacturerController,
                   ),
                   const SizedBox(height: 16),
-                  _buildDropdown(
+                  AppTextField(
                     label: 'Model',
-                    hint: 'Dzire',
-                    value: _selectedModel,
-                    items: [
-                      'Dzire',
-                      'Swift',
-                      'Baleno',
-                      'Ertiga',
-                      'WagonR',
-                      'i20',
-                      'Creta',
-                      'Nexon',
-                    ],
-                    onChanged: (val) => setState(() => _selectedModel = val),
-                    isDark: isDark,
+                    hintText: 'e.g. Dzire',
+                    controller: _modelController,
                   ),
                   const SizedBox(height: 16),
                   AppTextField(
@@ -299,36 +281,19 @@ class _Step5VehicleDetailsState extends State<Step5VehicleDetails> {
                   Row(
                     children: [
                       Expanded(
-                        child: _buildDropdown(
+                        child: AppTextField(
                           label: 'Registration Year',
-                          hint: '2022',
-                          value: _selectedYear,
-                          items: [
-                            for (int y = DateTime.now().year; y >= 2005; y--)
-                              y.toString()
-                          ],
-                          onChanged: (val) =>
-                              setState(() => _selectedYear = val),
-                          isDark: isDark,
+                          hintText: 'e.g. 2022',
+                          controller: _yearController,
+                          keyboardType: TextInputType.number,
                         ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
-                        child: _buildDropdown(
+                        child: AppTextField(
                           label: 'Color',
-                          hint: 'White',
-                          value: _selectedColor,
-                          items: [
-                            'White',
-                            'Black',
-                            'Silver',
-                            'Grey',
-                            'Red',
-                            'Blue',
-                          ],
-                          onChanged: (val) =>
-                              setState(() => _selectedColor = val),
-                          isDark: isDark,
+                          hintText: 'e.g. White',
+                          controller: _colorController,
                         ),
                       ),
                     ],
@@ -358,32 +323,19 @@ class _Step5VehicleDetailsState extends State<Step5VehicleDetails> {
                   Row(
                     children: [
                       Expanded(
-                        child: _buildDropdown(
+                        child: AppTextField(
                           label: 'Total Seats',
-                          hint: '4 Seats',
-                          value: _selectedTotalSeats,
-                          items: ['2 Seats', '4 Seats', '5 Seats', '7 Seats'],
-                          onChanged: (val) =>
-                              setState(() => _selectedTotalSeats = val),
-                          isDark: isDark,
+                          hintText: 'e.g. 4',
+                          controller: _totalSeatsController,
+                          keyboardType: TextInputType.number,
                         ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
-                        child: _buildDropdown(
+                        child: AppTextField(
                           label: 'Fuel Type',
-                          hint: 'PETROL',
-                          value: _selectedFuelType,
-                          items: [
-                            'PETROL',
-                            'DIESEL',
-                            'CNG',
-                            'ELECTRIC',
-                            'HYBRID',
-                          ],
-                          onChanged: (val) =>
-                              setState(() => _selectedFuelType = val),
-                          isDark: isDark,
+                          hintText: 'e.g. PETROL',
+                          controller: _fuelTypeController,
                         ),
                       ),
                     ],
@@ -426,19 +378,25 @@ class _Step5VehicleDetailsState extends State<Step5VehicleDetails> {
               height: 56,
               child: ElevatedButton(
                 onPressed: () {
+                  final manufacturer = _manufacturerController.text.trim();
+                  final model = _modelController.text.trim();
                   final regNumber = _regNumberController.text.trim();
+                  final year = _yearController.text.trim();
+                  final color = _colorController.text.trim();
                   final chassisNumber = _chassisNumberController.text.trim();
                   final engineNumber = _engineNumberController.text.trim();
+                  final totalSeats = _totalSeatsController.text.trim();
+                  final fuelType = _fuelTypeController.text.trim();
 
-                  if (_selectedManufacturer == null || _selectedManufacturer!.isEmpty) {
+                  if (manufacturer.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Please select vehicle manufacturer')),
+                      const SnackBar(content: Text('Please enter vehicle manufacturer')),
                     );
                     return;
                   }
-                  if (_selectedModel == null || _selectedModel!.isEmpty) {
+                  if (model.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Please select vehicle model')),
+                      const SnackBar(content: Text('Please enter vehicle model')),
                     );
                     return;
                   }
@@ -453,15 +411,15 @@ class _Step5VehicleDetailsState extends State<Step5VehicleDetails> {
                     UpdateVehicleDetailsEvent(
                       vehicleTypeId: _selectedVehicleTypeId ?? 1,
                       vehicleType: _selectedVehicleTypeName ?? 'Car',
-                      vehicleManufacturer: _selectedManufacturer,
-                      vehicleModel: _selectedModel,
+                      vehicleManufacturer: manufacturer,
+                      vehicleModel: model,
                       vehicleRegNumber: regNumber,
-                      vehicleYear: _selectedYear ?? '2022',
-                      vehicleColor: _selectedColor ?? 'White',
+                      vehicleYear: year,
+                      vehicleColor: color,
                       vehicleChassisNumber: chassisNumber,
                       vehicleEngineNumber: engineNumber,
-                      vehicleTotalSeats: _selectedTotalSeats ?? '4 Seats',
-                      vehicleFuelType: _selectedFuelType ?? 'PETROL',
+                      vehicleTotalSeats: totalSeats,
+                      vehicleFuelType: fuelType,
                     ),
                   );
                 },
@@ -509,65 +467,4 @@ class _Step5VehicleDetailsState extends State<Step5VehicleDetails> {
     );
   }
 
-  Widget _buildDropdown({
-    required String label,
-    required String hint,
-    required String? value,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-    required bool isDark,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: isDark ? AppColors.white : AppColors.textPrimaryLight,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.surfaceDark : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
-            ),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: value,
-              hint: Text(
-                hint,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: isDark
-                      ? AppColors.textSecondaryDark
-                      : AppColors.textSecondaryLight,
-                ),
-              ),
-              isExpanded: true,
-              icon: Icon(
-                Icons.keyboard_arrow_down,
-                color: isDark ? AppColors.white : AppColors.textPrimaryLight,
-              ),
-              dropdownColor: isDark ? AppColors.surfaceDark : Colors.white,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: isDark ? AppColors.white : AppColors.textPrimaryLight,
-              ),
-              items: items.map((String item) {
-                return DropdownMenuItem<String>(value: item, child: Text(item));
-              }).toList(),
-              onChanged: onChanged,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 }

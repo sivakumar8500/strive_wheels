@@ -15,7 +15,7 @@ void main() {
     usecase = GetProfileUseCase(mockProfileRepository);
   });
 
-  const tProfileEntity = ProfileEntity(id: 1, name: 'Alex', rating: 4.98, profileImageUrl: 'url', totalEarnings: 0.0, walletBalance: 0.0, phone: '1234567890', email: 'test@test.com', dob: '1990-01-01', gender: 'Male');
+  const tProfileEntity = ProfileEntity(id: 1, name: 'Alex', rating: 4.98, profileImageUrl: 'url', totalEarnings: 0.0, walletBalance: 0.0, phone: '1234567890', email: 'test@test.com', dob: '1990-01-01', gender: 'Male', status: 'active');
 
   test('should get profile from repository', () async {
     when(() => mockProfileRepository.getProfile())
@@ -28,3 +28,4 @@ void main() {
     verifyNoMoreInteractions(mockProfileRepository);
   });
 }
+

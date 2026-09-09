@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/get_registration_state_usecase.dart';
@@ -48,10 +49,15 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         final response = await getRegistrationStateUseCase();
         if (response.success && response.data != null && response.data!.currentStep > 0) {
           final nextStep = _getNextStep(response, response.data!.currentStep);
+          final updatedData = response.data!.registrationData ?? state.data;
+          
           emit(state.copyWith(
             currentStep: nextStep,
             status: RegistrationStatus.success,
+            data: updatedData,
           ));
+        } else {
+          emit(state.copyWith(status: RegistrationStatus.initial));
         }
       } catch (_) {
         emit(state.copyWith(status: RegistrationStatus.initial));
@@ -235,6 +241,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
         dlNumber: event.dlNumber ?? state.data.dlNumber,
         dlFrontPath: event.dlFrontPath ?? state.data.dlFrontPath,
         dlBackPath: event.dlBackPath ?? state.data.dlBackPath,
+        nocCertificatePath: event.nocCertificatePath ?? state.data.nocCertificatePath,
       );
 
       try {
@@ -263,16 +270,23 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
           dlBackUrl = await uploadFileUseCase(dlBackUrl);
         }
 
+        String? nocCertificateUrl = updatedData.nocCertificatePath;
+        if (nocCertificateUrl != null && nocCertificateUrl.isNotEmpty && !nocCertificateUrl.startsWith('http')) {
+          nocCertificateUrl = await uploadFileUseCase(nocCertificateUrl);
+        }
+
         final payload = {
-          "selfie_url": selfieUrl ?? "",
-          "aadhaar_number": updatedData.aadhaarNumber ?? "",
-          "aadhaar_front_url": aadhaarFrontUrl ?? "",
-          "aadhaar_back_url": aadhaarBackUrl ?? "",
-          "pan_number": updatedData.panNumber ?? "",
-          "pan_front_url": panFrontUrl ?? "",
-          "dl_number": updatedData.dlNumber ?? "",
-          "dl_front_url": dlFrontUrl ?? "",
-          "dl_back_url": dlBackUrl ?? ""
+          "userSelfiePic": selfieUrl ?? "",
+          "liveSelfieView": selfieUrl ?? "",
+          "aadharFrontView": aadhaarFrontUrl ?? "",
+          "aadharBackView": aadhaarBackUrl ?? "",
+          "aadharNumber": updatedData.aadhaarNumber ?? "",
+          "panView": panFrontUrl ?? "",
+          "panNumber": updatedData.panNumber ?? "",
+          "licenseFrontView": dlFrontUrl ?? "",
+          "licenseBackView": dlBackUrl ?? "",
+          "licenseNumber": updatedData.dlNumber ?? "",
+          "nocCertificateView": nocCertificateUrl ?? ""
         };
 
         final response = await submitKycUsecase(payload);
@@ -287,6 +301,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
             panFrontPath: panFrontUrl ?? updatedData.panFrontPath,
             dlFrontPath: dlFrontUrl ?? updatedData.dlFrontPath,
             dlBackPath: dlBackUrl ?? updatedData.dlBackPath,
+            nocCertificatePath: nocCertificateUrl ?? updatedData.nocCertificatePath,
           ),
           status: RegistrationStatus.success,
         ));
@@ -595,6 +610,9 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
       try {
         final response = await submitRegistrationUsecase(payload);
         if (response.success) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('auth_status', 'registrationSubmitted');
+          
           emit(state.copyWith(
             currentStep: 10,
             status: RegistrationStatus.success,
@@ -608,6 +626,7 @@ class RegistrationBloc extends Bloc<RegistrationEvent, RegistrationState> {
           emit(state.copyWith(
             status: RegistrationStatus.failure,
             errorMessage: errorMsg,
+            currentStep: _getNextStep(response, state.currentStep),
           ));
         }
       } catch (e) {
