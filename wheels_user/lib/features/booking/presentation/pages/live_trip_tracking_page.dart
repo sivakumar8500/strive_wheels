@@ -76,6 +76,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
   bool _isLocationStale = false;
   bool _isFollowingVehicle = true;
 
+  final DraggableScrollableController _sheetController = DraggableScrollableController();
   final Dio _dio = Dio();
 
   @override
@@ -461,6 +462,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
 
   @override
   void dispose() {
+    _sheetController.dispose();
     _wsSubscription?.cancel();
     super.dispose();
   }
@@ -741,7 +743,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
           // Floating Action Buttons (Route Overview & Recenter)
           Positioned(
             right: 16,
-            bottom: 300,
+            bottom: 140,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -805,323 +807,363 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
             ),
           ),
 
-          // Bottom Sheet Panel
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              padding: const EdgeInsets.only(left: 20, right: 20, top: 12, bottom: 80),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Top Drag Handle Pill
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Driver Details & Call/Chat Actions Row
-                  Row(
-                    children: [
-                      // Driver Avatar with Rating Overlay Badge
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                            ),
-                            child: const ClipOval(
-                              child: Icon(Icons.person_rounded, size: 40, color: Color(0xFF64748B)),
-                            ),
-                          ),
-                          Positioned(
-                            bottom: -4,
-                            right: -4,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.1),
-                                    blurRadius: 4,
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    '${widget.driverRating}',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark ? AppColors.textPrimaryDark : const Color(0xFF0F172A),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 2),
-                                  const Icon(Icons.star_rounded, color: AppColors.primaryBlue, size: 11),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
+          // Draggable & Minimizable Bottom Sheet Panel
+          Positioned.fill(
+            child: DraggableScrollableSheet(
+              controller: _sheetController,
+              initialChildSize: 0.45,
+              minChildSize: 0.14,
+              maxChildSize: 0.85,
+              snap: true,
+              snapSizes: const [0.14, 0.45, 0.85],
+              builder: (BuildContext context, ScrollController scrollController) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, -4),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                    ],
+                  ),
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.only(left: 20, right: 20, top: 12, bottom: 80),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Interactive Top Drag Handle Pill (Tap to minimize/expand)
+                        GestureDetector(
+                          onTap: () {
+                            if (_sheetController.isAttached) {
+                              final currentSize = _sheetController.size;
+                              if (currentSize > 0.25) {
+                                _sheetController.animateTo(
+                                  0.14,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut,
+                                );
+                              } else {
+                                _sheetController.animateTo(
+                                  0.45,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut,
+                                );
+                              }
+                            }
+                          },
+                          child: Container(
+                            color: Colors.transparent,
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Center(
+                              child: Container(
+                                width: 40,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Driver Details & Call/Chat Actions Row
+                        Row(
                           children: [
-                            Row(
+                            // Driver Avatar with Rating Overlay Badge
+                            Stack(
+                              clipBehavior: Clip.none,
                               children: [
-                                Flexible(
-                                  child: Text(
-                                    widget.driverName,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark ? AppColors.textPrimaryDark : const Color(0xFF0F172A),
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
+                                Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                  ),
+                                  child: const ClipOval(
+                                    child: Icon(Icons.person_rounded, size: 40, color: Color(0xFF64748B)),
                                   ),
                                 ),
-                                if (widget.startOtp != null && widget.startOtp!.isNotEmpty) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                Positioned(
+                                  bottom: -4,
+                                  right: -4,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: AppColors.primaryBlue.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.3)),
+                                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.1),
+                                          blurRadius: 4,
+                                        ),
+                                      ],
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
-                                          'OTP: ',
+                                          '${widget.driverRating}',
                                           style: GoogleFonts.poppins(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.primaryBlue,
-                                          ),
-                                        ),
-                                        Text(
-                                          widget.startOtp!,
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 12,
+                                            fontSize: 10,
                                             fontWeight: FontWeight.bold,
-                                            letterSpacing: 1.0,
-                                            color: AppColors.primaryBlue,
+                                            color: isDark ? AppColors.textPrimaryDark : const Color(0xFF0F172A),
                                           ),
                                         ),
+                                        const SizedBox(width: 2),
+                                        const Icon(Icons.star_rounded, color: AppColors.primaryBlue, size: 11),
                                       ],
                                     ),
                                   ),
-                                ],
+                                ),
                               ],
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              widget.vehicleInfo,
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                color: isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          widget.driverName,
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark ? AppColors.textPrimaryDark : const Color(0xFF0F172A),
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (widget.startOtp != null && widget.startOtp!.isNotEmpty) ...[
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primaryBlue.withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.3)),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                'OTP: ',
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: AppColors.primaryBlue,
+                                                ),
+                                              ),
+                                              Text(
+                                                widget.startOtp!,
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                  letterSpacing: 1.0,
+                                                  color: AppColors.primaryBlue,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    widget.vehicleInfo,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12,
+                                      color: isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            ),
+                            // Call Button
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                icon: const Icon(Icons.phone_outlined, color: AppColors.primaryBlue, size: 20),
+                                onPressed: () {},
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Chat Button
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                icon: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.primaryBlue, size: 20),
+                                onPressed: () {},
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                      // Call Button
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.phone_outlined, color: AppColors.primaryBlue, size: 20),
-                          onPressed: () {},
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Chat Button
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.primaryBlue, size: 20),
-                          onPressed: () {},
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
+                        const SizedBox(height: 20),
 
-                  // Location Timeline
-                  _buildTimelineRow(
-                    isPickup: true,
-                    label: 'PICKUP',
-                    address: widget.pickupAddress,
-                    isDark: isDark,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildTimelineRow(
-                    isPickup: false,
-                    label: 'DESTINATION',
-                    address: widget.dropAddress,
-                    isDark: isDark,
-                  ),
-                  const SizedBox(height: 20),
+                        // Location Timeline
+                        _buildTimelineRow(
+                          isPickup: true,
+                          label: 'PICKUP',
+                          address: widget.pickupAddress,
+                          isDark: isDark,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildTimelineRow(
+                          isPickup: false,
+                          label: 'DESTINATION',
+                          address: widget.dropAddress,
+                          isDark: isDark,
+                        ),
+                        const SizedBox(height: 20),
 
-                  // SOS and Add Stop Action Row
-                  Row(
-                    children: [
-                      // SOS / Emergency Button
-                      Expanded(
-                        child: SizedBox(
+                        // SOS and Add Stop Action Row
+                        Row(
+                          children: [
+                            // SOS / Emergency Button
+                            Expanded(
+                              child: SizedBox(
+                                height: 48,
+                                child: OutlinedButton.icon(
+                                  onPressed: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Emergency SOS alert sent!')),
+                                    );
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFFF1F2),
+                                    side: const BorderSide(color: Color(0xFFFECDD3), width: 1.2),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.emergency_rounded, color: Color(0xFFE11D48), size: 18),
+                                  label: Text(
+                                    'SOS / Emergency',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFFE11D48),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Add Stop Button
+                            Expanded(
+                              child: SizedBox(
+                                height: 48,
+                                child: ElevatedButton.icon(
+                                  onPressed: () {},
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                  icon: Icon(
+                                    Icons.add_circle_outline_rounded,
+                                    color: isDark ? AppColors.textPrimaryDark : const Color(0xFF475569),
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    'Add Stop',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? AppColors.textPrimaryDark : const Color(0xFF475569),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Cancel Ride Red Button
+                        SizedBox(
+                          width: double.infinity,
                           height: 48,
                           child: OutlinedButton.icon(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Emergency SOS alert sent!')),
-                              );
-                            },
+                            onPressed: () => _showCancelRideDialog(context),
                             style: OutlinedButton.styleFrom(
-                              backgroundColor: isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFFF1F2),
+                              backgroundColor: isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFEF2F2),
                               side: const BorderSide(color: Color(0xFFFECDD3), width: 1.2),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
                             ),
-                            icon: const Icon(Icons.emergency_rounded, color: Color(0xFFE11D48), size: 18),
+                            icon: const Icon(Icons.cancel_outlined, color: Color(0xFFEF4444), size: 18),
                             label: Text(
-                              'SOS / Emergency',
+                              'Cancel Ride',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFFEF4444),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Demo Complete Trip Trigger Button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 44,
+                          child: TextButton(
+                            onPressed: () {
+                              if (sl.isRegistered<ActiveBookingService>()) {
+                                sl<ActiveBookingService>().clearActiveBooking();
+                              }
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (_) => JourneyCompletePage(
+                                    driverName: widget.driverName,
+                                    vehicleInfo: widget.vehicleInfo,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Text(
+                              'Simulate End of Trip →',
                               style: GoogleFonts.poppins(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
-                                color: const Color(0xFFE11D48),
+                                color: AppColors.primaryBlue,
                               ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Add Stop Button
-                      Expanded(
-                        child: SizedBox(
-                          height: 48,
-                          child: ElevatedButton.icon(
-                            onPressed: () {},
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            icon: Icon(
-                              Icons.add_circle_outline_rounded,
-                              color: isDark ? AppColors.textPrimaryDark : const Color(0xFF475569),
-                              size: 18,
-                            ),
-                            label: Text(
-                              'Add Stop',
-                              style: GoogleFonts.poppins(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: isDark ? AppColors.textPrimaryDark : const Color(0xFF475569),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Cancel Ride Red Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: OutlinedButton.icon(
-                      onPressed: () => _showCancelRideDialog(context),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: isDark ? const Color(0xFF2C1E1E) : const Color(0xFFFEF2F2),
-                        side: const BorderSide(color: Color(0xFFFECDD3), width: 1.2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      icon: const Icon(Icons.cancel_outlined, color: Color(0xFFEF4444), size: 18),
-                      label: Text(
-                        'Cancel Ride',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFFEF4444),
-                        ),
-                      ),
+                      ],
                     ),
                   ),
-
-                  // Demo Complete Trip Trigger Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: TextButton(
-                      onPressed: () {
-                        if (sl.isRegistered<ActiveBookingService>()) {
-                          sl<ActiveBookingService>().clearActiveBooking();
-                        }
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                            builder: (_) => JourneyCompletePage(
-                              driverName: widget.driverName,
-                              vehicleInfo: widget.vehicleInfo,
-                            ),
-                          ),
-                        );
-                      },
-                      child: Text(
-                        'Simulate End of Trip →',
-                        style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryBlue,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],

@@ -71,7 +71,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
     _wsSubscription = sl<CustomerWSController>().bookingEventStream.listen((message) {
       final event = message['event'] as String? ?? '';
 
-      // OTP verified by rider — go home, show floating active ride card
+      // OTP verified by rider — directly show map tracking screen
       if (event == 'booking.started' ||
           event == 'rider.trip_started' ||
           event == 'booking.trip_started') {
@@ -79,7 +79,21 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
           sl<ActiveBookingService>().updateBookingStatus('TRIP_STARTED');
         }
         if (mounted) {
-          Navigator.of(context).popUntil((route) => route.isFirst);
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => LiveTripTrackingPage(
+                driverName: widget.driverName,
+                driverRating: widget.driverRating,
+                vehicleInfo: '${widget.vehicleModel} • ${widget.licensePlate}',
+                pickupAddress: widget.pickupAddress,
+                dropAddress: widget.dropAddress,
+                pickupLatLng: widget.pickupLatLng,
+                dropLatLng: widget.dropLatLng,
+                startOtp: widget.startOtp,
+                initialStatus: 'TRIP_STARTED',
+              ),
+            ),
+          );
         }
         return;
       }
