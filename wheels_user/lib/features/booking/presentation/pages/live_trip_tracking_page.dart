@@ -371,23 +371,20 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
               return LatLng(lat, lng);
             }).toList();
 
-            if (mounted) {
-              setState(() {
-                _routePoints = fetchedPoints;
-                // Do NOT reset vehicle position — keep the real WS-updated position
-                if (_routePoints.length > 1) {
-                  _currentVehicleRotation =
-                      _calculateBearing(_routePoints[0], _routePoints[1]);
-                }
-                if (distanceMeters > 0) {
-                  _remainingMilesVal = distanceMeters / 1609.34;
-                  _remainingMinsVal = max(1, (durationSecs / 60).round());
-                }
-              });
-
-              _fitMapBounds();
-              // No animation timer restart — real position from WebSocket only
-            }
+              if (mounted) {
+                setState(() {
+                  _routePoints = fetchedPoints;
+                  // Do NOT reset vehicle position — keep the real WS-updated position
+                  if (_routePoints.length > 1) {
+                    _currentVehicleRotation =
+                        _calculateBearing(_routePoints[0], _routePoints[1]);
+                  }
+                  if (distanceMeters > 0) {
+                    _remainingMilesVal = distanceMeters / 1609.34;
+                    _remainingMinsVal = max(1, (durationSecs / 60).round());
+                  }
+                });
+              }
           }
         }
       }
