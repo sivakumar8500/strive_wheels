@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 
@@ -11,6 +12,9 @@ class AppTextField extends StatelessWidget {
   final Widget? suffixIcon;
   final bool readOnly;
   final VoidCallback? onTap;
+  final int? maxLength;
+  final List<TextInputFormatter>? inputFormatters;
+  final TextCapitalization textCapitalization;
 
   const AppTextField({
     super.key,
@@ -22,6 +26,9 @@ class AppTextField extends StatelessWidget {
     this.suffixIcon,
     this.readOnly = false,
     this.onTap,
+    this.maxLength,
+    this.inputFormatters,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   @override
@@ -55,6 +62,9 @@ class AppTextField extends StatelessWidget {
             keyboardType: keyboardType,
             readOnly: readOnly,
             onTap: onTap,
+            maxLength: maxLength,
+            inputFormatters: inputFormatters,
+            textCapitalization: textCapitalization,
             style: GoogleFonts.inter(
               fontSize: 16,
               color: isDark ? AppColors.white : AppColors.textPrimaryLight,
@@ -70,6 +80,7 @@ class AppTextField extends StatelessWidget {
               prefixIcon: prefixIcon,
               suffixIcon: suffixIcon,
               border: InputBorder.none,
+              counterText: '', // Hide default maxLength counter
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 16,
@@ -81,3 +92,4 @@ class AppTextField extends StatelessWidget {
     );
   }
 }
+

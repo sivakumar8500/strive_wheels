@@ -5,14 +5,16 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_assets.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../home/presentation/bloc/home_bloc.dart';
+import '../../../home/presentation/pages/home_page.dart';
+import '../../../login/presentation/bloc/login_bloc.dart';
+import '../../../login/presentation/pages/auth_page.dart';
 import '../bloc/splash_bloc.dart';
 import '../bloc/splash_event.dart';
 import '../bloc/splash_state.dart';
 import '../../../onboarding/presentation/bloc/onboarding_bloc.dart';
 import '../../../onboarding/presentation/pages/onboarding_page.dart';
-import '../../../auth/presentation/bloc/login_bloc.dart';
-import '../../../auth/presentation/pages/login_page.dart';
-import '../../../../core/di/injection_container.dart';
 
 /// Splash Screen page matching exact design layout guidelines.
 class SplashPage extends StatefulWidget {
@@ -39,12 +41,12 @@ class _SplashPageState extends State<SplashPage> {
     return BlocListener<SplashBloc, SplashState>(
       listener: (context, state) {
         if (state is SplashCompleted) {
-          if (state.isFirstTime) {
+          if (state.isAuthenticated) {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => BlocProvider<OnboardingBloc>(
-                  create: (_) => sl<OnboardingBloc>(),
-                  child: const OnboardingPage(),
+                builder: (_) => BlocProvider<HomeBloc>(
+                  create: (_) => sl<HomeBloc>(),
+                  child: const HomePage(),
                 ),
               ),
             );
@@ -53,7 +55,7 @@ class _SplashPageState extends State<SplashPage> {
               MaterialPageRoute(
                 builder: (_) => BlocProvider<LoginBloc>(
                   create: (_) => sl<LoginBloc>(),
-                  child: const LoginPage(),
+                  child: const AuthPage(),
                 ),
               ),
             );

@@ -23,7 +23,7 @@ class StepProgressIndicator extends StatelessWidget {
             decoration: BoxDecoration(
               color: isActive
                   ? AppColors.primaryBlue
-                  : AppColors.primaryBlue.withOpacity(0.2),
+                  : AppColors.primaryBlue.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(2),
             ),
           ),

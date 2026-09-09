@@ -1,11 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'dart:math' as math;
+
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../../core/widgets/animated_empty_state.dart';
 import '../../../home/presentation/pages/home_page.dart';
 import '../../../earnings/presentation/pages/earnings_page.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
+import '../../domain/entities/trip_entity.dart';
+import '../bloc/trips_bloc.dart';
+import '../bloc/trips_event.dart';
+import '../bloc/trips_state.dart';
+import '../../../profile/presentation/bloc/profile_bloc.dart';
+import '../../../profile/presentation/bloc/profile_event.dart';
+import '../../../profile/presentation/bloc/profile_state.dart';
 
 class TripsPage extends StatefulWidget {
   const TripsPage({super.key});
@@ -17,38 +27,78 @@ class TripsPage extends StatefulWidget {
 class _TripsPageState extends State<TripsPage> {
   int _currentIndex = 1; // Trips is selected
   String _selectedFilter = 'All Rides';
+  late final TripsBloc _tripsBloc;
+
+  @override
+  void initState() {
+    super.initState();
+    _tripsBloc = sl<TripsBloc>()..add(GetTripsEvent());
+  }
+
+  @override
+  void dispose() {
+    _tripsBloc.close();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFF9F9FC);
 
-    return Scaffold(
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: _tripsBloc),
+        BlocProvider(create: (_) => sl<ProfileBloc>()..add(GetProfileEvent())),
+      ],
+      child: Scaffold(
       backgroundColor: bgColor,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 16),
-                _buildTopBar(isDark),
-                const SizedBox(height: 24),
-                _buildSearchAndFilters(isDark),
-                const SizedBox(height: 24),
-                _buildTotalMileageCard(isDark),
-                const SizedBox(height: 16),
-                _buildStatCardsRow(isDark),
-                const SizedBox(height: 32),
-                _buildTripsList(isDark),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
+        child: BlocBuilder<TripsBloc, TripsState>(
+          builder: (context, state) {
+            if (state is TripsLoading) {
+              return const Center(child: CircularProgressIndicator());
+            } else if (state is TripsError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: AnimatedEmptyState(
+                    title: 'Oops!',
+                    subtitle: 'Failed to load trips. Please pull down to refresh.',
+                    icon: Icons.cloud_off,
+                  ),
+                ),
+              );
+            } else if (state is TripsLoaded) {
+              final tripData = state.tripEntity;
+              return SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 16),
+                      _buildTopBar(isDark),
+                      const SizedBox(height: 24),
+                      _buildSearchAndFilters(isDark),
+                      const SizedBox(height: 24),
+                      _buildTotalMileageCard(isDark, tripData.totalMileage),
+                      const SizedBox(height: 16),
+                      _buildStatCardsRow(isDark, tripData.totalRides, tripData.avgRating),
+                      const SizedBox(height: 32),
+                      _buildTripsList(isDark, tripData.bookings),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          },
         ),
       ),
       bottomNavigationBar: _buildBottomNavigationBar(context, isDark),
+      ),
     );
   }
 
@@ -56,82 +106,102 @@ class _TripsPageState extends State<TripsPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
+        BlocBuilder<ProfileBloc, ProfileState>(
+          builder: (context, state) {
+            String name = 'Loading...';
+            String rating = '0.0';
+            String imageUrl = '';
+
+            if (state is ProfileLoaded) {
+              name = state.profile.name;
+              rating = state.profile.rating.toString();
+              imageUrl = state.profile.profileImageUrl;
+            } else if (state is ProfileUpdateSuccess) {
+              name = state.profile.name;
+              rating = state.profile.rating.toString();
+              imageUrl = state.profile.profileImageUrl;
+            }
+
+            return Row(
               children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: Colors.grey.shade200,
-                  backgroundImage: const AssetImage('assets/images/login.png'),
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: -2,
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0D6EFD), // Blue dot
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+                Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0D6EFD),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Icon(Icons.drive_eta, size: 10, color: Colors.white),
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: Colors.grey.shade200,
+                      backgroundImage: imageUrl.isNotEmpty
+                          ? NetworkImage(imageUrl)
+                          : const AssetImage('assets/images/login.png') as ImageProvider,
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Alex',
-                      style: GoogleFonts.inter(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black,
+                    Positioned(
+                      bottom: 0,
+                      right: -2,
+                      child: Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0D6EFD), // Blue dot
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.grey.shade800 : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.star, color: Colors.amber, size: 12),
-                      const SizedBox(width: 4),
-                      Text(
-                        '4.98',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : Colors.black87,
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0D6EFD),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Icon(Icons.drive_eta, size: 10, color: Colors.white),
                         ),
+                        const SizedBox(width: 6),
+                        Text(
+                          name,
+                          style: GoogleFonts.inter(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.grey.shade800 : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
                       ),
-                    ],
-                  ),
-                )
+                      child: Row(
+                        children: [
+                          const Icon(Icons.star, color: Colors.amber, size: 12),
+                          const SizedBox(width: 4),
+                          Text(
+                            rating,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  ],
+                ),
               ],
-            ),
-          ],
+            );
+          }
         ),
         Stack(
           clipBehavior: Clip.none,
@@ -144,7 +214,7 @@ class _TripsPageState extends State<TripsPage> {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
+                    color: Colors.black.withValues(alpha: 0.02),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -255,7 +325,7 @@ class _TripsPageState extends State<TripsPage> {
     );
   }
 
-  Widget _buildTotalMileageCard(bool isDark) {
+  Widget _buildTotalMileageCard(bool isDark, double totalMileage) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -263,7 +333,7 @@ class _TripsPageState extends State<TripsPage> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -290,7 +360,7 @@ class _TripsPageState extends State<TripsPage> {
                 textBaseline: TextBaseline.alphabetic,
                 children: [
                   Text(
-                    '14,280',
+                    totalMileage.toStringAsFixed(0),
                     style: GoogleFonts.inter(
                       fontSize: 32,
                       fontWeight: FontWeight.w800,
@@ -323,7 +393,7 @@ class _TripsPageState extends State<TripsPage> {
     );
   }
 
-  Widget _buildStatCardsRow(bool isDark) {
+  Widget _buildStatCardsRow(bool isDark, int totalRides, double avgRating) {
     return Row(
       children: [
         Expanded(
@@ -332,7 +402,7 @@ class _TripsPageState extends State<TripsPage> {
             iconColor: const Color(0xFF0D52D6),
             iconBg: const Color(0xFFEAF1FF),
             title: 'Total Rides',
-            value: '1,240',
+            value: totalRides.toString(),
             isDark: isDark,
           ),
         ),
@@ -343,7 +413,7 @@ class _TripsPageState extends State<TripsPage> {
             iconColor: const Color(0xFFE23C00),
             iconBg: const Color(0xFFFFF0EA),
             title: 'Avg. Rating',
-            value: '4.98',
+            value: avgRating.toStringAsFixed(2),
             isDark: isDark,
           ),
         ),
@@ -366,7 +436,7 @@ class _TripsPageState extends State<TripsPage> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -407,43 +477,33 @@ class _TripsPageState extends State<TripsPage> {
     );
   }
 
-  Widget _buildTripsList(bool isDark) {
+  Widget _buildTripsList(bool isDark, List<BookingEntity> bookings) {
+    if (bookings.isEmpty) {
+      return const AnimatedEmptyState(
+        title: 'No Recent Bookings',
+        subtitle: 'Complete trips to see your bookings here.',
+        icon: Icons.history,
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildDateHeader('TODAY, AUG 24', isDark),
+        _buildDateHeader('RECENT RIDES', isDark),
         const SizedBox(height: 12),
-        _buildTripCard(
-          name: 'Sarah Jenkins',
-          rating: '5.0',
-          tag: 'Corporate',
-          price: '₹42.80',
-          pickup: '450 Park Avenue, Manhattan',
-          dropoff: 'JFK International Airport',
-          isDark: isDark,
-        ),
-        const SizedBox(height: 16),
-        _buildTripCard(
-          name: 'Marcus Chen',
-          rating: '4.9',
-          tag: 'Self',
-          price: '₹18.50',
-          pickup: 'Williamsburg Bridge, Brooklyn',
-          dropoff: 'SoHo Grand Hotel',
-          isDark: isDark,
-        ),
-        const SizedBox(height: 32),
-        _buildDateHeader('YESTERDAY, AUG 23', isDark),
-        const SizedBox(height: 12),
-        _buildTripCard(
-          name: 'David Miller',
-          rating: '5.0',
-          tag: 'Corporate',
-          price: '₹56.25',
-          pickup: 'The Pierre, A Taj Hotel',
-          dropoff: 'Financial District Terminal',
-          isDark: isDark,
-        ),
+        ...bookings.map((booking) => Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: _buildTripCard(
+                name: booking.clientName,
+                rating: booking.clientRating.toStringAsFixed(1),
+                tag: booking.tag,
+                price: '₹${booking.price.toStringAsFixed(2)}',
+                pickup: booking.pickupLocation,
+                dropoff: booking.dropoffLocation,
+                status: booking.status,
+                isDark: isDark,
+              ),
+            )),
       ],
     );
   }
@@ -467,6 +527,7 @@ class _TripsPageState extends State<TripsPage> {
     required String price,
     required String pickup,
     required String dropoff,
+    required String status,
     required bool isDark,
   }) {
     return Container(
@@ -476,7 +537,7 @@ class _TripsPageState extends State<TripsPage> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -564,7 +625,7 @@ class _TripsPageState extends State<TripsPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Completed',
+                    status,
                     style: GoogleFonts.inter(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
@@ -646,7 +707,7 @@ class _TripsPageState extends State<TripsPage> {
       decoration: BoxDecoration(
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -5),
           ),

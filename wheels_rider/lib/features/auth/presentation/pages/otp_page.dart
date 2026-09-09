@@ -10,7 +10,12 @@ import '../../../../core/di/injection_container.dart';
 import '../bloc/otp_bloc.dart';
 import '../bloc/otp_event.dart';
 import '../bloc/otp_state.dart';
+import '../../domain/repositories/auth_repository.dart';
 import '../../../home/presentation/pages/home_page.dart';
+
+
+import '../../../registration/presentation/pages/registration_page.dart';
+import '../../../registration/presentation/pages/steps/step9_success.dart';
 
 class OtpPage extends StatefulWidget {
   final String phoneNumber;
@@ -24,7 +29,7 @@ class OtpPage extends StatefulWidget {
 class _OtpPageState extends State<OtpPage> {
   final _pinController = TextEditingController();
   Timer? _timer;
-  int _start = 11;
+  int _start = 60;
 
   @override
   void initState() {
@@ -33,7 +38,7 @@ class _OtpPageState extends State<OtpPage> {
   }
 
   void startTimer() {
-    _start = 11; // Setting to 11 to match image design
+    _start = 60;
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
       if (_start == 0) {
@@ -99,10 +104,37 @@ class _OtpPageState extends State<OtpPage> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('OTP Verified Successfully!')),
             );
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const HomePage()),
-              (route) => false,
-            );
+            
+            final authStatus = state.authResult.authStatus;
+            final currentStep = state.authResult.currentStep ?? 1;
+
+            if (authStatus == AuthStatus.approved) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const HomePage()),
+                (route) => false,
+              );
+            } else if (authStatus == AuthStatus.registrationDraft || authStatus == AuthStatus.registrationPending) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (_) => RegistrationPage(
+                    phoneNumber: widget.phoneNumber,
+                    initialStep: currentStep,
+                  ),
+                ),
+                (route) => false,
+              );
+            } else if (authStatus == AuthStatus.registrationSubmitted) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const Step9Success()),
+                (route) => false,
+              );
+            } else {
+              // Covers registrationRejected, and default
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const Step9Success()),
+                (route) => false,
+              );
+            }
           } else if (state is OtpFailure) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -168,7 +200,7 @@ class _OtpPageState extends State<OtpPage> {
                                         height: 140,
                                         decoration: BoxDecoration(
                                           color: AppColors.accentOrange
-                                              .withOpacity(0.1),
+                                              .withValues(alpha: 0.1),
                                           shape: BoxShape.circle,
                                         ),
                                         child: Stack(
@@ -372,14 +404,6 @@ class _OtpPageState extends State<OtpPage> {
           );
         },
       ),
-    );
-  }
-
-  Widget _buildDot(Color color) {
-    return Container(
-      width: 6,
-      height: 6,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }

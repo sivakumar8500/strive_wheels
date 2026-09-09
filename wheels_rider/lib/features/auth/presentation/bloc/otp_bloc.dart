@@ -19,9 +19,8 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
     on<OtpSubmitted>((event, emit) async {
       emit(const OtpLoading());
       try {
-        await Future.delayed(const Duration(seconds: 1)); // simulate network delay
-        // Bypass validation as per user request
-        emit(const OtpSuccess());
+        final authResult = await verifyOtpUseCase(event.phoneNumber, event.otpCode);
+        emit(OtpSuccess(authResult: authResult));
       } catch (e) {
         emit(
           OtpFailure(errorMessage: e.toString().replaceAll('Exception: ', '')),

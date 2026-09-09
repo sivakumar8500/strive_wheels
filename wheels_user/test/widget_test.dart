@@ -19,7 +19,7 @@ void main() {
     expect(find.text(AppStrings.onboardingTitle1), findsOneWidget);
   });
 
-  testWidgets('App subsequent launch displays SplashPage',
+  testWidgets('App subsequent launch displays SplashPage and navigates to AuthPage',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({'is_first_time_launch': false});
     await initDependencyInjection();

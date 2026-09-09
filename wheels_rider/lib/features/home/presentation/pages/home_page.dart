@@ -1,14 +1,32 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
-import 'dart:math' as math;
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../../trips/presentation/pages/trips_page.dart';
 import '../../../earnings/presentation/pages/earnings_page.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
+import '../bloc/home_bloc.dart';
+import '../bloc/home_event.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../profile/presentation/bloc/profile_bloc.dart';
+import '../../../profile/presentation/bloc/profile_event.dart';
+import '../../../profile/presentation/bloc/profile_state.dart';
+import '../bloc/booking_bloc.dart';
+import '../bloc/booking_event.dart';
+import '../bloc/booking_state.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../../trips/presentation/pages/active_trip_page.dart';
+import '../../domain/entities/ride_request_entity.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../widgets/availability_dialog.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -17,156 +35,259 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   bool _isOnDuty = true;
-  String _rideType = 'Corporate'; // 'Corporate' or 'Self'
+  String _rideType = 'Self'; // 'Corporate' or 'Self'
+  // ignore: unused_field
+  List<DateTime> _corporateSelectedDates = [];
   bool _isRideRequestMinimized = false;
   bool _hasActiveRideRequest = true;
+
+  int? _driverId;
+  String _userToken = '';
+  Timer? _locationTimer;
+  RideRequestEntity? _currentRideRequest;
+  bool _hasAutoExpandedBottomSheet = false;
+
+  // ignore: unused_field
+  GoogleMapController? _mapController;
+
+  static const CameraPosition _initialPosition = CameraPosition(
+    target: LatLng(17.4924, 78.3639),
+    zoom: 18.0,
+  );
+
+  late final HomeBloc _homeBloc;
+  late final ProfileBloc _profileBloc;
+  late final BookingBloc _bookingBloc;
+  
+  BitmapDescriptor? _customMarker;
+  LatLng? _currentLatLng = const LatLng(17.4924, 78.3639);
+  List<LatLng> _fetchedRiderToPickupPoints = [];
+  List<LatLng> _fetchedPickupToDropPoints = [];
+
+  @override
+  void initState() {
+    super.initState();
+
+    _currentRideRequest ??= const RideRequestEntity(
+      id: 1,
+      pickupAddress: 'Chanda Naik Thanda, HITEC City, Hyderabad',
+      dropAddress: 'ISB Student Village 1 (SV1)',
+      estimatedFare: 199.45,
+      pickupLat: 17.4486,
+      pickupLng: 78.3908,
+      dropLat: 17.4375,
+      dropLng: 78.3428,
+    );
+
+    _homeBloc = sl<HomeBloc>();
+    _profileBloc = sl<ProfileBloc>()..add(GetProfileEvent());
+    _bookingBloc = sl<BookingBloc>();
+    _loadCustomMarker();
+    _startLocationTracking();
+    _fetchRoutePolylines();
+  }
+
+  void _startLocationTracking() {
+    _locationTimer?.cancel();
+    _determinePositionAndSend();
+    _locationTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (_isOnDuty) {
+        _determinePositionAndSend();
+      }
+    });
+  }
+
+  void _stopLocationTracking() {
+    _locationTimer?.cancel();
+    _locationTimer = null;
+  }
+
+  Future<void> _loadCustomMarker() async {
+    _customMarker = await BitmapDescriptor.asset(
+      const ImageConfiguration(size: Size(48, 48)),
+      'assets/images/rider_marker.png',
+    );
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _stopLocationTracking();
+    _homeBloc.close();
+    _profileBloc.close();
+    _bookingBloc.close();
+    super.dispose();
+  }
+
+  Future<void> _determinePositionAndSend() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return;
+    }
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      if (mounted) {
+        setState(() {
+          _currentLatLng = LatLng(position.latitude, position.longitude);
+        });
+        _homeBloc.add(
+          HomeEvent.updateLocation(
+            lat: position.latitude,
+            lng: position.longitude,
+          ),
+        );
+        if (_isOnDuty) {
+          _bookingBloc.add(
+            SendLocationPingEvent(
+              lat: position.latitude,
+              lng: position.longitude,
+              heading: position.heading,
+              speedKmh: position.speed * 3.6,
+            ),
+          );
+          _checkPickupProximityAndAutoExpand(LatLng(position.latitude, position.longitude));
+        }
+      }
+    } catch (e) {
+      debugPrint("Error getting location: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFEFE9E1),
-      body: Stack(
-        children: [
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: _homeBloc),
+        BlocProvider.value(value: _profileBloc),
+        BlocProvider.value(value: _bookingBloc),
+      ],
+      child: Scaffold(
+        backgroundColor: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFEFE9E1),
+      body: MultiBlocListener(
+        listeners: [
+          BlocListener<ProfileBloc, ProfileState>(
+            listener: (context, state) async {
+              if (state is ProfileLoaded) {
+                final prefs = await SharedPreferences.getInstance();
+                _userToken = prefs.getString('user_token') ?? '';
+                _driverId = state.profile.id;
+
+                if (_isOnDuty && _driverId != null) {
+                  _startLocationTracking();
+                  _bookingBloc.add(ConnectWebSocketEvent(
+                    driverId: _driverId!,
+                    token: _userToken,
+                  ));
+                } else {
+                  _stopLocationTracking();
+                  _bookingBloc.add(DisconnectWebSocketEvent());
+                }
+              }
+            },
+          ),
+          BlocListener<BookingBloc, BookingState>(
+            listener: (context, state) {
+              if (state is NewRideRequestState) {
+                setState(() {
+                  _hasActiveRideRequest = true;
+                  _isRideRequestMinimized = false;
+                  _currentRideRequest = state.rideRequest;
+                });
+              } else if (state is RideAcceptedSuccessState) {
+                final acceptedRequest = _currentRideRequest;
+                setState(() {
+                  _hasActiveRideRequest = false;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Ride accepted successfully!')),
+                );
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ActiveTripPage(
+                      bookingId: state.bookingId,
+                      pickupAddress: acceptedRequest?.pickupAddress,
+                      dropAddress: acceptedRequest?.dropAddress,
+                      estimatedFare: acceptedRequest?.estimatedFare,
+                      pickupLat: acceptedRequest?.pickupLat,
+                      pickupLng: acceptedRequest?.pickupLng,
+                      dropLat: acceptedRequest?.dropLat,
+                      dropLng: acceptedRequest?.dropLng,
+                      riderLat: _currentLatLng?.latitude,
+                      riderLng: _currentLatLng?.longitude,
+                    ),
+                  ),
+                );
+              } else if (state is BookingErrorState) {
+                String userMessage = state.message;
+                if (userMessage.contains('SQL') || userMessage.contains('sqlalchemy') || userMessage.contains('invalid input value')) {
+                  userMessage = 'Unable to accept ride due to backend service error. Please try again.';
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(userMessage)),
+                );
+              } else if (state is BookingConnected) {
+                setState(() {
+                  _hasActiveRideRequest = false;
+                });
+              }
+            },
+          ),
+        ],
+        child: Stack(
+          children: [
           // 1. Map Layer
           Positioned.fill(
-            child: FlutterMap(
-              options: const MapOptions(
-                initialCenter: LatLng(37.7800, -122.4050),
-                initialZoom: 14.5,
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: _currentLatLng ?? const LatLng(17.4924, 78.3639),
+                zoom: 18.0,
               ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.strive.wheels_rider',
-                ),
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: const [
-                        LatLng(37.7780, -122.4150),
-                        LatLng(37.7795, -122.4100),
-                        LatLng(37.7810, -122.4050),
-                        LatLng(37.7850, -122.3950),
-                      ],
-                      color: AppColors.primaryBlue,
-                      strokeWidth: 4.0,
-                    ),
-                  ],
-                ),
-                MarkerLayer(
-                  markers: [
-                    // Start Dot (Location)
-                    Marker(
-                      point: const LatLng(37.7780, -122.4150),
-                      width: 60,
-                      height: 60,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.primaryBlue.withOpacity(0.3),
-                        ),
-                        child: Center(
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.primaryBlue,
-                              border: Border.all(color: Colors.white, width: 3),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Destination Pin
-                    Marker(
-                      point: const LatLng(37.7850, -122.3950),
-                      width: 40,
-                      height: 40,
-                      alignment: Alignment.topCenter,
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 24,
-                            height: 24,
-                            decoration: const BoxDecoration(
-                              color: AppColors.primaryBlue,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Center(
-                              child: Icon(Icons.circle, color: Colors.white, size: 8),
-                            ),
-                          ),
-                          Container(
-                            width: 4,
-                            height: 16,
-                            color: AppColors.primaryBlue,
-                          ),
-                          Container(
-                            width: 8,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(100),
-                            ),
-                          )
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              onMapCreated: (controller) {
+                _mapController = controller;
+                _fitMapToRouteBounds();
+              },
+              mapType: MapType.normal,
+              zoomControlsEnabled: false,
+              myLocationEnabled: true,
+              myLocationButtonEnabled: false,
+              polylines: _buildPolylines(),
+              markers: _buildMarkers(),
             ),
           ),
 
-          // 2. Center "You're online" Badge
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.42,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10A142),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.sensors, color: Colors.white, size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      "You're online",
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+
 
           // 3. Floating Action Buttons (GPS and Filters)
           Positioned(
             top: MediaQuery.of(context).padding.top + 180,
             left: 16,
-            child: _buildFloatingButton(Icons.my_location, isDark),
+            child: _buildFloatingButton(Icons.my_location, isDark, onTap: () {
+              _fitMapToRouteBounds();
+            }),
           ),
           Positioned(
             top: MediaQuery.of(context).padding.top + 180,
@@ -186,7 +307,7 @@ class _HomePageState extends State<HomePage> {
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
+                    color: Colors.black.withValues(alpha: 0.08),
                     blurRadius: 15,
                     offset: const Offset(0, 4),
                   ),
@@ -201,67 +322,88 @@ class _HomePageState extends State<HomePage> {
                       // Profile Section
                       Expanded(
                         flex: 3,
-                        child: Row(
-                          children: [
-                            Stack(
-                              clipBehavior: Clip.none,
+                        child: BlocBuilder<ProfileBloc, ProfileState>(
+                          builder: (context, state) {
+                            String name = 'Loading...';
+                            String rating = '0.0';
+                            String imageUrl = '';
+
+                            if (state is ProfileLoaded) {
+                              name = state.profile.name;
+                              rating = state.profile.rating.toString();
+                              imageUrl = state.profile.profileImageUrl;
+                            } else if (state is ProfileUpdateSuccess) {
+                              name = state.profile.name;
+                              rating = state.profile.rating.toString();
+                              imageUrl = state.profile.profileImageUrl;
+                            }
+
+                            return Row(
                               children: [
-                                CircleAvatar(
-                                  radius: 20,
-                                  backgroundColor: Colors.grey.shade200,
-                                  backgroundImage: const AssetImage('assets/images/login.png'), // Placeholder
-                                ),
-                                Positioned(
-                                  bottom: 0,
-                                  right: -2,
-                                  child: Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF10A142),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 2),
+                                Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 20,
+                                      backgroundColor: Colors.grey.shade200,
+                                      backgroundImage: imageUrl.isNotEmpty
+                                          ? NetworkImage(imageUrl)
+                                          : const AssetImage('assets/images/login.png') as ImageProvider,
+                                      onBackgroundImageError: imageUrl.isNotEmpty ? (exception, stackTrace) {} : null,
                                     ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Alex',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark ? Colors.white : Colors.black,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.star_outline, color: Colors.orange, size: 12),
-                                      const SizedBox(width: 2),
-                                      Expanded(
-                                        child: Text(
-                                          '4.9 • Top Rated',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 10,
-                                            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
+                                    Positioned(
+                                      bottom: 0,
+                                      right: -2,
+                                      child: Container(
+                                        width: 12,
+                                        height: 12,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF10A142),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: Colors.white, width: 2),
                                         ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        name,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.white : Colors.black,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.star_outline, color: Colors.orange, size: 12),
+                                          const SizedBox(width: 2),
+                                          Expanded(
+                                            child: Text(
+                                              '$rating • Top Rated',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 10,
+                                                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                ],
-                              ),
-                            ),
-                          ],
+                                ),
+                              ],
+                            );
+                          }
                         ),
                       ),
 
@@ -315,8 +457,23 @@ class _HomePageState extends State<HomePage> {
                                   setState(() {
                                     _isOnDuty = val;
                                   });
+                                  final String mode = _rideType == 'Corporate' ? 'EMPLOYEE' : 'NORMAL';
+                                  _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: _isOnDuty));
+
+                                  if (_isOnDuty) {
+                                    _startLocationTracking();
+                                    if (_driverId != null) {
+                                      _bookingBloc.add(ConnectWebSocketEvent(
+                                        driverId: _driverId!,
+                                        token: _userToken,
+                                      ));
+                                    }
+                                  } else {
+                                    _stopLocationTracking();
+                                    _bookingBloc.add(DisconnectWebSocketEvent());
+                                  }
                                 },
-                                activeColor: Colors.white,
+                                activeThumbColor: Colors.white,
                                 activeTrackColor: AppColors.primaryBlue,
                               ),
                             ),
@@ -327,36 +484,47 @@ class _HomePageState extends State<HomePage> {
                       // Wallet Section
                       Expanded(
                         flex: 3,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    'Wallet Balance',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 9,
-                                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                        child: BlocBuilder<ProfileBloc, ProfileState>(
+                          builder: (context, state) {
+                            String earnings = '0.0';
+                            if (state is ProfileLoaded) {
+                              earnings = state.profile.totalEarnings.toString();
+                            } else if (state is ProfileUpdateSuccess) {
+                              earnings = state.profile.totalEarnings.toString();
+                            }
+                            
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        'Total Earnings',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 9,
+                                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        '₹$earnings',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.white : Colors.black,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
                                   ),
-                                  Text(
-                                    '₹184.50',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark ? Colors.white : Colors.black,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                                ),
+                              ],
+                            );
+                          }
                         ),
                       ),
                     ],
@@ -375,7 +543,29 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => setState(() => _rideType = 'Corporate'),
+                            onTap: () async {
+                              if (_rideType == 'Corporate') return;
+
+                              final selectedDates = await showModalBottomSheet<List<DateTime>>(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (context) => const AvailabilityBottomSheet(),
+                              );
+
+                              if (selectedDates != null && selectedDates.isNotEmpty) {
+                                setState(() {
+                                  _rideType = 'Corporate';
+                                  _corporateSelectedDates = selectedDates;
+                                });
+                                final String mode = 'EMPLOYEE';
+                                _homeBloc.add(HomeEvent.updateAvailability(
+                                  availabilityMode: mode, 
+                                  isOnline: _isOnDuty,
+                                  selectedDates: selectedDates,
+                                ));
+                              }
+                            },
                             child: Container(
                               decoration: BoxDecoration(
                                 color: _rideType == 'Corporate' ? AppColors.primaryBlue : Colors.transparent,
@@ -407,7 +597,14 @@ class _HomePageState extends State<HomePage> {
                         ),
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => setState(() => _rideType = 'Self'),
+                            onTap: () {
+                              setState(() {
+                                _rideType = 'Self';
+                                _corporateSelectedDates = [];
+                              });
+                              final String mode = 'NORMAL';
+                              _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: _isOnDuty));
+                            },
                             child: Container(
                               decoration: BoxDecoration(
                                 color: _rideType == 'Self' ? AppColors.primaryBlue : Colors.transparent,
@@ -440,6 +637,7 @@ class _HomePageState extends State<HomePage> {
                       ],
                     ),
                   ),
+
                 ],
               ),
             ),
@@ -447,16 +645,34 @@ class _HomePageState extends State<HomePage> {
 
           // 5. Bottom Ride Request Card
           if (_hasActiveRideRequest && _isOnDuty)
-            _isRideRequestMinimized
-                ? _buildMinimizedRideRequestCard(isDark)
-                : _buildMaximizedRideRequestCard(isDark),
+            BlocBuilder<BookingBloc, BookingState>(
+              builder: (context, state) {
+                if (state is NewRideRequestState) {
+                  return _isRideRequestMinimized
+                      ? _buildMinimizedRideRequestCard(isDark, state)
+                      : _buildMaximizedRideRequestCard(isDark, state);
+                } else if (state is AcceptingRideState) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (_currentRideRequest != null) {
+                  final reqState = NewRideRequestState(_currentRideRequest!);
+                  return _isRideRequestMinimized
+                      ? _buildMinimizedRideRequestCard(isDark, reqState)
+                      : _buildMaximizedRideRequestCard(isDark, reqState);
+                }
+                return const SizedBox.shrink();
+              }
+            ),
+
+          if (!_hasActiveRideRequest && _currentRideRequest != null && _isOnDuty)
+            _buildActiveTripMiniCard(isDark),
         ],
+      ),
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, -5),
             ),
@@ -498,58 +714,35 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-    );
+    ));
   }
 
-  Widget _buildFloatingButton(IconData icon, bool isDark) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Icon(icon, color: AppColors.primaryBlue, size: 24),
-    );
-  }
-
-  Widget _buildMetric(IconData icon, String title, String subtitle, bool isDark) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.primaryBlue, size: 20),
-        const SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-            Text(
-              subtitle,
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
-              ),
+  Widget _buildFloatingButton(IconData icon, bool isDark, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
-      ],
+        child: Icon(icon, color: AppColors.primaryBlue, size: 24),
+      ),
     );
   }
 
-  Widget _buildMaximizedRideRequestCard(bool isDark) {
+
+
+  Widget _buildMaximizedRideRequestCard(bool isDark, NewRideRequestState state) {
+    final ride = state.rideRequest;
     return Positioned(
       bottom: 16,
       left: 16,
@@ -569,7 +762,7 @@ class _HomePageState extends State<HomePage> {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 20,
                 offset: const Offset(0, -5),
               ),
@@ -596,7 +789,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         Text(
-                          '₹70.50',
+                          '₹${ride.estimatedFare}',
                           style: GoogleFonts.inter(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
@@ -609,7 +802,7 @@ class _HomePageState extends State<HomePage> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0D6EFD).withOpacity(0.1),
+                      color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -683,7 +876,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '142 Market St, San Francisco',
+                          ride.pickupAddress,
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -723,7 +916,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '88 King St, San Francisco',
+                          ride.dropAddress,
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -745,9 +938,7 @@ class _HomePageState extends State<HomePage> {
                     flex: 1,
                     child: OutlinedButton(
                       onPressed: () {
-                        setState(() {
-                          _hasActiveRideRequest = false;
-                        });
+                        _bookingBloc.add(DeclineRideEvent());
                       },
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -770,7 +961,9 @@ class _HomePageState extends State<HomePage> {
                   Expanded(
                     flex: 2,
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        _bookingBloc.add(AcceptRideEvent(ride.id));
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF0D6EFD),
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -798,7 +991,8 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildMinimizedRideRequestCard(bool isDark) {
+  Widget _buildMinimizedRideRequestCard(bool isDark, NewRideRequestState state) {
+    final ride = state.rideRequest;
     return Positioned(
       bottom: 24,
       left: 16,
@@ -816,7 +1010,7 @@ class _HomePageState extends State<HomePage> {
             borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 15,
                 offset: const Offset(0, 5),
               ),
@@ -838,7 +1032,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   Text(
-                    '₹70.50',
+                    '₹${ride.estimatedFare}',
                     style: GoogleFonts.inter(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -871,7 +1065,7 @@ class _HomePageState extends State<HomePage> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            '142 Market St',
+                            ride.pickupAddress,
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -894,7 +1088,7 @@ class _HomePageState extends State<HomePage> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            '88 King St',
+                            ride.dropAddress,
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -917,9 +1111,7 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   GestureDetector(
                     onTap: () {
-                      setState(() {
-                        _hasActiveRideRequest = false;
-                      });
+                      _bookingBloc.add(DeclineRideEvent());
                     },
                     child: Container(
                       padding: const EdgeInsets.all(6),
@@ -937,7 +1129,7 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(width: 8),
                   GestureDetector(
                     onTap: () {
-                      // Accept logic here
+                      _bookingBloc.add(AcceptRideEvent(ride.id));
                     },
                     child: Container(
                       padding: const EdgeInsets.all(6),
@@ -958,6 +1150,392 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
+    );
+  }
+
+  static const List<LatLng> _sampleStreetRoutePoints = [
+    LatLng(17.4486, 78.3908), // Pickup (Madhapur)
+    LatLng(17.4470, 78.3880), // Madhapur main road
+    LatLng(17.4450, 78.3830), // HITEC City Flyover
+    LatLng(17.4420, 78.3800), // Mindspace Junction
+    LatLng(17.4380, 78.3780), // Near IKEA Hyderabad
+    LatLng(17.4340, 78.3730), // Cyberabad Police Station Road
+    LatLng(17.4360, 78.3660), // Old Mumbai Highway junction
+    LatLng(17.4390, 78.3600), // Near AIG Hospitals
+    LatLng(17.4410, 78.3540), // Gachibowli Flyover
+    LatLng(17.4380, 78.3480), // Gachibowli turn
+    LatLng(17.4360, 78.3450), // Outer Ring Road access
+    LatLng(17.4375, 78.3428), // Dropoff (ISB Student Village 1)
+  ];
+
+  static const List<LatLng> _riderToPickupStreetPoints = [
+    LatLng(17.4924, 78.3639), // Rider location (Miyapur)
+    LatLng(17.4850, 78.3660), // Miyapur X Roads
+    LatLng(17.4780, 78.3700), // Hafeezpet Flyover
+    LatLng(17.4700, 78.3750), // Kondapur main road
+    LatLng(17.4600, 78.3800), // Near Sarath City Capital Mall
+    LatLng(17.4520, 78.3860), // Madhapur 100 Feet Road
+    LatLng(17.4486, 78.3908), // Customer Pickup (Madhapur)
+  ];
+
+  List<LatLng> _generateStreetGridNavigationPoints(LatLng origin, LatLng destination) {
+    if (origin.latitude == 0 || destination.latitude == 0) return [origin, destination];
+
+    final dLat = destination.latitude - origin.latitude;
+    final dLng = destination.longitude - origin.longitude;
+
+    return [
+      origin,
+      LatLng(origin.latitude + dLat * 0.45, origin.longitude),
+      LatLng(origin.latitude + dLat * 0.45, destination.longitude),
+      destination,
+    ];
+  }
+
+  Future<List<LatLng>> _fetchRoadRoutePoints(LatLng start, LatLng end) async {
+    try {
+      final url = Uri.parse(
+        'https://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson',
+      );
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final routes = data['routes'] as List;
+        if (routes.isNotEmpty) {
+          final geometry = routes[0]['geometry'];
+          final coordinates = geometry['coordinates'] as List;
+          return coordinates.map<LatLng>((coord) {
+            return LatLng(
+              (coord[1] as num).toDouble(),
+              (coord[0] as num).toDouble(),
+            );
+          }).toList();
+        }
+      }
+    } catch (e) {
+      debugPrint("OSRM Directions fetch error: $e");
+    }
+    return [start, end];
+  }
+
+  Future<void> _fetchRoutePolylines() async {
+    if (_currentRideRequest == null) return;
+    final riderPos = _currentLatLng ?? const LatLng(17.4924, 78.3639);
+
+    if (_currentRideRequest!.pickupLat != 0.0 && _currentRideRequest!.pickupLng != 0.0) {
+      final pickupTarget = LatLng(_currentRideRequest!.pickupLat, _currentRideRequest!.pickupLng);
+      final points1 = await _fetchRoadRoutePoints(riderPos, pickupTarget);
+      if (mounted && points1.isNotEmpty) {
+        setState(() {
+          _fetchedRiderToPickupPoints = points1;
+        });
+      }
+    }
+
+    if (_currentRideRequest!.dropLat != 0.0 && _currentRideRequest!.dropLng != 0.0) {
+      final pickupTarget = LatLng(_currentRideRequest!.pickupLat, _currentRideRequest!.pickupLng);
+      final dropTarget = LatLng(_currentRideRequest!.dropLat, _currentRideRequest!.dropLng);
+      final points2 = await _fetchRoadRoutePoints(pickupTarget, dropTarget);
+      if (mounted && points2.isNotEmpty) {
+        setState(() {
+          _fetchedPickupToDropPoints = points2;
+        });
+      }
+    }
+  }
+
+  Set<Polyline> _buildPolylines() {
+    if (_currentRideRequest == null) return const <Polyline>{};
+
+    final polylines = <Polyline>{};
+    final riderPos = _currentLatLng ?? const LatLng(17.4924, 78.3639);
+
+    // 1. Rider to Customer Pickup Real Turn-by-Turn Road Navigation Polyline
+    final riderPoints = _fetchedRiderToPickupPoints.isNotEmpty
+        ? _fetchedRiderToPickupPoints
+        : _generateStreetGridNavigationPoints(riderPos, LatLng(_currentRideRequest!.pickupLat, _currentRideRequest!.pickupLng));
+
+    polylines.add(
+      Polyline(
+        polylineId: const PolylineId('rider_to_pickup_street_route'),
+        points: riderPoints,
+        color: const Color(0xFF0D6EFD), // Bright Navigation Blue
+        width: 7,
+        jointType: JointType.round,
+        startCap: Cap.roundCap,
+        endCap: Cap.roundCap,
+      ),
+    );
+
+    // 2. Customer Pickup to Dropoff Trip Real Turn-by-Turn Road Navigation Polyline
+    final tripPoints = _fetchedPickupToDropPoints.isNotEmpty
+        ? _fetchedPickupToDropPoints
+        : _sampleStreetRoutePoints;
+
+    polylines.add(
+      Polyline(
+        polylineId: const PolylineId('pickup_to_drop_street_route'),
+        points: tripPoints,
+        color: const Color(0xFF003399), // Deep Navy Blue
+        width: 7,
+        jointType: JointType.round,
+        startCap: Cap.roundCap,
+        endCap: Cap.roundCap,
+      ),
+    );
+
+    return polylines;
+  }
+
+  Set<Marker> _buildMarkers() {
+    final markers = <Marker>{};
+    if (_currentLatLng != null) {
+      markers.add(
+        Marker(
+          markerId: const MarkerId('current_location'),
+          position: _currentLatLng!,
+          icon: _customMarker ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+          anchor: const Offset(0.5, 0.5),
+        ),
+      );
+    }
+    if (_currentRideRequest != null) {
+      if (_currentRideRequest!.pickupLat != 0 && _currentRideRequest!.pickupLng != 0) {
+        markers.add(
+          Marker(
+            markerId: const MarkerId('pickup_location'),
+            position: LatLng(_currentRideRequest!.pickupLat, _currentRideRequest!.pickupLng),
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+            infoWindow: InfoWindow(title: 'Pickup', snippet: _currentRideRequest!.pickupAddress),
+          ),
+        );
+      }
+      if (_currentRideRequest!.dropLat != 0 && _currentRideRequest!.dropLng != 0) {
+        markers.add(
+          Marker(
+            markerId: const MarkerId('drop_location'),
+            position: LatLng(_currentRideRequest!.dropLat, _currentRideRequest!.dropLng),
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+            infoWindow: InfoWindow(title: 'Dropoff', snippet: _currentRideRequest!.dropAddress),
+          ),
+        );
+      }
+    }
+    return markers;
+  }
+
+  Widget _buildActiveTripMiniCard(bool isDark) {
+    if (_currentRideRequest == null) return const SizedBox.shrink();
+
+    return Positioned(
+      bottom: 20,
+      left: 16,
+      right: 16,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0D6EFD).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.directions_car, size: 14, color: Color(0xFF0D6EFD)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'TRIP IN PROGRESS',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF0D6EFD),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '₹${_currentRideRequest!.estimatedFare.toStringAsFixed(2)}',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.my_location, size: 16, color: Color(0xFF0D6EFD)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _currentRideRequest!.pickupAddress,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.location_on, size: 16, color: Colors.redAccent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _currentRideRequest!.dropAddress,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            ElevatedButton(
+              onPressed: () {
+                _showActiveTripBottomSheet(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0D6EFD),
+                minimumSize: const Size.fromHeight(44),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: Text(
+                'Expand Trip Details',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _checkPickupProximityAndAutoExpand(LatLng riderPos) {
+    if (_currentRideRequest == null || _hasAutoExpandedBottomSheet) return;
+    if (_currentRideRequest!.pickupLat == 0.0 || _currentRideRequest!.pickupLng == 0.0) return;
+
+    final distanceMeters = Geolocator.distanceBetween(
+      riderPos.latitude,
+      riderPos.longitude,
+      _currentRideRequest!.pickupLat,
+      _currentRideRequest!.pickupLng,
+    );
+
+    if (distanceMeters <= 200.0) {
+      _hasAutoExpandedBottomSheet = true;
+      _showActiveTripBottomSheet(context);
+    }
+  }
+
+  void _showActiveTripBottomSheet(BuildContext context) {
+    if (_currentRideRequest == null) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.88,
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFF121212)
+              : const Color(0xFFF7F8FC),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          child: ActiveTripPage(
+            bookingId: _currentRideRequest!.id,
+            pickupAddress: _currentRideRequest!.pickupAddress,
+            dropAddress: _currentRideRequest!.dropAddress,
+            estimatedFare: _currentRideRequest!.estimatedFare,
+            pickupLat: _currentRideRequest!.pickupLat,
+            pickupLng: _currentRideRequest!.pickupLng,
+            dropLat: _currentRideRequest!.dropLat,
+            dropLng: _currentRideRequest!.dropLng,
+            riderLat: _currentLatLng?.latitude,
+            riderLng: _currentLatLng?.longitude,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _animateToStreetView() {
+    final targetPos = _currentLatLng ?? const LatLng(17.4924, 78.3639);
+    if (_mapController == null) return;
+    _mapController!.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: targetPos,
+          zoom: 18.0,
+        ),
+      ),
+    );
+  }
+
+  void _fitMapToRouteBounds() {
+    if (_mapController == null) return;
+    final allPoints = <LatLng>[
+      ..._sampleStreetRoutePoints,
+      ..._riderToPickupStreetPoints,
+    ];
+    
+    double minLat = allPoints.first.latitude;
+    double maxLat = allPoints.first.latitude;
+    double minLng = allPoints.first.longitude;
+    double maxLng = allPoints.first.longitude;
+
+    for (final p in allPoints) {
+      if (p.latitude < minLat) minLat = p.latitude;
+      if (p.latitude > maxLat) maxLat = p.latitude;
+      if (p.longitude < minLng) minLng = p.longitude;
+      if (p.longitude > maxLng) maxLng = p.longitude;
+    }
+
+    final bounds = LatLngBounds(
+      southwest: LatLng(minLat - 0.005, minLng - 0.005),
+      northeast: LatLng(maxLat + 0.005, maxLng + 0.005),
+    );
+
+    _mapController!.animateCamera(
+      CameraUpdate.newLatLngBounds(bounds, 60),
     );
   }
 }

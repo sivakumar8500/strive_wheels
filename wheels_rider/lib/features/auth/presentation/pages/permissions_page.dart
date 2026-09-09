@@ -54,7 +54,7 @@ class PermissionsPage extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryBlue.withOpacity(0.1),
+                          color: AppColors.primaryBlue.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -210,7 +210,7 @@ class PermissionsPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isGranted
-              ? Colors.green.withOpacity(0.5)
+              ? Colors.green.withValues(alpha: 0.5)
               : (isDark ? AppColors.dividerDark : AppColors.dividerLight),
         ),
       ),
@@ -220,7 +220,7 @@ class PermissionsPage extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: isGranted
-                  ? Colors.green.withOpacity(0.1)
+                  ? Colors.green.withValues(alpha: 0.1)
                   : (isDark ? AppColors.backgroundDark : AppColors.backgroundLight),
               shape: BoxShape.circle,
             ),

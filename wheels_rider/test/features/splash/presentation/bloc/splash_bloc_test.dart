@@ -32,7 +32,7 @@ void main() {
     blocTest<SplashBloc, SplashState>(
       'emits [SplashLoading, SplashCompleted] when StartSplashEvent is added',
       build: () {
-        when(() => mockCheckInitialAuthStatus()).thenAnswer((_) async => false);
+        when(() => mockCheckInitialAuthStatus()).thenAnswer((_) async => InitialAuthData(isAuthenticated: false));
         when(() => mockCheckFirstTimeUseCase()).thenAnswer((_) async => true);
         return SplashBloc(
           checkInitialAuthStatus: mockCheckInitialAuthStatus,
