@@ -35,6 +35,13 @@ class OtpRemoteDataSourceImpl implements OtpRemoteDataSource {
           final tokenStr = token.toString();
           debugPrint('====== SAVING TOKEN & USER ID ======');
           await sharedPreferences.setString('access_token', tokenStr);
+          await sharedPreferences.setString('user_token', tokenStr);
+
+          final refreshToken = data['refresh_token'] ?? data['refresh'];
+          if (refreshToken != null && refreshToken.toString().isNotEmpty) {
+            await sharedPreferences.setString('refresh_token', refreshToken.toString());
+            await sharedPreferences.setString('user_refresh_token', refreshToken.toString());
+          }
 
           final rawUserId = data['user_id'] ?? data['customer_id'] ?? data['id'] ?? data['customer_profile']?['id'];
           int? userId = rawUserId != null ? int.tryParse(rawUserId.toString()) : null;

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
+import 'session_manager.dart';
 
 class WebSocketService {
   static final WebSocketService _instance = WebSocketService._internal();
@@ -15,15 +16,46 @@ class WebSocketService {
   Timer? _reconnectTimer;
 
   bool _isConnected = false;
-  String? _currentUrl;
+  String? _baseUrl;
+  int? _userId;
+  String? _role;
+  String? _latestToken;
+  SessionManager? _sessionManager;
+
   int _reconnectAttempts = 0;
+  bool _explicitlyDisconnected = false;
 
   Stream<Map<String, dynamic>> get eventStream => _eventController.stream;
   bool get isConnected => _isConnected;
 
+  void setSessionManager(SessionManager sessionManager) {
+    _sessionManager = sessionManager;
+  }
+
   /// Connect to WebSocket Endpoint with JWT Token
-  void connect(String baseUrl, int userId, String token, {required String role}) {
-    var formattedBase = baseUrl.trim();
+  void connect(String baseUrl, int userId, String token, {required String role, SessionManager? sessionManager}) {
+    _baseUrl = baseUrl;
+    _userId = userId;
+    _role = role;
+    _latestToken = token;
+    if (sessionManager != null) _sessionManager = sessionManager;
+    _explicitlyDisconnected = false;
+
+    _reconnectAttempts = 0;
+    _establishConnection();
+  }
+
+  Future<void> _establishConnection() async {
+    if (_baseUrl == null || _userId == null || _role == null || _explicitlyDisconnected) return;
+
+    if (_sessionManager != null) {
+      final freshToken = await _sessionManager!.getValidAccessToken();
+      if (freshToken != null && freshToken.isNotEmpty) {
+        _latestToken = freshToken;
+      }
+    }
+
+    var formattedBase = _baseUrl!.trim();
     if (formattedBase.startsWith('http://')) {
       formattedBase = formattedBase.replaceFirst('http://', 'ws://');
     } else if (formattedBase.startsWith('https://')) {
@@ -36,7 +68,7 @@ class WebSocketService {
         ? formattedBase.substring(0, formattedBase.length - 1)
         : formattedBase;
 
-    var cleanToken = token.trim();
+    var cleanToken = (_latestToken ?? '').trim();
     if (cleanToken.endsWith('#')) {
       cleanToken = cleanToken.substring(0, cleanToken.length - 1);
     }
@@ -44,16 +76,11 @@ class WebSocketService {
       cleanToken = 'demo_token';
     }
     final encodedToken = Uri.encodeComponent(cleanToken);
+    final wsUrl = '$cleanBase/ws/$_role/$_userId?token=$encodedToken';
 
-    final wsUrl = '$cleanBase/ws/$role/$userId?token=$encodedToken';
-    _currentUrl = wsUrl;
-    _establishConnection(wsUrl);
-  }
-
-  void _establishConnection(String url) {
     try {
-      debugPrint('[WebSocket] Connecting to $url');
-      _channel = WebSocketChannel.connect(Uri.parse(url));
+      debugPrint('[WebSocket] Connecting to $wsUrl');
+      _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
       _isConnected = true;
       _reconnectAttempts = 0;
 
@@ -63,18 +90,20 @@ class WebSocketService {
         },
         onError: (error) {
           debugPrint('[WebSocket] Error: $error');
-          _handleDisconnect();
+          _handleDisconnect(isAuthError: true);
         },
         onDone: () {
-          debugPrint('[WebSocket] Connection closed.');
-          _handleDisconnect();
+          final closeCode = _channel?.closeCode;
+          debugPrint('[WebSocket] Connection closed. Code: $closeCode');
+          final isAuthClose = closeCode == 4001 || closeCode == 4003;
+          _handleDisconnect(isAuthError: isAuthClose);
         },
       );
 
       _startPingHeartbeat();
     } catch (e) {
       debugPrint('[WebSocket] Connection failure: $e');
-      _handleDisconnect();
+      _handleDisconnect(isAuthError: false);
     }
   }
 
@@ -108,27 +137,30 @@ class WebSocketService {
     });
   }
 
-  void _handleDisconnect() {
+  void _handleDisconnect({bool isAuthError = false}) async {
     _isConnected = false;
     _pingTimer?.cancel();
-    _channel?.sink.close(status.goingAway);
 
-    // Auto-Reconnect with exponential backoff (max 30s)
-    if (_currentUrl != null) {
-      _reconnectAttempts++;
-      final delaySeconds = (_reconnectAttempts * 2).clamp(2, 30);
-      debugPrint('[WebSocket] Reconnecting in $delaySeconds seconds...');
-      _reconnectTimer?.cancel();
-      _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
-        if (!_isConnected && _currentUrl != null) {
-          _establishConnection(_currentUrl!);
-        }
-      });
+    if (_explicitlyDisconnected) return;
+
+    if (isAuthError && _sessionManager != null) {
+      debugPrint('[WebSocket] Auth expiry detected on WebSocket. Triggering session refresh...');
+      await _sessionManager!.refreshSession(force: true);
     }
+
+    _reconnectAttempts++;
+    final delaySeconds = (_reconnectAttempts * 2).clamp(2, 30);
+    debugPrint('[WebSocket] Reconnecting in $delaySeconds seconds...');
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
+      if (!_isConnected && !_explicitlyDisconnected) {
+        _establishConnection();
+      }
+    });
   }
 
   void disconnect() {
-    _currentUrl = null;
+    _explicitlyDisconnected = true;
     _isConnected = false;
     _pingTimer?.cancel();
     _reconnectTimer?.cancel();

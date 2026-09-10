@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import '../network/api_client.dart';
 import '../network/api_constants.dart';
 import '../network/auth_interceptor.dart';
+import '../network/session_manager.dart';
 import '../network/websocket_service.dart';
 import '../network/customer_ws_controller.dart';
 import '../services/route_condition_service.dart';
@@ -117,6 +118,14 @@ Future<void> initDependencyInjection() async {
     debugPrint('SharedPreferences init error: $e');
   }
 
+  // Session Manager Registration
+  final prefs = sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : sharedPreferences!;
+  if (!sl.isRegistered<SessionManager>()) {
+    sl.registerLazySingleton<SessionManager>(
+      () => SessionManager(prefs),
+    );
+  }
+
   // Core Network Setup
   if (!sl.isRegistered<Dio>()) {
     sl.registerLazySingleton<Dio>(() {
@@ -134,7 +143,8 @@ Future<void> initDependencyInjection() async {
       // Add interceptors
       dio.interceptors.add(
         AuthInterceptor(
-          sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : sharedPreferences!,
+          prefs,
+          sessionManager: sl<SessionManager>(),
         ),
       );
       dio.interceptors.add(LogInterceptor(responseBody: true, requestBody: true));
