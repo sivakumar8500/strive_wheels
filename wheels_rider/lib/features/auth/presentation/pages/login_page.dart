@@ -20,12 +20,14 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  late final LoginBloc _loginBloc;
   final TextEditingController _phoneController = TextEditingController();
   bool _isPhoneValid = false;
 
   @override
   void initState() {
     super.initState();
+    _loginBloc = sl<LoginBloc>();
     _phoneController.addListener(_validatePhone);
   }
 
@@ -41,254 +43,251 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void dispose() {
     _phoneController.dispose();
+    _loginBloc.close();
     super.dispose();
   }
 
   void _onContinuePressed(BuildContext context) {
     FocusScope.of(context).unfocus();
-    context.read<LoginBloc>().add(LoginSubmitted(_phoneController.text));
+    _loginBloc.add(LoginSubmitted(_phoneController.text));
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<LoginBloc>(
-      create: (_) => sl<LoginBloc>(),
-      child: Builder(
-        builder: (context) {
-          final isDark = Theme.of(context).brightness == Brightness.dark;
-          final backgroundColor = isDark
-              ? AppColors.onboardingBgDark
-              : AppColors.onboardingBgLight;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark
+        ? AppColors.onboardingBgDark
+        : AppColors.onboardingBgLight;
 
-          return BlocListener<LoginBloc, LoginState>(
-            listener: (context, state) {
-              if (state is LoginSuccess) {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => OtpPage(phoneNumber: _phoneController.text),
-                  ),
-                );
-              } else if (state is LoginFailure) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(state.errorMessage),
-                    backgroundColor: Colors.redAccent,
-                  ),
-                );
-              }
-            },
-            child: Scaffold(
-        backgroundColor: backgroundColor,
-        body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: IntrinsicHeight(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 16,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Center the illustration using Expanded
-                          Expanded(
-                            child: Center(
-                              child: Image.asset(
-                                AppAssets.loginIcon,
-                                height: 250,
-                                fit: BoxFit.contain,
+    return BlocProvider<LoginBloc>.value(
+      value: _loginBloc,
+      child: BlocListener<LoginBloc, LoginState>(
+        listener: (context, state) {
+          if (state is LoginSuccess) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => OtpPage(phoneNumber: _phoneController.text),
+              ),
+            );
+          } else if (state is LoginFailure) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.errorMessage),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
+        },
+        child: Scaffold(
+          backgroundColor: backgroundColor,
+          body: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: IntrinsicHeight(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 16,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Center the illustration using Expanded
+                            Expanded(
+                              child: Center(
+                                child: Image.asset(
+                                  AppAssets.loginIcon,
+                                  height: 250,
+                                  fit: BoxFit.contain,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 48),
+                            const SizedBox(height: 48),
 
-                          // Welcome Titles
-                          Text(
-                            AppStrings.welcomeBack,
-                            style: GoogleFonts.poppins(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: isDark
-                                  ? AppColors.white
-                                  : AppColors.onboardingTextPrimaryLight,
-                            ),
-                            textAlign: TextAlign.left,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            AppStrings.bookRidesSubtext,
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w400,
-                              color: isDark
-                                  ? AppColors.textSecondaryDark
-                                  : AppColors.onboardingTextSecondaryLight,
-                            ),
-                            textAlign: TextAlign.left,
-                          ),
-                          const SizedBox(height: 32),
-
-                          // Phone Number Input field
-                          Container(
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? AppColors.surfaceDark
-                                  : AppColors.surfaceLight,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
+                            // Welcome Titles
+                            Text(
+                              AppStrings.welcomeBack,
+                              style: GoogleFonts.poppins(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
                                 color: isDark
-                                    ? AppColors.dividerDark
-                                    : AppColors.dividerLight,
-                                width: 1,
+                                    ? AppColors.white
+                                    : AppColors.onboardingTextPrimaryLight,
                               ),
+                              textAlign: TextAlign.left,
                             ),
-                            child: Row(
-                              children: [
-                                // Country Code Selector
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        '+91',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
+                            const SizedBox(height: 8),
+                            Text(
+                              AppStrings.bookRidesSubtext,
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w400,
+                                color: isDark
+                                    ? AppColors.textSecondaryDark
+                                    : AppColors.onboardingTextSecondaryLight,
+                              ),
+                              textAlign: TextAlign.left,
+                            ),
+                            const SizedBox(height: 32),
+
+                            // Phone Number Input field
+                            Container(
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? AppColors.surfaceDark
+                                    : AppColors.surfaceLight,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isDark
+                                      ? AppColors.dividerDark
+                                      : AppColors.dividerLight,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  // Country Code Selector
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          '+91',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark
+                                                ? AppColors.white
+                                                : AppColors
+                                                      .onboardingTextPrimaryLight,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          Icons.keyboard_arrow_down_rounded,
                                           color: isDark
                                               ? AppColors.white
                                               : AppColors
                                                     .onboardingTextPrimaryLight,
                                         ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Icon(
-                                        Icons.keyboard_arrow_down_rounded,
+                                      ],
+                                    ),
+                                  ),
+                                  // Divider
+                                  Container(
+                                    width: 1,
+                                    height: 32,
+                                    color: isDark
+                                        ? AppColors.dividerDark
+                                        : AppColors.dividerLight,
+                                  ),
+                                  const SizedBox(width: 16),
+                                  // Phone input
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _phoneController,
+                                      keyboardType: TextInputType.phone,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        LengthLimitingTextInputFormatter(10),
+                                      ],
+                                      style: GoogleFonts.inter(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
                                         color: isDark
                                             ? AppColors.white
                                             : AppColors
                                                   .onboardingTextPrimaryLight,
                                       ),
-                                    ],
-                                  ),
-                                ),
-                                // Divider
-                                Container(
-                                  width: 1,
-                                  height: 32,
-                                  color: isDark
-                                      ? AppColors.dividerDark
-                                      : AppColors.dividerLight,
-                                ),
-                                const SizedBox(width: 16),
-                                // Phone input
-                                Expanded(
-                                  child: TextField(
-                                    controller: _phoneController,
-                                    keyboardType: TextInputType.phone,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                      LengthLimitingTextInputFormatter(10),
-                                    ],
-                                    style: GoogleFonts.inter(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                      color: isDark
-                                          ? AppColors.white
-                                          : AppColors
-                                                .onboardingTextPrimaryLight,
-                                    ),
-                                    decoration: InputDecoration(
-                                      hintText: AppStrings.enterMobileNumber,
-                                      hintStyle: GoogleFonts.inter(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w400,
-                                        color: isDark
-                                            ? AppColors.textSecondaryDark
-                                            : AppColors
-                                                  .onboardingTextSecondaryLight,
-                                      ),
-                                      border: InputBorder.none,
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-
-                          // Continue Button
-                          BlocBuilder<LoginBloc, LoginState>(
-                            builder: (context, state) {
-                              final isLoading = state is LoginLoading;
-                              return SizedBox(
-                                height: 56,
-                                child: ElevatedButton(
-                                  onPressed: (isLoading || !_isPhoneValid)
-                                      ? null
-                                      : () => _onContinuePressed(context),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.indicatorActive,
-                                    foregroundColor: AppColors.white,
-                                    disabledBackgroundColor: AppColors
-                                        .indicatorActive
-                                        .withValues(alpha: 0.5),
-                                    disabledForegroundColor: AppColors.white
-                                        .withValues(alpha: 0.7),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    elevation: 0,
-                                  ),
-                                  child: isLoading
-                                      ? const SizedBox(
-                                          height: 24,
-                                          width: 24,
-                                          child: CircularProgressIndicator(
-                                            color: AppColors.white,
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : Text(
-                                          AppStrings.continueBtn,
-                                          style: GoogleFonts.inter(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                            letterSpacing: 0.5,
-                                          ),
+                                      decoration: InputDecoration(
+                                        hintText: AppStrings.enterMobileNumber,
+                                        hintStyle: GoogleFonts.inter(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w400,
+                                          color: isDark
+                                              ? AppColors.textSecondaryDark
+                                              : AppColors
+                                                    .onboardingTextSecondaryLight,
                                         ),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 32),
+                                        border: InputBorder.none,
+                                        enabledBorder: InputBorder.none,
+                                        focusedBorder: InputBorder.none,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 32),
 
-                          // Terms & Privacy Note
-                          _buildTermsAndPrivacy(isDark),
-                          const SizedBox(height: 16),
-                        ],
+                            // Continue Button
+                            BlocBuilder<LoginBloc, LoginState>(
+                              builder: (context, state) {
+                                final isLoading = state is LoginLoading;
+                                return SizedBox(
+                                  height: 56,
+                                  child: ElevatedButton(
+                                    onPressed: (isLoading || !_isPhoneValid)
+                                        ? null
+                                        : () => _onContinuePressed(context),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.indicatorActive,
+                                      foregroundColor: AppColors.white,
+                                      disabledBackgroundColor: AppColors
+                                          .indicatorActive
+                                          .withValues(alpha: 0.5),
+                                      disabledForegroundColor: AppColors.white
+                                          .withValues(alpha: 0.7),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      elevation: 0,
+                                    ),
+                                    child: isLoading
+                                        ? const SizedBox(
+                                            height: 24,
+                                            width: 24,
+                                            child: CircularProgressIndicator(
+                                              color: AppColors.white,
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : Text(
+                                            AppStrings.continueBtn,
+                                            style: GoogleFonts.inter(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 32),
+
+                            // Terms & Privacy Note
+                            _buildTermsAndPrivacy(isDark),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
       ),
-    );
-  },
-),
     );
   }
 

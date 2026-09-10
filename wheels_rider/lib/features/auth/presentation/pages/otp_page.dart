@@ -27,6 +27,7 @@ class OtpPage extends StatefulWidget {
 }
 
 class _OtpPageState extends State<OtpPage> {
+  late final OtpBloc _otpBloc;
   final _pinController = TextEditingController();
   Timer? _timer;
   int _start = 60;
@@ -34,6 +35,7 @@ class _OtpPageState extends State<OtpPage> {
   @override
   void initState() {
     super.initState();
+    _otpBloc = sl<OtpBloc>();
     startTimer();
   }
 
@@ -57,6 +59,7 @@ class _OtpPageState extends State<OtpPage> {
   void dispose() {
     _timer?.cancel();
     _pinController.dispose();
+    _otpBloc.close();
     super.dispose();
   }
 
@@ -96,8 +99,8 @@ class _OtpPageState extends State<OtpPage> {
       ),
     );
 
-    return BlocProvider(
-      create: (_) => sl<OtpBloc>(),
+    return BlocProvider<OtpBloc>.value(
+      value: _otpBloc,
       child: BlocConsumer<OtpBloc, OtpState>(
         listener: (context, state) {
           if (state is OtpSuccess) {
