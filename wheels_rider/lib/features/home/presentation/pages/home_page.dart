@@ -300,7 +300,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 setState(() {
                   _hasActiveRideRequest = false;
                   _isManualPan = false;
+                  _isOnDuty = true;
                 });
+                final String mode = _rideType == 'Corporate' ? 'EMPLOYEE' : 'NORMAL';
+                _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: true));
                 _fetchNavigationRoute();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Ride accepted! Active navigation started.')),
@@ -594,6 +597,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                               child: Switch(
                                 value: _isOnDuty,
                                 onChanged: (val) {
+                                  if (!val && (_hasActiveRideRequest || _currentRideRequest != null)) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Cannot turn off duty while a ride is active.'),
+                                        backgroundColor: Colors.orange,
+                                      ),
+                                    );
+                                    return;
+                                  }
                                   setState(() {
                                     _isOnDuty = val;
                                   });
@@ -1119,6 +1131,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     flex: 2,
                     child: ElevatedButton(
                       onPressed: () {
+                        setState(() => _isOnDuty = true);
+                        final String mode = _rideType == 'Corporate' ? 'EMPLOYEE' : 'NORMAL';
+                        _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: true));
                         _bookingBloc.add(AcceptRideEvent(ride.id));
                       },
                       style: ElevatedButton.styleFrom(
@@ -1286,6 +1301,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   const SizedBox(width: 8),
                   GestureDetector(
                     onTap: () {
+                      setState(() => _isOnDuty = true);
+                      final String mode = _rideType == 'Corporate' ? 'EMPLOYEE' : 'NORMAL';
+                      _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: true));
                       _bookingBloc.add(AcceptRideEvent(ride.id));
                     },
                     child: Container(
