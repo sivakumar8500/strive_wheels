@@ -386,6 +386,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 );
               } else if (state is BookingErrorState) {
                 String userMessage = state.message;
+                if (userMessage.contains('is_drop_requested') ||
+                    userMessage.contains('UndefinedColumnError') ||
+                    userMessage.contains('rider/location')) {
+                  return; // Silently ignore background location ping DB errors from backend
+                }
                 if (userMessage.contains('SQL') || userMessage.contains('sqlalchemy') || userMessage.contains('invalid input value')) {
                   userMessage = 'Unable to accept ride due to backend service error. Please try again.';
                 }

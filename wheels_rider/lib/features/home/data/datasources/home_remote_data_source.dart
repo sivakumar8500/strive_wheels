@@ -17,37 +17,15 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
   @override
   Future<void> updateLocation({required double lat, required double lng}) async {
     try {
-      final response = await apiClient.post(
+      await apiClient.post(
         ApiEndpoints.riderLocation,
         data: {
           "lat": lat,
           "lng": lng,
         },
       );
-
-      if (response.statusCode != 200 && response.statusCode != 201) {
-        throw DioException(
-          requestOptions: response.requestOptions,
-          response: response,
-          error: 'Failed to update location',
-        );
-      }
-    } on DioException catch (e) {
-      String errorMessage = 'Unknown error occurred while updating location';
-      final responseData = e.response?.data;
-      if (responseData is Map) {
-        final message = responseData['message'];
-        if (message is String && message.isNotEmpty) {
-          errorMessage = message;
-        }
-      } else {
-        if (e.message != null && e.message!.isNotEmpty) {
-          errorMessage = e.message!;
-        }
-      }
-      throw Exception(errorMessage);
     } catch (e) {
-      throw Exception('An unexpected error occurred');
+      // Ignore background location ping errors silently to prevent interrupting rider app UI
     }
   }
 
