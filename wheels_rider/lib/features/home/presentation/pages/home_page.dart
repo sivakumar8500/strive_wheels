@@ -24,7 +24,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../../../trips/presentation/pages/active_trip_page.dart';
 import '../../domain/entities/ride_request_entity.dart';
-import '../data/models/ride_request_model.dart';
+import '../../data/models/ride_request_model.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/navigation_service.dart';
