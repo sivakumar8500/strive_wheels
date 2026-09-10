@@ -82,7 +82,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
   DateTime? _lastLocationTime;
   bool _isLocationStale = false;
   bool _isFollowingVehicle = true;
-  bool _isDropRequested = false;
 
   bool _isFetchingRoute = false;
   DateTime? _lastRouteFetchTime;
@@ -218,163 +217,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
     );
   }
 
-  void _showRequestDropBottomSheet(BuildContext context) {
-    String selectedReason = 'Reached destination / drop point';
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (bottomCtx) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.cardBgDark : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade400,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Request Drop / Early Exit',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? AppColors.textPrimaryDark : const Color(0xFF0F172A),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Select a reason to request your drop location from the driver:',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      color: isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  ...[
-                    'Reached destination / drop point',
-                    'Early exit / Change of plans',
-                    'Traffic congestion / Nearest drop',
-                    'Emergency exit',
-                  ].map((reason) {
-                    final isSelected = selectedReason == reason;
-                    return InkWell(
-                      onTap: () {
-                        setModalState(() {
-                          selectedReason = reason;
-                        });
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.primaryBlue.withValues(alpha: 0.1)
-                              : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: isSelected ? AppColors.primaryBlue : Colors.transparent,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-                              color: isSelected ? AppColors.primaryBlue : Colors.grey,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                reason,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                  color: isDark ? AppColors.textPrimaryDark : const Color(0xFF0F172A),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(bottomCtx);
-                        setState(() {
-                          _isDropRequested = true;
-                        });
-
-                        if (sl.isRegistered<CustomerWSController>()) {
-                          sl<CustomerWSController>().requestRide(
-                            vehicleTypeId: 1,
-                            pickupLat: widget.pickupLatLng.latitude,
-                            pickupLng: widget.pickupLatLng.longitude,
-                            pickupAddress: widget.pickupAddress,
-                            dropLat: widget.dropLatLng.latitude,
-                            dropLng: widget.dropLatLng.longitude,
-                            dropAddress: widget.dropAddress,
-                          );
-                        }
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Drop requested ($selectedReason)! Driver notified.'),
-                            backgroundColor: const Color(0xFF10B981),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryBlue,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      icon: const Icon(Icons.pin_drop_rounded, color: Colors.white),
-                      label: Text(
-                        'Confirm Drop Request',
-                        style: GoogleFonts.poppins(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   void _setupWebSocketListener() {
     if (sl.isRegistered<CustomerWSController>()) {
       _wsSubscription = sl<CustomerWSController>().bookingEventStream.listen((eventData) {
@@ -428,18 +270,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
               ),
             ),
           );
-        } else if (event == 'booking.drop_requested' || event == 'drop_requested') {
-          setState(() {
-            _isDropRequested = true;
-          });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Drop location requested & confirmed! Driver notified.'),
-                backgroundColor: Color(0xFF10B981),
-              ),
-            );
-          }
         } else if (event == 'booking.cancelled' ||
             event == 'booking.rider_cancelled' ||
             event == 'ride.cancelled' ||
@@ -513,7 +343,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
         CameraUpdate.newCameraPosition(
           CameraPosition(
             target: newPos,
-            zoom: 17.5,
+            zoom: 22.0,
             tilt: 45.0,
             bearing: rotation,
           ),
@@ -839,7 +669,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
           AppMapWidget(
             initialCameraPosition: CameraPosition(
               target: widget.pickupLatLng,
-              zoom: 18.0,
+              zoom: 22.0,
             ),
             onMapCreated: (controller) {
               _mapController = controller;
@@ -1119,7 +949,14 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                     onPressed: () {
                       setState(() => _isFollowingVehicle = true);
                       _mapController?.animateCamera(
-                        CameraUpdate.newLatLng(_currentVehiclePos),
+                        CameraUpdate.newCameraPosition(
+                          CameraPosition(
+                            target: _currentVehiclePos,
+                            zoom: 22.0,
+                            tilt: 45.0,
+                            bearing: _currentVehicleRotation,
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -1425,36 +1262,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                               ),
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Request Drop Button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton.icon(
-                            onPressed: () => _showRequestDropBottomSheet(context),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _isDropRequested ? const Color(0xFF10B981) : AppColors.primaryBlue,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            icon: Icon(
-                              _isDropRequested ? Icons.check_circle_rounded : Icons.pin_drop_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            label: Text(
-                              _isDropRequested ? 'Drop Requested (Driver Notified)' : 'Request Drop / Early Exit',
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
                         ),
                         const SizedBox(height: 12),
 
