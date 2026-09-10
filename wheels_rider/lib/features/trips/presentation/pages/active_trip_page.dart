@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -6,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/app_map_widget.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/network/websocket_client.dart';
 import '../../domain/usecases/start_trip_usecase.dart';
 import '../../domain/usecases/complete_trip_usecase.dart';
 
@@ -46,6 +48,8 @@ class ActiveTripPage extends StatefulWidget {
 
 class _ActiveTripPageState extends State<ActiveTripPage> {
   TripStatus _tripStatus = TripStatus.arrived;
+  bool _isDropRequested = false;
+  StreamSubscription? _wsSubscription;
 
   bool get _isRiderNearCustomer {
     if (widget.pickupLat == null || widget.pickupLng == null || widget.pickupLat == 0.0) {
@@ -64,6 +68,26 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
 
     return distanceMeters <= 500.0;
   }
+
+  bool get _isAtDropLocation {
+    if (_isDropRequested) return true; // Unlocked by Request Drop button or Customer Request
+    if (widget.dropLat == null || widget.dropLng == null || widget.dropLat == 0.0) {
+      return true; // Fallback enable if no coordinates
+    }
+    if (widget.riderLat == null || widget.riderLng == null || widget.riderLat == 0.0) {
+      return true; // Fallback enable if no coordinates
+    }
+
+    final distanceMeters = Geolocator.distanceBetween(
+      widget.riderLat!,
+      widget.riderLng!,
+      widget.dropLat!,
+      widget.dropLng!,
+    );
+
+    return distanceMeters <= 500.0;
+  }
+
   bool _isLoading = false;
   final _otpController = TextEditingController();
 
@@ -93,11 +117,31 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
     super.initState();
     _startTripUseCase = sl<StartTripUseCase>();
     _completeTripUseCase = sl<CompleteTripUseCase>();
+
+    if (sl.isRegistered<WebSocketClient>()) {
+      _wsSubscription = sl<WebSocketClient>().messageStream.listen((message) {
+        final event = message['event'] ?? '';
+        if (event == 'booking.drop_requested' || event == 'drop_requested') {
+          if (mounted) {
+            setState(() {
+              _isDropRequested = true;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Customer requested drop! Complete Ride is unlocked.'),
+                backgroundColor: Color(0xFF10B981),
+              ),
+            );
+          }
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
     _otpController.dispose();
+    _wsSubscription?.cancel();
     super.dispose();
   }
 
@@ -696,11 +740,15 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
 
                     // Main Start Trip / Complete Trip Slide Action Button
                     SlideToStartButton(
-                      isEnabled: _isRiderNearCustomer || _tripStatus == TripStatus.inProgress,
+                      isEnabled: _tripStatus == TripStatus.arrived
+                          ? _isRiderNearCustomer
+                          : _isAtDropLocation,
                       isLoading: _isLoading,
                       tripStatus: _tripStatus,
                       onSlideComplete: _handleMainAction,
-                      disabledText: 'Navigate to pickup to unlock Start Ride',
+                      disabledText: _tripStatus == TripStatus.arrived
+                          ? 'Navigate to pickup to unlock Start Ride'
+                          : 'Reach drop location or Request Drop to unlock',
                     ),
 
                     const SizedBox(height: 20),
@@ -709,6 +757,14 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
+                        if (_tripStatus == TripStatus.inProgress)
+                          _buildBottomOption(
+                            Icons.pin_drop_rounded,
+                            _isDropRequested ? 'Drop Requested' : 'Request Drop',
+                            isDark,
+                            _showRequestDropBottomSheet,
+                            isHighlight: true,
+                          ),
                         _buildBottomOption(Icons.headset_mic_outlined, 'Support', isDark, () {}),
                         _buildBottomOption(Icons.edit_note_rounded, 'Modify', isDark, () {}),
                         _buildBottomOption(Icons.cancel_outlined, 'Cancel', isDark, () {
@@ -728,8 +784,167 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
     );
   }
 
-  Widget _buildBottomOption(IconData icon, String label, bool isDark, VoidCallback onTap, {bool isCancel = false}) {
-    final color = isCancel ? Colors.red : (isDark ? Colors.grey.shade400 : Colors.grey.shade700);
+  void _showRequestDropBottomSheet() {
+    String selectedReason = 'Reached destination / drop point';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomCtx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E2C) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade400,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Request Drop Location',
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Select a reason to request early drop or confirm location arrival:',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  ...[
+                    'Reached destination / drop point',
+                    'Passenger requested early exit',
+                    'Traffic congestion / Route change',
+                    'Custom location drop',
+                  ].map((reason) {
+                    final isSelected = selectedReason == reason;
+                    return InkWell(
+                      onTap: () {
+                        setModalState(() {
+                          selectedReason = reason;
+                        });
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? const Color(0xFF0D6EFD).withValues(alpha: 0.1)
+                              : (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isSelected ? const Color(0xFF0D6EFD) : Colors.transparent,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                              color: isSelected ? const Color(0xFF0D6EFD) : Colors.grey,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                reason,
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(bottomCtx);
+                        setState(() {
+                          _isDropRequested = true;
+                        });
+
+                        if (sl.isRegistered<WebSocketClient>()) {
+                          sl<WebSocketClient>().sendMessage({
+                            'event': 'booking.drop_requested',
+                            'data': {
+                              'booking_id': widget.bookingId,
+                              'reason': selectedReason,
+                            }
+                          });
+                        }
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Drop requested ($selectedReason)! Complete Ride is unlocked.'),
+                            backgroundColor: const Color(0xFF10B981),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0D6EFD),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                      label: Text(
+                        'Confirm Drop Request',
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildBottomOption(IconData icon, String label, bool isDark, VoidCallback onTap, {bool isCancel = false, bool isHighlight = false}) {
+    final color = isCancel
+        ? Colors.red
+        : (isHighlight
+            ? const Color(0xFF0D6EFD)
+            : (isDark ? Colors.grey.shade400 : Colors.grey.shade700));
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -741,7 +956,7 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
             label,
             style: GoogleFonts.inter(
               fontSize: 12,
-              fontWeight: FontWeight.w600,
+              fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
               color: color,
             ),
           ),
