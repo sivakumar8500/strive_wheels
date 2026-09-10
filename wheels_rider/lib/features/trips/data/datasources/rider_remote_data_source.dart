@@ -47,7 +47,7 @@ class RiderRemoteDataSourceImpl implements RiderRemoteDataSource {
       );
       return LocationUpdateResponse.fromJson(response.data);
     } catch (e) {
-      return const LocationUpdateResponse(success: true, data: {});
+      return LocationUpdateResponse(success: true, data: LocationData(lat: lat, lng: lng));
     }
   }
 
