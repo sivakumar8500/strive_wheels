@@ -8,5 +8,11 @@ abstract class RiderRepository {
   Future<BookingActionResponse> acceptBooking(int bookingId);
   Future<BookingActionResponse> markArrived(int bookingId);
   Future<BookingActionResponse> startTrip({required int bookingId, required String otp});
-  Future<BookingActionResponse> completeTrip({required int bookingId, required double distanceKm, required int durationMins});
+  Future<BookingActionResponse> completeTrip({
+    required int bookingId,
+    required double distanceKm,
+    required int durationMins,
+    double? riderLat,
+    double? riderLng,
+  });
 }

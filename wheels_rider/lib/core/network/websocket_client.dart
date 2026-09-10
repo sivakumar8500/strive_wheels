@@ -3,16 +3,16 @@ import 'dart:convert';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
 import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_endpoints.dart';
-import 'session_manager.dart';
 
 class WebSocketClient {
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
   Timer? _pingTimer;
   Timer? _reconnectTimer;
-  SessionManager? _sessionManager;
   
   final _messageController = StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get messageStream => _messageController.stream;
@@ -25,14 +25,9 @@ class WebSocketClient {
   int _reconnectAttempts = 0;
   bool _explicitlyDisconnected = false;
 
-  void setSessionManager(SessionManager sessionManager) {
-    _sessionManager = sessionManager;
-  }
-
-  void connect(int driverId, String token, {SessionManager? sessionManager}) {
+  void connect(int driverId, String token) {
     _currentDriverId = driverId;
     _currentToken = token;
-    if (sessionManager != null) _sessionManager = sessionManager;
     _explicitlyDisconnected = false;
     if (_isConnected) {
       debugPrint('[WebSocket] Connect requested but already connected.');
@@ -42,16 +37,7 @@ class WebSocketClient {
   }
 
   Future<void> _establishConnection() async {
-    if (_currentDriverId == null) return;
-
-    if (_sessionManager != null) {
-      final validToken = await _sessionManager!.getValidAccessToken();
-      if (validToken != null && validToken.isNotEmpty) {
-        _currentToken = validToken;
-      }
-    }
-
-    if (_currentToken == null || _currentToken!.isEmpty) return;
+    if (_currentDriverId == null || _currentToken == null) return;
 
     final candidateUrls = [
       '${ApiEndpoints.wsDriverConnect(_currentDriverId!)}?token=$_currentToken',
@@ -87,15 +73,23 @@ class WebSocketClient {
               debugPrint('[WebSocket] Message decode error: $e | Raw: $message');
             }
           },
-          onDone: () {
+          onDone: () async {
             final closeCode = _channel?.closeCode;
-            debugPrint('[WebSocket] Connection closed (onDone). Code: $closeCode');
-            final isAuthClose = closeCode == 4001 || closeCode == 4003;
-            _handleDisconnect(isAuthError: isAuthClose);
+            debugPrint('[WebSocket] Connection closed (onDone) code: $closeCode');
+            if (closeCode == 4001) {
+              debugPrint('[WebSocket] Received close code 4001 (TOKEN_EXPIRED). Triggering token refresh...');
+              final newToken = await _refreshAccessToken();
+              if (newToken != null && newToken.isNotEmpty) {
+                _currentToken = newToken;
+                _establishConnection();
+                return;
+              }
+            }
+            _handleDisconnect();
           },
           onError: (error) {
             debugPrint('[WebSocket] Connection error: $error');
-            _handleDisconnect(isAuthError: true);
+            _handleDisconnect();
           },
         );
         return; // Successfully connected!
@@ -106,7 +100,7 @@ class WebSocketClient {
 
     // If all candidate URLs failed
     debugPrint('[WebSocket] All endpoint candidates failed to upgrade connection.');
-    _handleDisconnect(isAuthError: false);
+    _handleDisconnect();
   }
 
   void _startPingHeartbeat() {
@@ -121,21 +115,11 @@ class WebSocketClient {
     });
   }
 
-  void _handleDisconnect({bool isAuthError = false}) async {
+  void _handleDisconnect() {
     _isConnected = false;
     _pingTimer?.cancel();
 
-    if (_explicitlyDisconnected) {
-      debugPrint('[WebSocket] Closed due to explicit disconnect (Off Duty / Logout).');
-      return;
-    }
-
-    if (isAuthError && _sessionManager != null) {
-      debugPrint('[WebSocket Rider] Auth error detected on socket. Triggering token refresh...');
-      await _sessionManager!.refreshSession(force: true);
-    }
-
-    if (_currentDriverId != null) {
+    if (!_explicitlyDisconnected && _currentDriverId != null && _currentToken != null) {
       _reconnectAttempts++;
       final delaySeconds = (_reconnectAttempts * 2).clamp(2, 30);
       debugPrint('[WebSocket] Unexpected disconnect. Reconnecting in ${delaySeconds}s (attempt $_reconnectAttempts)...');
@@ -145,6 +129,8 @@ class WebSocketClient {
           _establishConnection();
         }
       });
+    } else if (_explicitlyDisconnected) {
+      debugPrint('[WebSocket] Closed due to explicit disconnect (Off Duty / Logout).');
     }
   }
 
@@ -185,5 +171,55 @@ class WebSocketClient {
     _isConnected = false;
     _currentDriverId = null;
     _currentToken = null;
+  }
+
+  Future<String?> _refreshAccessToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final refreshToken = prefs.getString('user_refresh_token') ?? prefs.getString('refresh_token');
+
+      if (refreshToken == null || refreshToken.isEmpty) {
+        debugPrint('[WebSocket] No refresh token found.');
+        return null;
+      }
+
+      final refreshDio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      ));
+
+      const refreshUrl = 'http://15.252.129.37:8200/api/v1/auth/refresh';
+      final response = await refreshDio.post(
+        refreshUrl,
+        data: {'refresh_token': refreshToken},
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final resData = response.data;
+        if (resData['success'] == true && resData['data'] != null) {
+          final data = resData['data'] as Map<String, dynamic>;
+          final newAccess = data['access_token'] as String?;
+          final newRefresh = data['refresh_token'] as String?;
+
+          if (newAccess != null && newAccess.isNotEmpty) {
+            await prefs.setString('user_token', newAccess);
+            await prefs.setString('access_token', newAccess);
+            if (newRefresh != null && newRefresh.isNotEmpty) {
+              await prefs.setString('user_refresh_token', newRefresh);
+              await prefs.setString('refresh_token', newRefresh);
+            }
+            debugPrint('[WebSocket] Token refresh successful.');
+            return newAccess;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[WebSocket] Refresh token error: $e');
+    }
+    return null;
   }
 }

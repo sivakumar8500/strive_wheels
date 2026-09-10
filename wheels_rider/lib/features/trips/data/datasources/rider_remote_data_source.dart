@@ -10,7 +10,13 @@ abstract class RiderRemoteDataSource {
   Future<BookingActionResponse> acceptBooking(int bookingId);
   Future<BookingActionResponse> markArrived(int bookingId);
   Future<BookingActionResponse> startTrip({required int bookingId, required String otp});
-  Future<BookingActionResponse> completeTrip({required int bookingId, required double distanceKm, required int durationMins});
+  Future<BookingActionResponse> completeTrip({
+    required int bookingId,
+    required double distanceKm,
+    required int durationMins,
+    double? riderLat,
+    double? riderLng,
+  });
 }
 
 class RiderRemoteDataSourceImpl implements RiderRemoteDataSource {
@@ -85,12 +91,23 @@ class RiderRemoteDataSourceImpl implements RiderRemoteDataSource {
   }
 
   @override
-  Future<BookingActionResponse> completeTrip({required int bookingId, required double distanceKm, required int durationMins}) async {
+  Future<BookingActionResponse> completeTrip({
+    required int bookingId,
+    required double distanceKm,
+    required int durationMins,
+    double? riderLat,
+    double? riderLng,
+  }) async {
     final response = await apiClient.post(
       ApiEndpoints.completeTrip(bookingId),
       data: {
+        'booking_id': bookingId,
         'actual_distance_km': distanceKm,
+        'distance_km': distanceKm,
         'actual_duration_mins': durationMins,
+        'duration_mins': durationMins,
+        if (riderLat != null) 'rider_lat': riderLat,
+        if (riderLng != null) 'rider_lng': riderLng,
       },
     );
     return BookingActionResponse.fromJson(response.data);
