@@ -24,6 +24,8 @@ class ActiveTripPage extends StatefulWidget {
   final double? riderLng;
   /// Called when OTP is verified and the trip transitions to in-progress.
   final VoidCallback? onTripStarted;
+  /// Called when the trip is completed.
+  final VoidCallback? onTripCompleted;
 
   const ActiveTripPage({
     super.key,
@@ -38,6 +40,7 @@ class ActiveTripPage extends StatefulWidget {
     this.riderLat,
     this.riderLng,
     this.onTripStarted,
+    this.onTripCompleted,
   });
 
   @override
@@ -184,6 +187,7 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
       );
       setState(() => _isLoading = false);
       if (mounted) {
+        widget.onTripCompleted?.call();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Trip Completed Successfully!')),
         );
@@ -192,6 +196,7 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
+        widget.onTripCompleted?.call();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Trip Completed Successfully!')),
         );

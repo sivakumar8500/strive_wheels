@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -23,6 +24,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../../../trips/presentation/pages/active_trip_page.dart';
 import '../../domain/entities/ride_request_entity.dart';
+import '../data/models/ride_request_model.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/navigation_service.dart';
@@ -89,6 +91,77 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _navigationService = sl<NavigationService>();
     _loadCustomMarker();
     _startLocationTracking();
+    _restoreActiveRideState();
+  }
+
+  Future<void> _saveActiveRideState() async {
+    if (_currentRideRequest == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final map = {
+        'id': _currentRideRequest!.id,
+        'booking_id': _currentRideRequest!.id,
+        'pickup_address': _currentRideRequest!.pickupAddress,
+        'drop_address': _currentRideRequest!.dropAddress,
+        'estimated_fare': _currentRideRequest!.estimatedFare,
+        'pickup_lat': _currentRideRequest!.pickupLat,
+        'pickup_lng': _currentRideRequest!.pickupLng,
+        'drop_lat': _currentRideRequest!.dropLat,
+        'drop_lng': _currentRideRequest!.dropLng,
+      };
+      await prefs.setString('active_ride_request_json', jsonEncode(map));
+      await prefs.setBool('active_trip_started', _isTripStarted);
+    } catch (e) {
+      debugPrint('Error saving active ride state: $e');
+    }
+  }
+
+  Future<void> _clearActiveRideState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('active_ride_request_json');
+      await prefs.remove('active_trip_started');
+    } catch (e) {
+      debugPrint('Error clearing active ride state: $e');
+    }
+    if (mounted) {
+      setState(() {
+        _hasActiveRideRequest = false;
+        _currentRideRequest = null;
+        _isTripStarted = false;
+        _isRideRequestMinimized = false;
+        _navigationPolylinePoints = [];
+        _navigationSteps = [];
+        _currentManeuverStep = null;
+      });
+    }
+  }
+
+  Future<void> _restoreActiveRideState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString('active_ride_request_json');
+      final isStarted = prefs.getBool('active_trip_started') ?? false;
+
+      if (jsonStr != null && jsonStr.isNotEmpty) {
+        final Map<String, dynamic> jsonMap = jsonDecode(jsonStr);
+        final model = RideRequestModel.fromJson(jsonMap);
+        final entity = model.toEntity();
+
+        if (mounted) {
+          setState(() {
+            _currentRideRequest = entity;
+            _hasActiveRideRequest = false;
+            _isTripStarted = isStarted;
+            _isOnDuty = true;
+          });
+
+          _fetchNavigationRoute();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error restoring active ride state: $e');
+    }
   }
 
   Future<void> _fetchNavigationRoute() async {
@@ -275,6 +348,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 _userToken = prefs.getString('user_token') ?? '';
                 _driverId = state.profile.id;
 
+                await _restoreActiveRideState();
+
                 if (_isOnDuty && _driverId != null) {
                   _startLocationTracking();
                   _bookingBloc.add(ConnectWebSocketEvent(
@@ -302,6 +377,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   _isManualPan = false;
                   _isOnDuty = true;
                 });
+                _saveActiveRideState();
                 final String mode = _rideType == 'Corporate' ? 'EMPLOYEE' : 'NORMAL';
                 _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: true));
                 _fetchNavigationRoute();
@@ -318,15 +394,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 );
               } else if (state is RideCancelledState) {
                 // User cancelled — reset all ride state on rider side
-                setState(() {
-                  _hasActiveRideRequest = false;
-                  _currentRideRequest = null;
-                  _isTripStarted = false;
-                  _isRideRequestMinimized = false;
-                  _navigationPolylinePoints = [];
-                  _navigationSteps = [];
-                  _currentManeuverStep = null;
-                });
+                _clearActiveRideState();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(state.reason.isNotEmpty ? state.reason : 'Ride cancelled by customer'),
@@ -1132,6 +1200,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     child: ElevatedButton(
                       onPressed: () {
                         setState(() => _isOnDuty = true);
+                        _saveActiveRideState();
                         final String mode = _rideType == 'Corporate' ? 'EMPLOYEE' : 'NORMAL';
                         _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: true));
                         _bookingBloc.add(AcceptRideEvent(ride.id));
@@ -1302,6 +1371,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   GestureDetector(
                     onTap: () {
                       setState(() => _isOnDuty = true);
+                      _saveActiveRideState();
                       final String mode = _rideType == 'Corporate' ? 'EMPLOYEE' : 'NORMAL';
                       _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: true));
                       _bookingBloc.add(AcceptRideEvent(ride.id));
@@ -1471,7 +1541,16 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     riderLng: _currentLatLng?.longitude,
                     onTripStarted: () {
                       // OTP verified — unlock pickup→drop route on the home map
-                      if (mounted) setState(() => _isTripStarted = true);
+                      if (mounted) {
+                        setState(() => _isTripStarted = true);
+                        _saveActiveRideState();
+                        _fetchNavigationRoute();
+                      }
+                    },
+                    onTripCompleted: () {
+                      if (mounted) {
+                        _clearActiveRideState();
+                      }
                     },
                   ),
                 ),
