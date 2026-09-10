@@ -11,6 +11,8 @@ import 'core/theme/presentation/bloc/theme_bloc.dart';
 import 'features/splash/presentation/bloc/splash_bloc.dart';
 import 'features/splash/presentation/pages/splash_page.dart';
 
+import 'core/network/session_manager.dart';
+
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
@@ -23,8 +25,35 @@ void main() async {
   runApp(const WheelsRiderApp());
 }
 
-class WheelsRiderApp extends StatelessWidget {
+class WheelsRiderApp extends StatefulWidget {
   const WheelsRiderApp({super.key});
+
+  @override
+  State<WheelsRiderApp> createState() => _WheelsRiderAppState();
+}
+
+class _WheelsRiderAppState extends State<WheelsRiderApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (sl.isRegistered<SessionManager>()) {
+        debugPrint('[WheelsRiderApp] App resumed. Proactively checking access token...');
+        sl<SessionManager>().getValidAccessToken();
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -5,12 +5,14 @@ import 'package:web_socket_channel/status.dart' as status;
 import 'package:flutter/foundation.dart';
 
 import 'api_endpoints.dart';
+import 'session_manager.dart';
 
 class WebSocketClient {
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
   Timer? _pingTimer;
   Timer? _reconnectTimer;
+  SessionManager? _sessionManager;
   
   final _messageController = StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get messageStream => _messageController.stream;
@@ -23,9 +25,14 @@ class WebSocketClient {
   int _reconnectAttempts = 0;
   bool _explicitlyDisconnected = false;
 
-  void connect(int driverId, String token) {
+  void setSessionManager(SessionManager sessionManager) {
+    _sessionManager = sessionManager;
+  }
+
+  void connect(int driverId, String token, {SessionManager? sessionManager}) {
     _currentDriverId = driverId;
     _currentToken = token;
+    if (sessionManager != null) _sessionManager = sessionManager;
     _explicitlyDisconnected = false;
     if (_isConnected) {
       debugPrint('[WebSocket] Connect requested but already connected.');
@@ -35,7 +42,16 @@ class WebSocketClient {
   }
 
   Future<void> _establishConnection() async {
-    if (_currentDriverId == null || _currentToken == null) return;
+    if (_currentDriverId == null) return;
+
+    if (_sessionManager != null) {
+      final validToken = await _sessionManager!.getValidAccessToken();
+      if (validToken != null && validToken.isNotEmpty) {
+        _currentToken = validToken;
+      }
+    }
+
+    if (_currentToken == null || _currentToken!.isEmpty) return;
 
     final candidateUrls = [
       '${ApiEndpoints.wsDriverConnect(_currentDriverId!)}?token=$_currentToken',
@@ -72,12 +88,14 @@ class WebSocketClient {
             }
           },
           onDone: () {
-            debugPrint('[WebSocket] Connection closed (onDone)');
-            _handleDisconnect();
+            final closeCode = _channel?.closeCode;
+            debugPrint('[WebSocket] Connection closed (onDone). Code: $closeCode');
+            final isAuthClose = closeCode == 4001 || closeCode == 4003;
+            _handleDisconnect(isAuthError: isAuthClose);
           },
           onError: (error) {
             debugPrint('[WebSocket] Connection error: $error');
-            _handleDisconnect();
+            _handleDisconnect(isAuthError: true);
           },
         );
         return; // Successfully connected!
@@ -88,7 +106,7 @@ class WebSocketClient {
 
     // If all candidate URLs failed
     debugPrint('[WebSocket] All endpoint candidates failed to upgrade connection.');
-    _handleDisconnect();
+    _handleDisconnect(isAuthError: false);
   }
 
   void _startPingHeartbeat() {
@@ -103,11 +121,21 @@ class WebSocketClient {
     });
   }
 
-  void _handleDisconnect() {
+  void _handleDisconnect({bool isAuthError = false}) async {
     _isConnected = false;
     _pingTimer?.cancel();
 
-    if (!_explicitlyDisconnected && _currentDriverId != null && _currentToken != null) {
+    if (_explicitlyDisconnected) {
+      debugPrint('[WebSocket] Closed due to explicit disconnect (Off Duty / Logout).');
+      return;
+    }
+
+    if (isAuthError && _sessionManager != null) {
+      debugPrint('[WebSocket Rider] Auth error detected on socket. Triggering token refresh...');
+      await _sessionManager!.refreshSession(force: true);
+    }
+
+    if (_currentDriverId != null) {
       _reconnectAttempts++;
       final delaySeconds = (_reconnectAttempts * 2).clamp(2, 30);
       debugPrint('[WebSocket] Unexpected disconnect. Reconnecting in ${delaySeconds}s (attempt $_reconnectAttempts)...');
@@ -117,8 +145,6 @@ class WebSocketClient {
           _establishConnection();
         }
       });
-    } else if (_explicitlyDisconnected) {
-      debugPrint('[WebSocket] Closed due to explicit disconnect (Off Duty / Logout).');
     }
   }
 

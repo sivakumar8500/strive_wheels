@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -87,6 +88,10 @@ import '../../features/earnings/presentation/bloc/earnings_bloc.dart';
 
 import '../services/navigation_service.dart';
 
+import '../network/session_manager.dart';
+import '../../main.dart';
+import '../../features/auth/presentation/pages/login_page.dart';
+
 final sl = GetIt.instance;
 
 Future<void> initDependencyInjection() async {
@@ -100,13 +105,31 @@ Future<void> initDependencyInjection() async {
   if (!sl.isRegistered<SharedPreferences>()) {
     sl.registerLazySingleton<SharedPreferences>(() => sharedPreferences);
   }
+
+  if (!sl.isRegistered<SessionManager>()) {
+    sl.registerLazySingleton<SessionManager>(
+      () => SessionManager(sharedPreferences),
+    );
+    sl<SessionManager>().onSessionExpired = () {
+      if (navigatorKey.currentContext != null) {
+        Navigator.of(navigatorKey.currentContext!).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
+        );
+      }
+    };
+  }
   
   if (!sl.isRegistered<Dio>()) {
     sl.registerLazySingleton<Dio>(() => Dio());
   }
 
   if (!sl.isRegistered<WebSocketClient>()) {
-    sl.registerLazySingleton<WebSocketClient>(() => WebSocketClient());
+    sl.registerLazySingleton<WebSocketClient>(() {
+      final ws = WebSocketClient();
+      ws.setSessionManager(sl<SessionManager>());
+      return ws;
+    });
   }
 
   // Network
@@ -114,6 +137,7 @@ Future<void> initDependencyInjection() async {
     sl.registerLazySingleton<ApiClient>(() => ApiClient(
       sl(),
       sl(),
+      sessionManager: sl<SessionManager>(),
     ));
   }
 

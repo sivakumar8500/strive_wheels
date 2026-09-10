@@ -1,7 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 abstract class AuthLocalDataSource {
-  Future<void> cacheUserToken(String token);
+  Future<void> cacheUserToken(String token, {String? refreshToken});
   Future<void> cacheAuthData({
     required bool isAuthenticated,
     required String authStatus,
@@ -16,8 +16,13 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   AuthLocalDataSourceImpl({required this.sharedPreferences});
 
   @override
-  Future<void> cacheUserToken(String token) async {
+  Future<void> cacheUserToken(String token, {String? refreshToken}) async {
     await sharedPreferences.setString('user_token', token);
+    await sharedPreferences.setString('access_token', token);
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      await sharedPreferences.setString('user_refresh_token', refreshToken);
+      await sharedPreferences.setString('refresh_token', refreshToken);
+    }
   }
 
   @override

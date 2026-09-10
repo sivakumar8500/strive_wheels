@@ -13,6 +13,7 @@ class MockAcceptBookingUseCase extends Mock implements AcceptBookingUseCase {}
 class MockGetRideRequestsStreamUseCase extends Mock implements GetRideRequestsStreamUseCase {}
 class MockGetBookingSuccessStreamUseCase extends Mock implements GetBookingSuccessStreamUseCase {}
 class MockGetBookingErrorStreamUseCase extends Mock implements GetBookingErrorStreamUseCase {}
+class MockGetRideCancelledStreamUseCase extends Mock implements GetRideCancelledStreamUseCase {}
 class MockSendLocationPingUseCase extends Mock implements SendLocationPingUseCase {}
 
 void main() {
@@ -22,6 +23,7 @@ void main() {
   late MockGetRideRequestsStreamUseCase mockGetRideRequestsStreamUseCase;
   late MockGetBookingSuccessStreamUseCase mockGetBookingSuccessStreamUseCase;
   late MockGetBookingErrorStreamUseCase mockGetBookingErrorStreamUseCase;
+  late MockGetRideCancelledStreamUseCase mockGetRideCancelledStreamUseCase;
   late MockSendLocationPingUseCase mockSendLocationPingUseCase;
 
   setUp(() {
@@ -31,11 +33,13 @@ void main() {
     mockGetRideRequestsStreamUseCase = MockGetRideRequestsStreamUseCase();
     mockGetBookingSuccessStreamUseCase = MockGetBookingSuccessStreamUseCase();
     mockGetBookingErrorStreamUseCase = MockGetBookingErrorStreamUseCase();
+    mockGetRideCancelledStreamUseCase = MockGetRideCancelledStreamUseCase();
     mockSendLocationPingUseCase = MockSendLocationPingUseCase();
 
     when(() => mockGetRideRequestsStreamUseCase()).thenAnswer((_) => const Stream.empty());
     when(() => mockGetBookingSuccessStreamUseCase()).thenAnswer((_) => const Stream.empty());
     when(() => mockGetBookingErrorStreamUseCase()).thenAnswer((_) => const Stream.empty());
+    when(() => mockGetRideCancelledStreamUseCase()).thenAnswer((_) => const Stream.empty());
   });
 
   group('BookingBloc', () {
@@ -51,6 +55,7 @@ void main() {
         getRideRequestsStream: mockGetRideRequestsStreamUseCase,
         getBookingSuccessStream: mockGetBookingSuccessStreamUseCase,
         getBookingErrorStream: mockGetBookingErrorStreamUseCase,
+        getRideCancelledStream: mockGetRideCancelledStreamUseCase,
         sendLocationPing: mockSendLocationPingUseCase,
       );
     }

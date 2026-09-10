@@ -6,13 +6,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../main.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import 'session_manager.dart';
 
 class ApiClient {
   final Dio _dio;
   final SharedPreferences _sharedPreferences;
-  static Future<String?>? _refreshTokenFuture;
+  final SessionManager? _sessionManager;
 
-  ApiClient(this._dio, this._sharedPreferences) {
+  ApiClient(this._dio, this._sharedPreferences, {SessionManager? sessionManager})
+      : _sessionManager = sessionManager {
     _dio.options.connectTimeout = const Duration(seconds: 30);
     _dio.options.receiveTimeout = const Duration(seconds: 30);
     _dio.options.headers = {
@@ -23,9 +25,17 @@ class ApiClient {
     // Add interceptors for logging or token injection & automatic refresh
     _dio.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (options, handler) {
-          final token = _sharedPreferences.getString('user_token') ??
-                        _sharedPreferences.getString('access_token');
+        onRequest: (options, handler) async {
+          final isRefreshPath = options.path.contains('/auth/refresh') || options.path.contains('/refresh');
+          final isAuthPath = options.path.contains('/auth/send-otp') || options.path.contains('/auth/verify-otp');
+
+          String? token;
+          if (_sessionManager != null && !isRefreshPath && !isAuthPath) {
+            token = await _sessionManager!.getValidAccessToken();
+          } else {
+            token = _sharedPreferences.getString('user_token') ??
+                    _sharedPreferences.getString('access_token');
+          }
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
@@ -46,15 +56,6 @@ class ApiClient {
             print('===========================');
           }
 
-          final data = response.data;
-          if (data is Map && data['success'] == false) {
-            final message = data['message']?.toString() ?? '';
-            final errorCode = data['error'] != null && data['error'] is Map ? data['error']['code'] : null;
-            if (message == 'Invalid access token.' || errorCode == 'UNAUTHORIZED') {
-              _redirectToLogin();
-            }
-          }
-          
           return handler.next(response);
         },
         onError: (DioException e, handler) async {
@@ -72,21 +73,19 @@ class ApiClient {
             print('===========================');
           }
           
-          final data = e.response?.data;
-          final message = data is Map ? data['message']?.toString() : null;
-          final errorCode = data is Map && data['error'] != null && data['error'] is Map ? data['error']['code'] : null;
-          final is401 = e.response?.statusCode == 401 || message == 'Invalid access token.' || errorCode == 'UNAUTHORIZED';
+          final is401 = e.response?.statusCode == 401;
           final isRefreshPath = e.requestOptions.path.contains('/auth/refresh') || e.requestOptions.path.contains('/refresh');
+          final isAlreadyRetried = e.requestOptions.extra['is_retry'] == true;
 
-          if (is401 && !isRefreshPath) {
+          if (is401 && !isRefreshPath && !isAlreadyRetried) {
             try {
-              _refreshTokenFuture ??= _performTokenRefresh();
-              final newAccessToken = await _refreshTokenFuture;
-              _refreshTokenFuture = null;
+              final sessionMgr = _sessionManager ?? SessionManager(_sharedPreferences);
+              final newAccessToken = await sessionMgr.refreshSession(force: true);
 
               if (newAccessToken != null && newAccessToken.isNotEmpty) {
                 final retryOptions = e.requestOptions;
                 retryOptions.headers['Authorization'] = 'Bearer $newAccessToken';
+                retryOptions.extra['is_retry'] = true;
 
                 final retryDio = Dio(BaseOptions(
                   connectTimeout: const Duration(seconds: 30),
@@ -97,15 +96,8 @@ class ApiClient {
                 return handler.resolve(retriedResponse);
               }
             } catch (refreshError) {
-              _refreshTokenFuture = null;
               debugPrint('[ApiClient] Token refresh error: $refreshError');
-              await _redirectToLogin();
-              return handler.next(e);
             }
-          }
-
-          if (is401) {
-            await _redirectToLogin();
           }
           
           return handler.next(e);
