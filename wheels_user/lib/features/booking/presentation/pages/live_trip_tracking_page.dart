@@ -100,9 +100,16 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
         LatLng(widget.pickupLatLng.latitude - 0.005, widget.pickupLatLng.longitude - 0.005);
     _lastLocationTime = DateTime.now();
 
-    if (widget.initialStatus == 'TRIP_STARTED') {
+    final initStatus = widget.initialStatus.toUpperCase();
+    if (initStatus == 'TRIP_STARTED' ||
+        initStatus == 'IN_TRANSIT' ||
+        initStatus == 'ON_THE_WAY' ||
+        initStatus == 'STARTED' ||
+        initStatus == 'RIDER_TRIP_STARTED') {
       _phase = TripPhase.inTransit;
-    } else if (widget.initialStatus == 'DRIVER_ARRIVED' || widget.initialStatus == 'RIDER_ARRIVED') {
+    } else if (initStatus == 'DRIVER_ARRIVED' ||
+        initStatus == 'RIDER_ARRIVED' ||
+        initStatus == 'ARRIVED') {
       _phase = TripPhase.driverArrived;
     } else {
       _phase = TripPhase.navToPickup;
@@ -237,56 +244,71 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
           if (sl.isRegistered<ActiveBookingService>()) {
             sl<ActiveBookingService>().updateBookingStatus('DRIVER_ARRIVED');
           }
-        } else if (event == 'booking.started' ||
-            event == 'rider.trip_started' ||
-            event == 'booking.trip_started' ||
-            event == 'trip_started' ||
-            event == 'trip.started' ||
-            event == 'booking.otp_verified' ||
-            event == 'otp_verified' ||
-            event == 'ride.started' ||
-            event == 'booking.in_transit' ||
-            event == 'in_transit') {
-          setState(() {
-            _phase = TripPhase.inTransit;
-            _routePoints = _generateFallbackCurvePoints(_currentVehiclePos, widget.dropLatLng, 35);
-            _routeSteps = [];
-            _currentStep = null;
-          });
-          if (sl.isRegistered<ActiveBookingService>()) {
-            sl<ActiveBookingService>().updateBookingStatus('TRIP_STARTED');
-          }
-          _fetchRealRoadRoute(from: _currentVehiclePos, to: widget.dropLatLng, force: true);
-          _fitMapBounds();
-        } else if (event == 'booking.completed' || event == 'rider.trip_completed' || event == 'booking.trip_completed') {
-          if (sl.isRegistered<ActiveBookingService>()) {
-            sl<ActiveBookingService>().clearActiveBooking();
-          }
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => JourneyCompletePage(
-                driverName: widget.driverName,
-                vehicleInfo: widget.vehicleInfo,
-              ),
-            ),
-          );
-        } else if (event == 'booking.cancelled' ||
-            event == 'booking.rider_cancelled' ||
-            event == 'ride.cancelled' ||
-            event == 'booking.cancel_success') {
-          // Rider cancelled — clear state and go to home
-          if (sl.isRegistered<ActiveBookingService>()) {
-            sl<ActiveBookingService>().clearActiveBooking();
-          }
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Your ride was cancelled by the rider.'),
-                backgroundColor: Color(0xFFEF4444),
-                duration: Duration(seconds: 4),
+        } else {
+          final rawStatus = (data['status'] ?? data['booking']?['status'] ?? eventData['status'])?.toString().toUpperCase() ?? '';
+
+          final isTripStarted = event == 'booking.started' ||
+              event == 'rider.trip_started' ||
+              event == 'booking.trip_started' ||
+              event == 'trip_started' ||
+              event == 'trip.started' ||
+              event == 'booking.otp_verified' ||
+              event == 'otp_verified' ||
+              event == 'ride.started' ||
+              event == 'booking.in_transit' ||
+              event == 'in_transit' ||
+              (event == 'booking.updated' && (rawStatus == 'TRIP_STARTED' || rawStatus == 'IN_TRANSIT')) ||
+              rawStatus == 'TRIP_STARTED' ||
+              rawStatus == 'IN_TRANSIT' ||
+              rawStatus == 'ON_THE_WAY' ||
+              rawStatus == 'STARTED';
+
+          if (isTripStarted) {
+            if (_phase != TripPhase.inTransit) {
+              setState(() {
+                _phase = TripPhase.inTransit;
+                _lastRouteFetchTime = null;
+                _lastRouteFetchPos = null;
+                _routePoints = _generateFallbackCurvePoints(_currentVehiclePos, widget.dropLatLng, 35);
+                _routeSteps = [];
+                _currentStep = null;
+              });
+              if (sl.isRegistered<ActiveBookingService>()) {
+                sl<ActiveBookingService>().updateBookingStatus('TRIP_STARTED');
+              }
+              _fetchRealRoadRoute(from: _currentVehiclePos, to: widget.dropLatLng, force: true);
+              _fitMapBounds();
+            }
+          } else if (event == 'booking.completed' || event == 'rider.trip_completed' || event == 'booking.trip_completed') {
+            if (sl.isRegistered<ActiveBookingService>()) {
+              sl<ActiveBookingService>().clearActiveBooking();
+            }
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => JourneyCompletePage(
+                  driverName: widget.driverName,
+                  vehicleInfo: widget.vehicleInfo,
+                ),
               ),
             );
-            Navigator.of(context).popUntil((route) => route.isFirst);
+          } else if (event == 'booking.cancelled' ||
+              event == 'booking.rider_cancelled' ||
+              event == 'ride.cancelled' ||
+              event == 'booking.cancel_success') {
+            // Rider cancelled — clear state and go to home
+            if (sl.isRegistered<ActiveBookingService>()) {
+              sl<ActiveBookingService>().clearActiveBooking();
+            }
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Your ride was cancelled by the rider.'),
+                  backgroundColor: Color(0xFFEF4444),
+                  duration: Duration(seconds: 4),
+                ),
+              );
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            }
           }
         }
       });

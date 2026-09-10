@@ -71,9 +71,10 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
     if (!sl.isRegistered<CustomerWSController>()) return;
     _wsSubscription = sl<CustomerWSController>().bookingEventStream.listen((message) {
       final event = message['event'] as String? ?? '';
+      final data = message['data'] as Map<String, dynamic>? ?? {};
+      final rawStatus = (data['status'] ?? data['booking']?['status'] ?? message['status'])?.toString().toUpperCase() ?? '';
 
-      // OTP verified by rider — directly show map tracking screen
-      if (event == 'booking.started' ||
+      final isTripStarted = event == 'booking.started' ||
           event == 'rider.trip_started' ||
           event == 'booking.trip_started' ||
           event == 'trip_started' ||
@@ -82,7 +83,15 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
           event == 'otp_verified' ||
           event == 'ride.started' ||
           event == 'booking.in_transit' ||
-          event == 'in_transit') {
+          event == 'in_transit' ||
+          (event == 'booking.updated' && (rawStatus == 'TRIP_STARTED' || rawStatus == 'IN_TRANSIT')) ||
+          rawStatus == 'TRIP_STARTED' ||
+          rawStatus == 'IN_TRANSIT' ||
+          rawStatus == 'ON_THE_WAY' ||
+          rawStatus == 'STARTED';
+
+      // OTP verified by rider — directly show map tracking screen
+      if (isTripStarted) {
         if (sl.isRegistered<ActiveBookingService>()) {
           sl<ActiveBookingService>().updateBookingStatus('TRIP_STARTED');
         }

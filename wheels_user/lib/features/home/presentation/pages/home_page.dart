@@ -715,9 +715,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 : ValueNotifier<ActiveBookingData?>(null),
             builder: (context, activeData, _) {
               Widget currentContent;
-              if (activeData != null &&
-                  activeData.status == 'TRIP_STARTED' &&
-                  state.selectedNavIndex == 0) {
+              final activeStatus = activeData?.status.toUpperCase() ?? '';
+              final isTripActive = activeStatus == 'TRIP_STARTED' ||
+                  activeStatus == 'IN_TRANSIT' ||
+                  activeStatus == 'ON_THE_WAY' ||
+                  activeStatus == 'STARTED';
+
+              if (activeData != null && isTripActive && state.selectedNavIndex == 0) {
                 currentContent = LiveTripTrackingPage(
                   key: const ValueKey('home_embedded_live_trip'),
                   driverName: activeData.driverName,
@@ -729,7 +733,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   dropLatLng: activeData.dropLatLng,
                   initialRiderLatLng: activeData.initialRiderLatLng,
                   startOtp: activeData.startOtp,
-                  initialStatus: 'TRIP_STARTED',
+                  initialStatus: activeData.status,
                 );
               } else {
                 currentContent = mainContent;
