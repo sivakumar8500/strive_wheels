@@ -1,0 +1,43 @@
+import { Company } from "../types";
+
+export const MOCK_COMPANIES: Company[] = [
+  {
+    id: 1,
+    company_name: "Tech Corp",
+    registration_number: "TC12345",
+    contact_person: "Jane Doe",
+    contact_email: "jane@techcorp.com",
+    contact_phone: "+1234567890",
+    address: "123 Tech Park, Innovation Drive",
+    billing_type: "PREPAID",
+    credit_limit: 0,
+    current_balance: 5000,
+    status: "ACTIVE",
+  },
+  {
+    id: 2,
+    company_name: "Global Logistics",
+    registration_number: "GL98765",
+    contact_person: "John Smith",
+    contact_email: "john.s@globallogistics.com",
+    contact_phone: "+1987654321",
+    address: "Warehouse District, Sector 4",
+    billing_type: "POSTPAID",
+    credit_limit: 25000,
+    current_balance: -12000,
+    status: "ACTIVE",
+  },
+  {
+    id: 3,
+    company_name: "Acme Startups",
+    registration_number: "AC55443",
+    contact_person: "Alice Johnson",
+    contact_email: "alice@acme.io",
+    contact_phone: "+1122334455",
+    address: "Downtown Co-working Space",
+    billing_type: "POSTPAID",
+    credit_limit: 5000,
+    current_balance: -6000,
+    status: "SUSPENDED",
+  },
+];

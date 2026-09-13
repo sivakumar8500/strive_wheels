@@ -1,0 +1,115 @@
+import { DriverRegistration } from "../types";
+
+export const MOCK_DRIVER_REGISTRATIONS: DriverRegistration[] = [
+  {
+    id: 145,
+    user_id: 5002,
+    status: "PENDING",
+    current_step: 3,
+    progress_percentage: 100,
+    submitted_at: "2026-09-12T10:00:00Z",
+    personal_info: {
+      first_name: "Ramesh",
+      last_name: "Babu",
+      mobile_number: "+919876543210",
+    },
+    vehicle_details: {
+      vehicle_type_id: 2,
+      make: "Maruti Suzuki",
+      model: "Swift Dzire",
+      plate_number: "TS07EK8822",
+    },
+    documents: [
+      {
+        id: 101,
+        document_type: "DRIVING_LICENSE",
+        document_url: "https://images.unsplash.com/photo-1621360841013-c76831f12560?auto=format&fit=crop&q=80&w=400&h=300",
+        status: "PENDING",
+        rejection_reason: null,
+        uploaded_at: "2026-09-12T10:05:00Z",
+      },
+      {
+        id: 102,
+        document_type: "VEHICLE_RC",
+        document_url: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&q=80&w=400&h=300",
+        status: "PENDING",
+        rejection_reason: null,
+        uploaded_at: "2026-09-12T10:06:00Z",
+      },
+    ],
+  },
+  {
+    id: 146,
+    user_id: 5003,
+    status: "APPROVED",
+    current_step: 4,
+    progress_percentage: 100,
+    submitted_at: "2026-09-11T14:30:00Z",
+    personal_info: {
+      first_name: "Suresh",
+      last_name: "Kumar",
+      mobile_number: "+919876543211",
+    },
+    vehicle_details: {
+      vehicle_type_id: 1,
+      make: "Honda",
+      model: "Activa 6G",
+      plate_number: "TS09AA1234",
+    },
+    documents: [
+      {
+        id: 103,
+        document_type: "DRIVING_LICENSE",
+        document_url: "https://images.unsplash.com/photo-1621360841013-c76831f12560?auto=format&fit=crop&q=80&w=400&h=300",
+        status: "APPROVED",
+        rejection_reason: null,
+        uploaded_at: "2026-09-11T14:35:00Z",
+      },
+      {
+        id: 104,
+        document_type: "VEHICLE_RC",
+        document_url: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&q=80&w=400&h=300",
+        status: "APPROVED",
+        rejection_reason: null,
+        uploaded_at: "2026-09-11T14:36:00Z",
+      },
+    ],
+  },
+  {
+    id: 147,
+    user_id: 5004,
+    status: "REJECTED",
+    current_step: 3,
+    progress_percentage: 100,
+    submitted_at: "2026-09-10T09:15:00Z",
+    personal_info: {
+      first_name: "Vikram",
+      last_name: "Singh",
+      mobile_number: "+919876543212",
+    },
+    vehicle_details: {
+      vehicle_type_id: 3,
+      make: "Toyota",
+      model: "Innova Crysta",
+      plate_number: "AP29BL4567",
+    },
+    documents: [
+      {
+        id: 105,
+        document_type: "DRIVING_LICENSE",
+        document_url: "https://images.unsplash.com/photo-1621360841013-c76831f12560?auto=format&fit=crop&q=80&w=400&h=300",
+        status: "APPROVED",
+        rejection_reason: null,
+        uploaded_at: "2026-09-10T09:20:00Z",
+      },
+      {
+        id: 106,
+        document_type: "VEHICLE_RC",
+        document_url: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&q=80&w=400&h=300",
+        status: "REJECTED",
+        rejection_reason: "Document image is blurred and unreadable. Please re-upload a clear image.",
+        uploaded_at: "2026-09-10T09:21:00Z",
+      },
+    ],
+  },
+];
