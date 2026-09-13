@@ -13,7 +13,9 @@ class MockAcceptBookingUseCase extends Mock implements AcceptBookingUseCase {}
 class MockGetRideRequestsStreamUseCase extends Mock implements GetRideRequestsStreamUseCase {}
 class MockGetBookingSuccessStreamUseCase extends Mock implements GetBookingSuccessStreamUseCase {}
 class MockGetBookingErrorStreamUseCase extends Mock implements GetBookingErrorStreamUseCase {}
+class MockGetRideCancelledStreamUseCase extends Mock implements GetRideCancelledStreamUseCase {}
 class MockSendLocationPingUseCase extends Mock implements SendLocationPingUseCase {}
+class MockCancelBookingUseCase extends Mock implements CancelBookingUseCase {}
 
 void main() {
   late MockConnectToBookingSocketUseCase mockConnectToBookingSocketUseCase;
@@ -22,7 +24,9 @@ void main() {
   late MockGetRideRequestsStreamUseCase mockGetRideRequestsStreamUseCase;
   late MockGetBookingSuccessStreamUseCase mockGetBookingSuccessStreamUseCase;
   late MockGetBookingErrorStreamUseCase mockGetBookingErrorStreamUseCase;
+  late MockGetRideCancelledStreamUseCase mockGetRideCancelledStreamUseCase;
   late MockSendLocationPingUseCase mockSendLocationPingUseCase;
+  late MockCancelBookingUseCase mockCancelBookingUseCase;
 
   setUp(() {
     mockConnectToBookingSocketUseCase = MockConnectToBookingSocketUseCase();
@@ -31,11 +35,14 @@ void main() {
     mockGetRideRequestsStreamUseCase = MockGetRideRequestsStreamUseCase();
     mockGetBookingSuccessStreamUseCase = MockGetBookingSuccessStreamUseCase();
     mockGetBookingErrorStreamUseCase = MockGetBookingErrorStreamUseCase();
+    mockGetRideCancelledStreamUseCase = MockGetRideCancelledStreamUseCase();
     mockSendLocationPingUseCase = MockSendLocationPingUseCase();
+    mockCancelBookingUseCase = MockCancelBookingUseCase();
 
     when(() => mockGetRideRequestsStreamUseCase()).thenAnswer((_) => const Stream.empty());
     when(() => mockGetBookingSuccessStreamUseCase()).thenAnswer((_) => const Stream.empty());
     when(() => mockGetBookingErrorStreamUseCase()).thenAnswer((_) => const Stream.empty());
+    when(() => mockGetRideCancelledStreamUseCase()).thenAnswer((_) => const Stream.empty());
   });
 
   group('BookingBloc', () {
@@ -51,7 +58,9 @@ void main() {
         getRideRequestsStream: mockGetRideRequestsStreamUseCase,
         getBookingSuccessStream: mockGetBookingSuccessStreamUseCase,
         getBookingErrorStream: mockGetBookingErrorStreamUseCase,
+        getRideCancelledStream: mockGetRideCancelledStreamUseCase,
         sendLocationPing: mockSendLocationPingUseCase,
+        cancelBookingUseCase: mockCancelBookingUseCase,
       );
     }
 
@@ -142,6 +151,19 @@ void main() {
         ),
       )),
       expect: () => [isA<NewRideRequestState>()],
+    );
+
+    blocTest<BookingBloc, BookingState>(
+      'emits [RideCancelledState] and calls CancelBookingUseCase when CancelRideEvent is added',
+      build: () {
+        when(() => mockCancelBookingUseCase(tBookingId, reason: 'Vehicle issue')).thenReturn(null);
+        return buildBloc();
+      },
+      act: (bloc) => bloc.add(CancelRideEvent(bookingId: tBookingId, reason: 'Vehicle issue')),
+      expect: () => [isA<RideCancelledState>()],
+      verify: (_) {
+        verify(() => mockCancelBookingUseCase(tBookingId, reason: 'Vehicle issue')).called(1);
+      },
     );
   });
 }

@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$OtpVerificationModel {
 
-@JsonKey(name: 'phone') String get fullPhoneNumber;@JsonKey(name: 'otp') String get otpCode;
+@JsonKey(name: 'phone') String get fullPhoneNumber;@JsonKey(name: 'otp') String get otpCode;@JsonKey(name: 'full_name') String? get fullName;@JsonKey(name: 'role') String get role;
 /// Create a copy of OtpVerificationModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $OtpVerificationModelCopyWith<OtpVerificationModel> get copyWith => _$OtpVerific
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is OtpVerificationModel&&(identical(other.fullPhoneNumber, fullPhoneNumber) || other.fullPhoneNumber == fullPhoneNumber)&&(identical(other.otpCode, otpCode) || other.otpCode == otpCode));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OtpVerificationModel&&(identical(other.fullPhoneNumber, fullPhoneNumber) || other.fullPhoneNumber == fullPhoneNumber)&&(identical(other.otpCode, otpCode) || other.otpCode == otpCode)&&(identical(other.fullName, fullName) || other.fullName == fullName)&&(identical(other.role, role) || other.role == role));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,fullPhoneNumber,otpCode);
+int get hashCode => Object.hash(runtimeType,fullPhoneNumber,otpCode,fullName,role);
 
 @override
 String toString() {
-  return 'OtpVerificationModel(fullPhoneNumber: $fullPhoneNumber, otpCode: $otpCode)';
+  return 'OtpVerificationModel(fullPhoneNumber: $fullPhoneNumber, otpCode: $otpCode, fullName: $fullName, role: $role)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $OtpVerificationModelCopyWith<$Res>  {
   factory $OtpVerificationModelCopyWith(OtpVerificationModel value, $Res Function(OtpVerificationModel) _then) = _$OtpVerificationModelCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'phone') String fullPhoneNumber,@JsonKey(name: 'otp') String otpCode
+@JsonKey(name: 'phone') String fullPhoneNumber,@JsonKey(name: 'otp') String otpCode,@JsonKey(name: 'full_name') String? fullName,@JsonKey(name: 'role') String role
 });
 
 
@@ -65,10 +65,12 @@ class _$OtpVerificationModelCopyWithImpl<$Res>
 
 /// Create a copy of OtpVerificationModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? fullPhoneNumber = null,Object? otpCode = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? fullPhoneNumber = null,Object? otpCode = null,Object? fullName = freezed,Object? role = null,}) {
   return _then(_self.copyWith(
 fullPhoneNumber: null == fullPhoneNumber ? _self.fullPhoneNumber : fullPhoneNumber // ignore: cast_nullable_to_non_nullable
 as String,otpCode: null == otpCode ? _self.otpCode : otpCode // ignore: cast_nullable_to_non_nullable
+as String,fullName: freezed == fullName ? _self.fullName : fullName // ignore: cast_nullable_to_non_nullable
+as String?,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }
@@ -154,10 +156,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'phone')  String fullPhoneNumber, @JsonKey(name: 'otp')  String otpCode)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'phone')  String fullPhoneNumber, @JsonKey(name: 'otp')  String otpCode, @JsonKey(name: 'full_name')  String? fullName, @JsonKey(name: 'role')  String role)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _OtpVerificationModel() when $default != null:
-return $default(_that.fullPhoneNumber,_that.otpCode);case _:
+return $default(_that.fullPhoneNumber,_that.otpCode,_that.fullName,_that.role);case _:
   return orElse();
 
 }
@@ -175,10 +177,10 @@ return $default(_that.fullPhoneNumber,_that.otpCode);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'phone')  String fullPhoneNumber, @JsonKey(name: 'otp')  String otpCode)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'phone')  String fullPhoneNumber, @JsonKey(name: 'otp')  String otpCode, @JsonKey(name: 'full_name')  String? fullName, @JsonKey(name: 'role')  String role)  $default,) {final _that = this;
 switch (_that) {
 case _OtpVerificationModel():
-return $default(_that.fullPhoneNumber,_that.otpCode);case _:
+return $default(_that.fullPhoneNumber,_that.otpCode,_that.fullName,_that.role);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -195,10 +197,10 @@ return $default(_that.fullPhoneNumber,_that.otpCode);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'phone')  String fullPhoneNumber, @JsonKey(name: 'otp')  String otpCode)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'phone')  String fullPhoneNumber, @JsonKey(name: 'otp')  String otpCode, @JsonKey(name: 'full_name')  String? fullName, @JsonKey(name: 'role')  String role)?  $default,) {final _that = this;
 switch (_that) {
 case _OtpVerificationModel() when $default != null:
-return $default(_that.fullPhoneNumber,_that.otpCode);case _:
+return $default(_that.fullPhoneNumber,_that.otpCode,_that.fullName,_that.role);case _:
   return null;
 
 }
@@ -210,11 +212,13 @@ return $default(_that.fullPhoneNumber,_that.otpCode);case _:
 @JsonSerializable()
 
 class _OtpVerificationModel extends OtpVerificationModel {
-  const _OtpVerificationModel({@JsonKey(name: 'phone') required this.fullPhoneNumber, @JsonKey(name: 'otp') required this.otpCode}): super._();
+  const _OtpVerificationModel({@JsonKey(name: 'phone') required this.fullPhoneNumber, @JsonKey(name: 'otp') required this.otpCode, @JsonKey(name: 'full_name') this.fullName, @JsonKey(name: 'role') this.role = 'CUSTOMER'}): super._();
   factory _OtpVerificationModel.fromJson(Map<String, dynamic> json) => _$OtpVerificationModelFromJson(json);
 
 @override@JsonKey(name: 'phone') final  String fullPhoneNumber;
 @override@JsonKey(name: 'otp') final  String otpCode;
+@override@JsonKey(name: 'full_name') final  String? fullName;
+@override@JsonKey(name: 'role') final  String role;
 
 /// Create a copy of OtpVerificationModel
 /// with the given fields replaced by the non-null parameter values.
@@ -229,16 +233,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OtpVerificationModel&&(identical(other.fullPhoneNumber, fullPhoneNumber) || other.fullPhoneNumber == fullPhoneNumber)&&(identical(other.otpCode, otpCode) || other.otpCode == otpCode));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OtpVerificationModel&&(identical(other.fullPhoneNumber, fullPhoneNumber) || other.fullPhoneNumber == fullPhoneNumber)&&(identical(other.otpCode, otpCode) || other.otpCode == otpCode)&&(identical(other.fullName, fullName) || other.fullName == fullName)&&(identical(other.role, role) || other.role == role));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,fullPhoneNumber,otpCode);
+int get hashCode => Object.hash(runtimeType,fullPhoneNumber,otpCode,fullName,role);
 
 @override
 String toString() {
-  return 'OtpVerificationModel(fullPhoneNumber: $fullPhoneNumber, otpCode: $otpCode)';
+  return 'OtpVerificationModel(fullPhoneNumber: $fullPhoneNumber, otpCode: $otpCode, fullName: $fullName, role: $role)';
 }
 
 
@@ -249,7 +253,7 @@ abstract mixin class _$OtpVerificationModelCopyWith<$Res> implements $OtpVerific
   factory _$OtpVerificationModelCopyWith(_OtpVerificationModel value, $Res Function(_OtpVerificationModel) _then) = __$OtpVerificationModelCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'phone') String fullPhoneNumber,@JsonKey(name: 'otp') String otpCode
+@JsonKey(name: 'phone') String fullPhoneNumber,@JsonKey(name: 'otp') String otpCode,@JsonKey(name: 'full_name') String? fullName,@JsonKey(name: 'role') String role
 });
 
 
@@ -266,10 +270,12 @@ class __$OtpVerificationModelCopyWithImpl<$Res>
 
 /// Create a copy of OtpVerificationModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? fullPhoneNumber = null,Object? otpCode = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? fullPhoneNumber = null,Object? otpCode = null,Object? fullName = freezed,Object? role = null,}) {
   return _then(_OtpVerificationModel(
 fullPhoneNumber: null == fullPhoneNumber ? _self.fullPhoneNumber : fullPhoneNumber // ignore: cast_nullable_to_non_nullable
 as String,otpCode: null == otpCode ? _self.otpCode : otpCode // ignore: cast_nullable_to_non_nullable
+as String,fullName: freezed == fullName ? _self.fullName : fullName // ignore: cast_nullable_to_non_nullable
+as String?,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }

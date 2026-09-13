@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../home/presentation/pages/home_page.dart';
 import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
 
 /// Screen displayed after trip completes matching the user's journey complete reference UI design.
@@ -321,7 +322,7 @@ class _JourneyCompletePageState extends State<JourneyCompletePage> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Thank you for your feedback!')),
                         );
-                        Navigator.of(context).popUntil((route) => route.isFirst);
+                        Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryBlue,
@@ -352,7 +353,7 @@ class _JourneyCompletePageState extends State<JourneyCompletePage> {
         selectedIndex: 0,
         onTabSelected: (index) {
           if (index == 0) {
-            Navigator.of(context).popUntil((route) => route.isFirst);
+            Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
           }
         },
       ),

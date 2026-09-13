@@ -7,15 +7,18 @@ part of 'availability_response.dart';
 // **************************************************************************
 
 _AvailabilityResponse _$AvailabilityResponseFromJson(
-  Map<String, dynamic> json,
-) => _AvailabilityResponse(
-  success: json['success'] as bool,
-  data: AvailabilityData.fromJson(json['data'] as Map<String, dynamic>),
-);
+        Map<String, dynamic> json) =>
+    _AvailabilityResponse(
+      success: json['success'] as bool,
+      data: AvailabilityData.fromJson(json['data'] as Map<String, dynamic>),
+    );
 
 Map<String, dynamic> _$AvailabilityResponseToJson(
-  _AvailabilityResponse instance,
-) => <String, dynamic>{'success': instance.success, 'data': instance.data};
+        _AvailabilityResponse instance) =>
+    <String, dynamic>{
+      'success': instance.success,
+      'data': instance.data,
+    };
 
 _AvailabilityData _$AvailabilityDataFromJson(Map<String, dynamic> json) =>
     _AvailabilityData(

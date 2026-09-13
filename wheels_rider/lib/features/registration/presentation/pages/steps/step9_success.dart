@@ -173,17 +173,20 @@ class _Step9SuccessState extends State<Step9Success> with SingleTickerProviderSt
             child: ElevatedButton(
               onPressed: _isLoading ? null : () async {
                 setState(() => _isLoading = true);
+                // Capture context-dependent objects before async gap
+                final navigator = Navigator.of(context);
+                final messenger = ScaffoldMessenger.of(context);
                 try {
                   final profile = await sl<GetProfileUseCase>().call();
                   if (!mounted) return;
                   
                   if (profile.status.toUpperCase() == 'VERIFIED' || profile.status.toUpperCase() == 'APPROVED') {
-                    Navigator.of(context).pushAndRemoveUntil(
+                    navigator.pushAndRemoveUntil(
                       MaterialPageRoute(builder: (_) => const HomePage()),
                       (route) => false,
                     );
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       SnackBar(
                         content: const Text('Your profile is still under review by the admin.'),
                         backgroundColor: AppColors.error,
@@ -193,7 +196,7 @@ class _Step9SuccessState extends State<Step9Success> with SingleTickerProviderSt
                   }
                 } catch (e) {
                   if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     SnackBar(
                       content: Text('Failed to check verification status. Please try again.'),
                       backgroundColor: AppColors.error,

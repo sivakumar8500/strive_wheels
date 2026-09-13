@@ -6,7 +6,19 @@ class CompleteTripUseCase {
 
   CompleteTripUseCase(this.repository);
 
-  Future<BookingActionResponse> call({required int bookingId, required double distanceKm, required int durationMins}) {
-    return repository.completeTrip(bookingId: bookingId, distanceKm: distanceKm, durationMins: durationMins);
+  Future<BookingActionResponse> call({
+    required int bookingId,
+    required double distanceKm,
+    required int durationMins,
+    double? riderLat,
+    double? riderLng,
+  }) {
+    return repository.completeTrip(
+      bookingId: bookingId,
+      distanceKm: distanceKm,
+      durationMins: durationMins,
+      riderLat: riderLat,
+      riderLng: riderLng,
+    );
   }
 }

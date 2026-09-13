@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:math';
+import 'dart:ui' as ui;
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -12,6 +15,19 @@ import '../../data/models/vehicle_type_model.dart';
 import '../../domain/entities/vehicle_type_entity.dart';
 import '../../domain/usecases/get_vehicle_types_usecase.dart';
 import 'ride_summary_page.dart';
+import '../../../../core/widgets/app_map_widget.dart';
+
+class _VehicleMovementProfile {
+  final Offset baseOffset;
+  final double headingDegrees;
+  final double speedFactor;
+
+  const _VehicleMovementProfile({
+    required this.baseOffset,
+    required this.headingDegrees,
+    this.speedFactor = 1.0,
+  });
+}
 
 /// Detailed Ride Route Map Page with native Google Maps street view, turn-by-turn routing,
 /// brand-themed draggable bottom sheet with swipe-down dismissal, and ride selection.
@@ -60,6 +76,38 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
   List<VehicleTypeEntity> _vehicleTypes = [];
   bool _isLoadingVehicles = true;
 
+  Timer? _markerAnimTimer;
+  double _markerAnimAngle = 0.0;
+  final Map<String, BitmapDescriptor> _customMarkerIcons = {};
+
+  static const List<_VehicleMovementProfile> _dummyVehicleProfiles = [
+    _VehicleMovementProfile(
+      baseOffset: Offset(0.0015, 0.0010),
+      headingDegrees: 45.0,
+      speedFactor: 1.0,
+    ),
+    _VehicleMovementProfile(
+      baseOffset: Offset(-0.0016, 0.0018),
+      headingDegrees: 140.0,
+      speedFactor: 1.2,
+    ),
+    _VehicleMovementProfile(
+      baseOffset: Offset(0.0020, -0.0014),
+      headingDegrees: 250.0,
+      speedFactor: 0.9,
+    ),
+    _VehicleMovementProfile(
+      baseOffset: Offset(-0.0012, -0.0016),
+      headingDegrees: 320.0,
+      speedFactor: 1.1,
+    ),
+    _VehicleMovementProfile(
+      baseOffset: Offset(0.0006, 0.0024),
+      headingDegrees: 85.0,
+      speedFactor: 0.8,
+    ),
+  ];
+
   static const List<VehicleTypeEntity> _fallbackVehicleTypes = [
     VehicleTypeEntity(
       id: 1,
@@ -102,6 +150,7 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
     _cancelToken = CancelToken();
     _fetchRoutePolyline();
     _fetchVehicleTypes();
+    _initDynamicVehicleMarkers();
   }
 
   /// Fetches active vehicle types from the API or injected usecase
@@ -277,25 +326,15 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
                         color: AppColors.primaryBlue.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: vehicle.iconUrl != null &&
-                              vehicle.iconUrl!.isNotEmpty
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: Image.network(
-                                vehicle.iconUrl!,
-                                fit: BoxFit.contain,
-                                errorBuilder: (_, _, _) => Icon(
-                                  _getIconForVehicle(vehicle.code),
-                                  color: AppColors.primaryBlue,
-                                  size: 28,
-                                ),
-                              ),
-                            )
-                          : Icon(
-                              _getIconForVehicle(vehicle.code),
-                              color: AppColors.primaryBlue,
-                              size: 28,
-                            ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: _buildVehicleImage(
+                              vehicle, true, textSecondary,
+                              iconSize: 28),
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -501,8 +540,352 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
     );
   }
 
+  void _initDynamicVehicleMarkers() {
+    _startMarkerAnimationTimer();
+    _generateCustomMarkerIcons();
+  }
+
+  void _startMarkerAnimationTimer() {
+    _markerAnimTimer?.cancel();
+    _markerAnimTimer =
+        Timer.periodic(const Duration(milliseconds: 1500), (timer) {
+      if (mounted) {
+        setState(() {
+          _markerAnimAngle = (_markerAnimAngle + 0.2) % (2 * pi);
+        });
+      }
+    });
+  }
+
+  Future<void> _generateCustomMarkerIcons() async {
+    try {
+      final bikeIcon = await _loadAssetBitmapDescriptor(
+        'assets/images/nav_bike_marker.png',
+        targetWidth: 40,
+        fallbackIcon: Icons.two_wheeler_rounded,
+        badgeColor: const Color(0xFFDCFCE7),
+        borderColor: const Color(0xFF16A34A),
+        iconColor: const Color(0xFF15803D),
+      );
+
+      final autoIcon = await _loadAssetBitmapDescriptor(
+        'assets/images/nav_auto_marker.png',
+        targetWidth: 45,
+        fallbackIcon: Icons.electric_rickshaw_rounded,
+        badgeColor: const Color(0xFFFEF3C7),
+        borderColor: const Color(0xFFD97706),
+        iconColor: const Color(0xFFB45309),
+      );
+
+      final carIcon = await _loadAssetBitmapDescriptor(
+        'assets/images/nav_car_marker.png',
+        targetWidth: 40,
+        fallbackIcon: Icons.directions_car_rounded,
+        badgeColor: const Color(0xFFDBEAFE),
+        borderColor: const Color(0xFF2563EB),
+        iconColor: const Color(0xFF1D4ED8),
+      );
+
+      final vanIcon = await _loadAssetBitmapDescriptor(
+        'assets/images/nav_van_marker.png',
+        targetWidth: 50,
+        fallbackIcon: Icons.airport_shuttle_rounded,
+        badgeColor: const Color(0xFFF3E8FF),
+        borderColor: const Color(0xFF9333EA),
+        iconColor: const Color(0xFF7E22CE),
+      );
+
+      final tempoIcon = await _loadAssetBitmapDescriptor(
+        'assets/images/nav_tempo_marker.png',
+        targetWidth: 48,
+        fallbackIcon: Icons.local_shipping_rounded,
+        badgeColor: const Color(0xFFFEF9C3),
+        borderColor: const Color(0xFFCA8A04),
+        iconColor: const Color(0xFFA16207),
+      );
+
+      final truckIcon = await _loadAssetBitmapDescriptor(
+        'assets/images/nav_truck_marker.png',
+        targetWidth: 55,
+        fallbackIcon: Icons.local_shipping_rounded,
+        badgeColor: const Color(0xFFFFEDD5),
+        borderColor: const Color(0xFFEA580C),
+        iconColor: const Color(0xFFC2410C),
+      );
+
+      if (mounted) {
+        setState(() {
+          _customMarkerIcons['BIKE'] = bikeIcon;
+          _customMarkerIcons['AUTO'] = autoIcon;
+          _customMarkerIcons['CAB'] = carIcon;
+          _customMarkerIcons['MINI_VAN'] = vanIcon;
+          _customMarkerIcons['TEMPO'] = tempoIcon;
+          _customMarkerIcons['TRUCK'] = truckIcon;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error generating custom vehicle marker icons: $e');
+    }
+  }
+
+  Future<BitmapDescriptor> _loadAssetBitmapDescriptor(
+    String assetPath, {
+    int targetWidth = 40,
+    required IconData fallbackIcon,
+    required Color badgeColor,
+    required Color borderColor,
+    required Color iconColor,
+  }) async {
+    try {
+      final ByteData data = await rootBundle.load(assetPath);
+      final ui.Codec codec = await ui.instantiateImageCodec(
+        data.buffer.asUint8List(),
+        targetWidth: targetWidth,
+      );
+      final ui.FrameInfo fi = await codec.getNextFrame();
+      final ByteData? resizedData =
+          await fi.image.toByteData(format: ui.ImageByteFormat.png);
+
+      if (resizedData != null) {
+        return BitmapDescriptor.bytes(resizedData.buffer.asUint8List());
+      }
+    } catch (e) {
+      debugPrint('Error loading asset marker $assetPath: $e');
+    }
+
+    return _createVehicleMarkerBitmap(
+      icon: fallbackIcon,
+      badgeColor: badgeColor,
+      borderColor: borderColor,
+      iconColor: iconColor,
+    );
+  }
+
+  Future<BitmapDescriptor> _createVehicleMarkerBitmap({
+    required IconData icon,
+    required Color badgeColor,
+    required Color borderColor,
+    required Color iconColor,
+  }) async {
+    try {
+      final pictureRecorder = ui.PictureRecorder();
+      final canvas = Canvas(pictureRecorder);
+
+      final paintShadow = Paint()
+        ..color = Colors.black.withValues(alpha: 0.25)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+      canvas.drawCircle(const Offset(27, 27), 24, paintShadow);
+
+      final paintBg = Paint()..color = badgeColor;
+      canvas.drawCircle(const Offset(27, 27), 22, paintBg);
+
+      final paintBorder = Paint()
+        ..color = borderColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5;
+      canvas.drawCircle(const Offset(27, 27), 22, paintBorder);
+
+      final textPainter = TextPainter(textDirection: TextDirection.ltr);
+      textPainter.text = TextSpan(
+        text: String.fromCharCode(icon.codePoint),
+        style: TextStyle(
+          fontSize: 24,
+          fontFamily: icon.fontFamily,
+          package: icon.fontPackage,
+          color: iconColor,
+        ),
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        Offset(27 - textPainter.width / 2, 27 - textPainter.height / 2),
+      );
+
+      final img = await pictureRecorder.endRecording().toImage(54, 54);
+      final data = await img.toByteData(format: ui.ImageByteFormat.png);
+      if (data != null) {
+        return BitmapDescriptor.bytes(data.buffer.asUint8List());
+      }
+    } catch (_) {}
+    return BitmapDescriptor.defaultMarker;
+  }
+
+  BitmapDescriptor _getMarkerDescriptorForVehicle(VehicleTypeEntity? vehicle) {
+    if (vehicle == null) {
+      return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
+    }
+    final code = vehicle.code.toUpperCase();
+    if (code.contains('BIKE') || code.contains('TWO') || code.contains('SCOOT')) {
+      return _customMarkerIcons['BIKE'] ??
+          BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
+    } else if (code.contains('AUTO') || code.contains('RICKSHAW')) {
+      return _customMarkerIcons['AUTO'] ??
+          BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+    } else if (code.contains('VAN') || code.contains('TRAVELLER')) {
+      return _customMarkerIcons['MINI_VAN'] ??
+          BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet);
+    } else if (code.contains('TEMPO') || code.contains('PARCEL') || code.contains('GOODS')) {
+      return _customMarkerIcons['TEMPO'] ??
+          BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow);
+    } else if (code.contains('TRUCK') || code.contains('CARGO')) {
+      return _customMarkerIcons['TRUCK'] ??
+          BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose);
+    }
+    return _customMarkerIcons['CAB'] ??
+        BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
+  }
+
+  Set<Marker> _buildMarkersForSelectedVehicle(
+      VehicleTypeEntity? selectedVehicle) {
+    final markers = <Marker>{
+      Marker(
+        markerId: const MarkerId('pickup_marker'),
+        position: widget.pickupLatLng,
+        infoWindow: InfoWindow(
+          title: widget.pickupTitle,
+          snippet: widget.pickupAddress,
+        ),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+      ),
+      Marker(
+        markerId: const MarkerId('drop_marker'),
+        position: widget.dropLatLng,
+        infoWindow: InfoWindow(
+          title: widget.dropTitle,
+          snippet: widget.dropAddress,
+        ),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+      ),
+    };
+
+    if (selectedVehicle == null) return markers;
+
+    final markerIcon = _getMarkerDescriptorForVehicle(selectedVehicle);
+    final categoryName = selectedVehicle.name;
+
+    for (int i = 0; i < _dummyVehicleProfiles.length; i++) {
+      final profile = _dummyVehicleProfiles[i];
+      final headingRad = profile.headingDegrees * pi / 180.0;
+      final oscillation =
+          sin(_markerAnimAngle * profile.speedFactor + (i * 1.5)) * 0.0004;
+
+      final deltaLat = oscillation * cos(headingRad);
+      final deltaLng = oscillation * sin(headingRad);
+
+      final lat = widget.pickupLatLng.latitude + profile.baseOffset.dx + deltaLat;
+      final lng = widget.pickupLatLng.longitude + profile.baseOffset.dy + deltaLng;
+
+      final isForward =
+          cos(_markerAnimAngle * profile.speedFactor + (i * 1.5)) >= 0;
+      final currentHeading =
+          isForward ? profile.headingDegrees : (profile.headingDegrees + 180) % 360;
+
+      markers.add(
+        Marker(
+          markerId: MarkerId('dummy_vehicle_${selectedVehicle.code}_$i'),
+          position: LatLng(lat, lng),
+          rotation: currentHeading,
+          infoWindow: InfoWindow(
+            title: '$categoryName Nearby #${i + 1}',
+            snippet: 'Moving near pickup location',
+          ),
+          icon: markerIcon,
+          anchor: const Offset(0.5, 0.5),
+        ),
+      );
+    }
+
+    return markers;
+  }
+
+  Widget _buildVehicleImage(
+    VehicleTypeEntity vehicle,
+    bool isSelected,
+    Color textSecondary, {
+    double iconSize = 26,
+  }) {
+    final iconUrl = vehicle.iconUrl?.trim();
+    final hasNetworkUrl = iconUrl != null &&
+        iconUrl.isNotEmpty &&
+        (iconUrl.startsWith('http://') || iconUrl.startsWith('https://'));
+
+    if (hasNetworkUrl) {
+      return Image.network(
+        iconUrl,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildStaticFallbackVehicleImage(
+            vehicle.code,
+            isSelected,
+            textSecondary,
+            iconSize: iconSize,
+          );
+        },
+      );
+    }
+
+    return _buildStaticFallbackVehicleImage(
+      vehicle.code,
+      isSelected,
+      textSecondary,
+      iconSize: iconSize,
+    );
+  }
+
+  Widget _buildStaticFallbackVehicleImage(
+    String code,
+    bool isSelected,
+    Color textSecondary, {
+    double iconSize = 26,
+  }) {
+    final upper = code.toUpperCase();
+    String? assetPath;
+    IconData fallbackIcon = Icons.directions_car_rounded;
+
+    if (upper.contains('BIKE') || upper.contains('TWO') || upper.contains('SCOOT')) {
+      assetPath = 'assets/images/nav_bike_marker.png';
+      fallbackIcon = Icons.two_wheeler_rounded;
+    } else if (upper.contains('AUTO') || upper.contains('RICKSHAW')) {
+      assetPath = 'assets/images/nav_auto_marker.png';
+      fallbackIcon = Icons.electric_rickshaw_rounded;
+    } else if (upper.contains('VAN') || upper.contains('TRAVELLER')) {
+      assetPath = 'assets/images/nav_van_marker.png';
+      fallbackIcon = Icons.airport_shuttle_rounded;
+    } else if (upper.contains('TEMPO') || upper.contains('PARCEL') || upper.contains('GOODS')) {
+      assetPath = 'assets/images/nav_tempo_marker.png';
+      fallbackIcon = Icons.local_shipping_rounded;
+    } else if (upper.contains('TRUCK') || upper.contains('CARGO')) {
+      assetPath = 'assets/images/nav_truck_marker.png';
+      fallbackIcon = Icons.local_shipping_rounded;
+    } else if (upper.contains('CAB') ||
+        upper.contains('CAR') ||
+        upper.contains('PRIORITY')) {
+      assetPath = 'assets/images/nav_car_marker.png';
+      fallbackIcon = Icons.directions_car_rounded;
+    }
+
+    if (assetPath != null) {
+      return Image.asset(
+        assetPath,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => Icon(
+          fallbackIcon,
+          color: isSelected ? AppColors.primaryBlue : textSecondary,
+          size: iconSize,
+        ),
+      );
+    }
+
+    return Icon(
+      fallbackIcon,
+      color: isSelected ? AppColors.primaryBlue : textSecondary,
+      size: iconSize,
+    );
+  }
+
   @override
   void dispose() {
+    _markerAnimTimer?.cancel();
     _cancelToken?.cancel();
     super.dispose();
   }
@@ -595,7 +978,7 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
       CameraUpdate.newCameraPosition(
         CameraPosition(
           target: widget.pickupLatLng,
-          zoom: 16.5,
+          zoom: 18.0,
         ),
       ),
     );
@@ -659,26 +1042,12 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
         isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
     final dividerColor = isDark ? AppColors.dividerDark : AppColors.dividerLight;
 
-    final markers = {
-      Marker(
-        markerId: const MarkerId('pickup_marker'),
-        position: widget.pickupLatLng,
-        infoWindow: InfoWindow(
-          title: widget.pickupTitle,
-          snippet: widget.pickupAddress,
-        ),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-      ),
-      Marker(
-        markerId: const MarkerId('drop_marker'),
-        position: widget.dropLatLng,
-        infoWindow: InfoWindow(
-          title: widget.dropTitle,
-          snippet: widget.dropAddress,
-        ),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-      ),
-    };
+    final selectedVehicle = _vehicleTypes.isNotEmpty
+        ? _vehicleTypes[
+            _selectedVehicleIndex.clamp(0, _vehicleTypes.length - 1)]
+        : null;
+
+    final markers = _buildMarkersForSelectedVehicle(selectedVehicle);
 
     final polylines = {
       Polyline(
@@ -694,10 +1063,6 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
       ),
     };
 
-    final selectedVehicle = _vehicleTypes.isNotEmpty
-        ? _vehicleTypes[
-            _selectedVehicleIndex.clamp(0, _vehicleTypes.length - 1)]
-        : null;
     final screenHeight = MediaQuery.of(context).size.height;
     final floatingButtonsBottom = screenHeight * _sheetPosition + 12;
 
@@ -708,15 +1073,18 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
         children: [
           // 1. Native Google Map View with Official Street View showing all roads, buildings, and names
           Positioned.fill(
-            child: GoogleMap(
+            child: AppMapWidget(
               initialCameraPosition: CameraPosition(
                 target: widget.pickupLatLng,
-                zoom: 15.0,
+                zoom: 18.0,
+                tilt: 45.0,
               ),
+              buildingsEnabled: true,
+              tiltGesturesEnabled: true,
+              rotateGesturesEnabled: true,
               mapType: _currentMapType,
               markers: markers,
               polylines: polylines,
-              buildingsEnabled: true,
               zoomControlsEnabled: false,
               myLocationButtonEnabled: false,
               compassEnabled: true,
@@ -1141,32 +1509,16 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
                                                 : const Color(0xFFEDF2F7)),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
-                                      child: vehicle.iconUrl != null &&
-                                              vehicle.iconUrl!.isNotEmpty
-                                          ? ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              child: Image.network(
-                                                vehicle.iconUrl!,
-                                                fit: BoxFit.contain,
-                                                errorBuilder: (_, _, _) =>
-                                                    Icon(
-                                                  _getIconForVehicle(
-                                                      vehicle.code),
-                                                  color: isSelected
-                                                      ? AppColors.primaryBlue
-                                                      : textSecondary,
-                                                  size: 26,
-                                                ),
-                                              ),
-                                            )
-                                          : Icon(
-                                              _getIconForVehicle(vehicle.code),
-                                              color: isSelected
-                                                  ? AppColors.primaryBlue
-                                                  : textSecondary,
-                                              size: 26,
-                                            ),
+                                      child: ClipRRect(
+                                        borderRadius:
+                                            BorderRadius.circular(12),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(4),
+                                          child: _buildVehicleImage(
+                                              vehicle, isSelected, textSecondary,
+                                              iconSize: 26),
+                                        ),
+                                      ),
                                     ),
                                     const SizedBox(width: 12),
 
@@ -1399,13 +1751,13 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
                                   Container(
                                     padding: const EdgeInsets.all(6),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF10B981)
+                                      color: AppColors.accentOrange
                                           .withValues(alpha: 0.15),
                                       shape: BoxShape.circle,
                                     ),
                                     child: const Icon(
                                       Icons.local_offer_rounded,
-                                      color: Color(0xFF10B981),
+                                      color: AppColors.accentOrange,
                                       size: 16,
                                     ),
                                   ),

@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../home/presentation/bloc/home_bloc.dart';
@@ -43,12 +42,7 @@ class _PermissionsPageState extends State<PermissionsPage> {
           listener: (context, state) {
             if (state.isSuccess) {
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(
-                  builder: (_) => BlocProvider<HomeBloc>(
-                    create: (_) => sl<HomeBloc>(),
-                    child: const HomePage(),
-                  ),
-                ),
+                HomePage.route(),
                 (route) => false,
               );
             } else if (state.errorMessage != null) {
@@ -65,7 +59,7 @@ class _PermissionsPageState extends State<PermissionsPage> {
               return const Center(child: CircularProgressIndicator());
             }
 
-            return Padding(
+            return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,7 +137,7 @@ class _PermissionsPageState extends State<PermissionsPage> {
                     },
                   ),
                   
-                  const Spacer(),
+                  const SizedBox(height: 32),
                   AppButton(
                     title: 'Continue',
                     isEnabled: true,

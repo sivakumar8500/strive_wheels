@@ -12,11 +12,14 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
   final GetRideRequestsStreamUseCase getRideRequestsStream;
   final GetBookingSuccessStreamUseCase getBookingSuccessStream;
   final GetBookingErrorStreamUseCase getBookingErrorStream;
+  final GetRideCancelledStreamUseCase getRideCancelledStream;
   final SendLocationPingUseCase sendLocationPing;
+  final CancelBookingUseCase? cancelBookingUseCase;
 
   StreamSubscription? _requestsSubscription;
   StreamSubscription? _successSubscription;
   StreamSubscription? _errorSubscription;
+  StreamSubscription? _cancelledSubscription;
 
   BookingBloc({
     required this.connectToBookingSocket,
@@ -25,7 +28,9 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     required this.getRideRequestsStream,
     required this.getBookingSuccessStream,
     required this.getBookingErrorStream,
+    required this.getRideCancelledStream,
     required this.sendLocationPing,
+    this.cancelBookingUseCase,
   }) : super(BookingInitial()) {
     on<ConnectWebSocketEvent>(_onConnectWebSocket);
     on<DisconnectWebSocketEvent>(_onDisconnectWebSocket);
@@ -34,6 +39,8 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     on<DeclineRideEvent>(_onDeclineRide);
     on<BookingSuccessEvent>(_onBookingSuccess);
     on<BookingErrorEvent>(_onBookingError);
+    on<RideCancelledEvent>(_onRideCancelled);
+    on<CancelRideEvent>(_onCancelRide);
     on<SendLocationPingEvent>(_onSendLocationPing);
   }
 
@@ -54,6 +61,12 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     _errorSubscription?.cancel();
     _errorSubscription = getBookingErrorStream().listen((errorMsg) {
       add(BookingErrorEvent(errorMsg));
+    });
+
+    _cancelledSubscription?.cancel();
+    _cancelledSubscription = getRideCancelledStream().listen((data) {
+      final reason = data['reason'] as String? ?? 'Ride cancelled by customer';
+      add(RideCancelledEvent(reason: reason));
     });
   }
 
@@ -86,6 +99,15 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     emit(BookingErrorState(event.message));
   }
 
+  void _onRideCancelled(RideCancelledEvent event, Emitter<BookingState> emit) {
+    emit(RideCancelledState(event.reason));
+  }
+
+  void _onCancelRide(CancelRideEvent event, Emitter<BookingState> emit) {
+    cancelBookingUseCase?.call(event.bookingId, reason: event.reason);
+    emit(RideCancelledState(event.reason));
+  }
+
   void _onSendLocationPing(SendLocationPingEvent event, Emitter<BookingState> emit) {
     sendLocationPing(
       lat: event.lat,
@@ -101,6 +123,7 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     _requestsSubscription?.cancel();
     _successSubscription?.cancel();
     _errorSubscription?.cancel();
+    _cancelledSubscription?.cancel();
     return super.close();
   }
 }

@@ -17,6 +17,7 @@ class ApiConstants {
   // Auth Endpoints
   static const String sendOtp = '/api/v1/auth/send-otp';
   static const String verifyOtp = '/api/v1/auth/verify-otp';
+  static const String updateFcmToken = '/api/v1/auth/fcm-token';
 
   // Profile Endpoints
   static const String customerProfile = '/api/v1/customer/profile';

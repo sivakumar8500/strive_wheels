@@ -45,6 +45,17 @@ abstract class EarningsModel with _$EarningsModel {
 
   factory EarningsModel.fromJson(Map<String, dynamic> json) => _$EarningsModelFromJson(json);
 
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'total_earnings': totalEarnings,
+      'trips': trips,
+      'hours': hours,
+      'rating': rating,
+      'recent_activities': recentActivities.map((e) => e.toJson()).toList(),
+    };
+  }
+
   EarningsEntity toEntity() {
     return EarningsEntity(
       totalEarnings: totalEarnings,

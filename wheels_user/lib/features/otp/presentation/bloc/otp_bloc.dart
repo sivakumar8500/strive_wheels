@@ -36,6 +36,10 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
     _timer?.cancel();
     emit(state.copyWith(countdownSeconds: 30));
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (isClosed) {
+        timer.cancel();
+        return;
+      }
       final remaining = 30 - timer.tick;
       if (remaining <= 0) {
         timer.cancel();

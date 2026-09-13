@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -7,8 +9,10 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/customer_ws_controller.dart';
 import '../../../../core/services/active_booking_service.dart';
+import '../../../home/presentation/pages/home_page.dart';
 import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
 import 'live_trip_tracking_page.dart';
+import '../../../../core/widgets/app_map_widget.dart';
 
 /// Screen displayed after rider accepts the ride request matching the exact design specification.
 class BookingConfirmedPage extends StatefulWidget {
@@ -53,11 +57,144 @@ class BookingConfirmedPage extends StatefulWidget {
   State<BookingConfirmedPage> createState() => _BookingConfirmedPageState();
 }
 
-class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
+class _BookingConfirmedPageState extends State<BookingConfirmedPage> with WidgetsBindingObserver {
+  bool _isRideCompleted = false;
+  StreamSubscription? _wsSubscription;
+
   @override
   void initState() {
     super.initState();
-    _saveActiveBookingState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _saveActiveBookingState();
+      }
+    });
+    _listenForRideCompletion();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (sl.isRegistered<CustomerWSController>()) {
+        sl<CustomerWSController>().reconnectIfNeeded();
+      }
+    }
+  }
+
+  void _listenForRideCompletion() {
+    if (!sl.isRegistered<CustomerWSController>()) return;
+    _wsSubscription = sl<CustomerWSController>().bookingEventStream.listen((message) {
+      final event = message['event'] as String? ?? '';
+      final data = message['data'] as Map<String, dynamic>? ?? {};
+      final rawStatus = (data['status'] ?? data['booking']?['status'] ?? message['status'])?.toString().toUpperCase() ?? '';
+
+      final isTripStarted =
+          // 1. Dedicated OTP Verification & Multi-Broadcast Events
+          event == 'booking.verify' ||         // Primary OTP Verify Event from Rider
+          event == 'booking.verified' ||       // OTP Verified Event Alias
+          event == 'otpverify' ||              // Primary Dedicated OTP Verify Event
+          event == 'booking.otp_verified' ||   // OTP Verify Alias 1
+          event == 'otp_verified' ||           // OTP Verify Alias 2
+          event == 'booking.trip_started' ||   // Primary Multi-Broadcast Event
+          event == 'booking.started' ||        // Multi-Broadcast Alias 2
+          event == 'rider.trip_started' ||      // Multi-Broadcast Alias 3
+          event == 'trip_started' ||           // Multi-Broadcast Alias 4
+          event == 'trip.started' ||           // Multi-Broadcast Alias 5
+          event == 'booking.updated' ||        // Multi-Broadcast Alias 6
+
+          // 2. Additional WS ACK & Legacy Events
+          event == 'booking.start_success' ||
+          event == 'ride.started' ||
+          event == 'booking.start' ||
+          data['otp_verified'] == true ||
+
+          // 3. Official Backend DB Status Values
+          rawStatus == 'TRIP_STARTED' ||      // Primary DB status
+          rawStatus == 'TRIP_IN_PROGRESS' ||  // Secondary DB status for ongoing trip
+          rawStatus == 'IN_TRANSIT' ||
+          rawStatus == 'STARTED';
+
+      // OTP verified by rider — directly show map tracking screen
+      if (isTripStarted) {
+        if (sl.isRegistered<ActiveBookingService>()) {
+          sl<ActiveBookingService>().updateBookingStatus('TRIP_STARTED');
+        }
+        if (mounted) {
+          final booking = data['booking'] as Map<String, dynamic>? ?? {};
+          final rider = booking['rider'] as Map<String, dynamic>?;
+          final vehicle = booking['vehicle'] as Map<String, dynamic>?;
+          final dName = rider?['full_name']?.toString() ?? widget.driverName;
+          final dRating = (rider?['rating'] is num) ? (rider!['rating'] as num).toDouble() : widget.driverRating;
+          final vMake = vehicle?['make']?.toString() ?? '';
+          final vModel = vehicle?['model']?.toString() ?? widget.vehicleModel;
+          final lPlate = vehicle?['license_plate']?.toString() ?? widget.licensePlate;
+          final vInfo = (vMake.isNotEmpty && vModel.isNotEmpty && !vModel.contains(vMake))
+              ? '$vMake $vModel • $lPlate'
+              : (vModel.contains(lPlate) ? vModel : '$vModel • $lPlate');
+
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => LiveTripTrackingPage(
+                driverName: dName,
+                driverRating: dRating,
+                vehicleInfo: vInfo,
+                pickupAddress: widget.pickupAddress,
+                dropAddress: widget.dropAddress,
+                pickupLatLng: widget.pickupLatLng,
+                dropLatLng: widget.dropLatLng,
+                startOtp: widget.startOtp,
+                initialStatus: 'TRIP_STARTED',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Rider cancelled — clear and go home with notification
+      if (event == 'booking.cancelled' ||
+          event == 'booking.rider_cancelled' ||
+          event == 'booking.customer_cancelled' ||
+          event == 'ride.cancelled' ||
+          event == 'booking.cancel_success') {
+        final reason = data['reason']?.toString() ?? '';
+        final cancelledBy = data['cancelled_by']?.toString() ?? '';
+        final displayMsg = cancelledBy.toUpperCase() == 'CUSTOMER'
+            ? 'Ride cancelled successfully.'
+            : (reason.isNotEmpty ? reason : 'Your ride was cancelled by the rider.');
+
+        if (sl.isRegistered<ActiveBookingService>()) {
+          sl<ActiveBookingService>().clearActiveBooking();
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(displayMsg),
+              backgroundColor: const Color(0xFFEF4444),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
+        }
+        return;
+      }
+
+      if (event == 'booking.completed' ||
+          event == 'rider.trip_completed' ||
+          event == 'booking.trip_completed') {
+        if (mounted) {
+          setState(() => _isRideCompleted = true);
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _wsSubscription?.cancel();
+    super.dispose();
   }
 
   void _saveActiveBookingState() {
@@ -116,7 +253,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
                   backgroundColor: Color(0xFFEF4444),
                 ),
               );
-              Navigator.of(context).popUntil((route) => route.isFirst);
+              Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
@@ -271,7 +408,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
         selectedIndex: 0,
         onTabSelected: (index) {
           if (index == 0) {
-            Navigator.of(context).popUntil((route) => route.isFirst);
+            Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
           }
         },
       ),
@@ -296,23 +433,51 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
         borderRadius: BorderRadius.circular(20),
         child: Stack(
           children: [
-            GoogleMap(
+            AppMapWidget(
               initialCameraPosition: CameraPosition(
                 target: widget.pickupLatLng,
-                zoom: 14.5,
+                zoom: 17.0,
+                tilt: 55.0,
               ),
+              buildingsEnabled: true,
+              tiltGesturesEnabled: true,
+              rotateGesturesEnabled: true,
+              onMapCreated: (controller) {
+                final bounds = LatLngBounds(
+                  southwest: LatLng(
+                    min(widget.pickupLatLng.latitude, widget.dropLatLng.latitude),
+                    min(widget.pickupLatLng.longitude, widget.dropLatLng.longitude),
+                  ),
+                  northeast: LatLng(
+                    max(widget.pickupLatLng.latitude, widget.dropLatLng.latitude),
+                    max(widget.pickupLatLng.longitude, widget.dropLatLng.longitude),
+                  ),
+                );
+                controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 40));
+              },
               zoomControlsEnabled: false,
               myLocationButtonEnabled: false,
+              polylines: {
+                Polyline(
+                  polylineId: const PolylineId('preview_route'),
+                  points: [widget.pickupLatLng, widget.dropLatLng],
+                  color: AppColors.primaryBlue,
+                  width: 4,
+                  patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+                ),
+              },
               markers: {
                 Marker(
                   markerId: const MarkerId('pickup'),
                   position: widget.pickupLatLng,
-                  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+                  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+                  infoWindow: const InfoWindow(title: 'Pickup Location'),
                 ),
                 Marker(
                   markerId: const MarkerId('drop'),
                   position: widget.dropLatLng,
                   icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+                  infoWindow: const InfoWindow(title: 'Dropoff Location'),
                 ),
               },
             ),
@@ -690,39 +855,42 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
           ),
           const SizedBox(height: 12),
 
-          // Download Invoice Button
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: OutlinedButton(
-              onPressed: () {},
-              style: OutlinedButton.styleFrom(
-                backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFE8F1FF),
-                side: BorderSide.none,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+          // Download Invoice Button — only visible after ride is completed
+          if (_isRideCompleted) ...[
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton(
+                onPressed: () {},
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFE8F1FF),
+                  side: BorderSide.none,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.download_rounded, color: AppColors.primaryBlue, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Download Invoice',
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryBlue,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.download_rounded, color: AppColors.primaryBlue, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Download Invoice',
-                    style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primaryBlue,
-                    ),
-                  ),
-                ],
-              ),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+          ],
 
-          // Cancel Ride Red Button
+          // Cancel Ride — hidden after completion
+          if (!_isRideCompleted)
           SizedBox(
             width: double.infinity,
             height: 52,

@@ -17,21 +17,38 @@ class EarningsRemoteDataSourceImpl implements EarningsRemoteDataSource {
     try {
       final response = await _apiClient.get(ApiEndpoints.riderEarnings(limit: limit, offset: offset));
       
-      List<dynamic> dataList = [];
-      if (response.data is List) {
-        dataList = response.data;
+      if (response.data is Map && response.data['data'] is Map) {
+        return EarningsModel.fromJson(Map<String, dynamic>.from(response.data['data']));
       } else if (response.data is Map && response.data['data'] is List) {
-        dataList = response.data['data'];
+        final dataList = response.data['data'] as List;
+        final activities = dataList.map((e) => EarningsActivityModel.fromJson(Map<String, dynamic>.from(e))).toList();
+        return EarningsModel(
+          totalEarnings: 0.0,
+          trips: 0,
+          hours: 0.0,
+          rating: 0.0,
+          recentActivities: activities,
+        );
+      } else if (response.data is List) {
+        final dataList = response.data as List;
+        final activities = dataList.map((e) => EarningsActivityModel.fromJson(Map<String, dynamic>.from(e))).toList();
+        return EarningsModel(
+          totalEarnings: 0.0,
+          trips: 0,
+          hours: 0.0,
+          rating: 0.0,
+          recentActivities: activities,
+        );
+      } else if (response.data is Map) {
+        return EarningsModel.fromJson(Map<String, dynamic>.from(response.data));
       }
 
-      final activities = dataList.map((e) => EarningsActivityModel.fromJson(e)).toList();
-
-      return EarningsModel(
+      return const EarningsModel(
         totalEarnings: 0.0,
         trips: 0,
         hours: 0.0,
         rating: 0.0,
-        recentActivities: activities,
+        recentActivities: [],
       );
     } on DioException catch (e) {
       throw Exception(e.message ?? 'Failed to fetch earnings');

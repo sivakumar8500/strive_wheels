@@ -1,6 +1,7 @@
 import '../models/otp_verification_model.dart';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/network/api_constants.dart';
 import '../../../../core/utils/jwt_utils.dart';
@@ -24,16 +25,20 @@ class OtpRemoteDataSourceImpl implements OtpRemoteDataSource {
         data: model.toJson(),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print('====== VERIFY OTP SUCCESS ======');
-        print(response.data);
-        
+        debugPrint('====== VERIFY OTP SUCCESS ======');
+        debugPrint(response.data.toString());
+
         final data = response.data['data'] ?? response.data;
         final token = data['access_token'] ?? data['token'] ?? data['access'];
-        
+        final refreshToken = data['refresh_token'];
+
         if (token != null && token.toString().isNotEmpty) {
           final tokenStr = token.toString();
-          print('====== SAVING TOKEN & USER ID ======');
+          debugPrint('====== SAVING TOKENS & USER ID ======');
           await sharedPreferences.setString('access_token', tokenStr);
+          if (refreshToken != null && refreshToken.toString().isNotEmpty) {
+            await sharedPreferences.setString('refresh_token', refreshToken.toString());
+          }
 
           final rawUserId = data['user_id'] ?? data['customer_id'] ?? data['id'] ?? data['customer_profile']?['id'];
           int? userId = rawUserId != null ? int.tryParse(rawUserId.toString()) : null;
@@ -42,18 +47,18 @@ class OtpRemoteDataSourceImpl implements OtpRemoteDataSource {
           if (userId != null) {
             await sharedPreferences.setInt('user_id', userId);
             await sharedPreferences.setInt('customer_id', userId);
-            print('====== SAVED USER ID: $userId ======');
+            debugPrint('====== SAVED USER ID: $userId ======');
           }
         } else {
-          print('====== WARNING: NO TOKEN FOUND IN RESPONSE ======');
+          debugPrint('====== WARNING: NO TOKEN FOUND IN RESPONSE ======');
         }
         return true;
       }
-      print('====== VERIFY OTP FAILED: ${response.statusCode} ======');
+      debugPrint('====== VERIFY OTP FAILED: ${response.statusCode} ======');
       return false;
     } catch (e) {
-      print('====== VERIFY OTP ERROR ======');
-      print(e);
+      debugPrint('====== VERIFY OTP ERROR ======');
+      debugPrint(e.toString());
       throw Exception('Failed to verify OTP: $e');
     }
   }
@@ -66,19 +71,19 @@ class OtpRemoteDataSourceImpl implements OtpRemoteDataSource {
         data: {'phone': fullPhoneNumber},
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print('====== RESEND OTP SUCCESS ======');
-        print(response.data);
+        debugPrint('====== RESEND OTP SUCCESS ======');
+        debugPrint(response.data.toString());
         final otp = response.data['data']?['otp'] ?? response.data['otp'];
-        print('=================================');
-        print('NEW OTP FOR LOGIN: $otp');
-        print('=================================');
+        debugPrint('=================================');
+        debugPrint('NEW OTP FOR LOGIN: $otp');
+        debugPrint('=================================');
         return true;
       }
-      print('====== RESEND OTP FAILED: ${response.statusCode} ======');
+      debugPrint('====== RESEND OTP FAILED: ${response.statusCode} ======');
       return false;
     } catch (e) {
-      print('====== RESEND OTP ERROR ======');
-      print(e);
+      debugPrint('====== RESEND OTP ERROR ======');
+      debugPrint(e.toString());
       throw Exception('Failed to resend OTP: $e');
     }
   }

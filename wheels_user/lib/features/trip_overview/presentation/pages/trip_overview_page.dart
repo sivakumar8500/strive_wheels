@@ -7,7 +7,6 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../home/presentation/bloc/home_bloc.dart';
 import '../../../home/presentation/bloc/home_event.dart';
-import '../../../home/presentation/pages/home_page.dart';
 import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
 import '../../../payment_method/presentation/bloc/payment_method_bloc.dart';
 import '../../../payment_method/presentation/pages/payment_method_page.dart';

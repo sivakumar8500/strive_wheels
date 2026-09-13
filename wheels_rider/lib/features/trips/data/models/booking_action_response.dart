@@ -1,7 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'booking_action_response.freezed.dart';
-part 'booking_action_response.g.dart';
 
 @freezed
 abstract class BookingActionResponse with _$BookingActionResponse {

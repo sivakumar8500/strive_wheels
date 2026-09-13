@@ -112,11 +112,12 @@ void main() {
     await tester.pumpWidget(buildTestWidget());
 
     expect(find.text(AppStrings.dropTitle), findsOneWidget);
-    expect(find.text(AppStrings.forMe), findsOneWidget);
+    expect(find.text('Self'), findsOneWidget);
     expect(find.byKey(const Key('route_pickup_text_field')), findsOneWidget);
     expect(find.byKey(const Key('route_drop_text_field')), findsOneWidget);
-    expect(find.text(AppStrings.selectOnMap), findsOneWidget);
-    expect(find.text(AppStrings.addStops), findsOneWidget);
+    expect(find.text('Instant'), findsOneWidget);
+    expect(find.text('One-Way'), findsOneWidget);
+    expect(find.text('Round Trip'), findsOneWidget);
     expect(find.text('home-2'), findsOneWidget);
   });
 
@@ -171,7 +172,8 @@ void main() {
     expect(tester.widget<ElevatedButton>(bookBtn).enabled, isTrue);
 
     await tester.tap(bookBtn);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.byType(RideRouteMapPage), findsOneWidget);
   });

@@ -29,17 +29,20 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   ) async {
     emit(state.copyWith(isLoading: true));
     try {
-      final entity = await getHomeDashboardUseCase();
+      final entity = await getHomeDashboardUseCase()
+          .timeout(const Duration(seconds: 10), onTimeout: () {
+        throw Exception('Dashboard load timed out. Showing offline content.');
+      });
       emit(state.copyWith(
         isLoading: false,
         dashboardEntity: entity,
         selectedNavIndex: entity.selectedNavIndex,
       ));
     } catch (e) {
+      // Still render the screen with local data — never leave user stuck
       emit(state.copyWith(
         isLoading: false,
         errorMessage: 'Failed to load dashboard: $e',
-        actionMessage: 'Failed to load: $e',
       ));
     }
   }

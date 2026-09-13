@@ -13,8 +13,6 @@ import '../../../login/presentation/pages/auth_page.dart';
 import '../bloc/splash_bloc.dart';
 import '../bloc/splash_event.dart';
 import '../bloc/splash_state.dart';
-import '../../../onboarding/presentation/bloc/onboarding_bloc.dart';
-import '../../../onboarding/presentation/pages/onboarding_page.dart';
 
 /// Splash Screen page matching exact design layout guidelines.
 class SplashPage extends StatefulWidget {
@@ -107,7 +105,7 @@ class _SplashPageState extends State<SplashPage> {
         ),
         const SizedBox(height: 8),
         Text(
-          AppStrings.appName,
+          'Wheels',
           style: GoogleFonts.poppins(
             fontSize: 38,
             fontWeight: FontWeight.w800,

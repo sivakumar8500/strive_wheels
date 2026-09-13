@@ -85,9 +85,16 @@ import '../../features/earnings/domain/repositories/earnings_repository.dart';
 import '../../features/earnings/domain/usecases/get_earnings_usecase.dart';
 import '../../features/earnings/presentation/bloc/earnings_bloc.dart';
 
+import '../services/navigation_service.dart';
+
 final sl = GetIt.instance;
 
 Future<void> initDependencyInjection() async {
+  // Services
+  if (!sl.isRegistered<NavigationService>()) {
+    sl.registerLazySingleton<NavigationService>(() => NavigationService());
+  }
+
   // External
   final sharedPreferences = await SharedPreferences.getInstance();
   if (!sl.isRegistered<SharedPreferences>()) {
@@ -105,8 +112,8 @@ Future<void> initDependencyInjection() async {
   // Network
   if (!sl.isRegistered<ApiClient>()) {
     sl.registerLazySingleton<ApiClient>(() => ApiClient(
-      dio: sl(),
-      sharedPreferences: sl(),
+      sl(),
+      sl(),
     ));
   }
 
@@ -306,9 +313,19 @@ Future<void> initDependencyInjection() async {
       () => GetBookingErrorStreamUseCase(sl()),
     );
   }
+  if (!sl.isRegistered<GetRideCancelledStreamUseCase>()) {
+    sl.registerLazySingleton<GetRideCancelledStreamUseCase>(
+      () => GetRideCancelledStreamUseCase(sl()),
+    );
+  }
   if (!sl.isRegistered<SendLocationPingUseCase>()) {
     sl.registerLazySingleton<SendLocationPingUseCase>(
       () => SendLocationPingUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<CancelBookingUseCase>()) {
+    sl.registerLazySingleton<CancelBookingUseCase>(
+      () => CancelBookingUseCase(sl()),
     );
   }
   if (!sl.isRegistered<GetProfileUseCase>()) {
@@ -494,7 +511,9 @@ Future<void> initDependencyInjection() async {
         getRideRequestsStream: sl(),
         getBookingSuccessStream: sl(),
         getBookingErrorStream: sl(),
+        getRideCancelledStream: sl(),
         sendLocationPing: sl(),
+        cancelBookingUseCase: sl(),
       ),
     );
   }

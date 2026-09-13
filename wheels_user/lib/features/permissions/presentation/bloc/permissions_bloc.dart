@@ -61,9 +61,8 @@ class PermissionsBloc extends Bloc<PermissionsEvent, PermissionsState> {
     Emitter<PermissionsState> emit,
   ) async {
     if (event.value) {
-      final status = await fc.FlutterContacts.permissions.request(fc.PermissionType.readWrite);
-      final isGranted = status == fc.PermissionStatus.granted || status == fc.PermissionStatus.limited;
-      emit(state.copyWith(contactsAllowed: isGranted));
+      final status = await Permission.contacts.request();
+      emit(state.copyWith(contactsAllowed: status.isGranted || status.isLimited));
     } else {
       emit(state.copyWith(contactsAllowed: false));
     }

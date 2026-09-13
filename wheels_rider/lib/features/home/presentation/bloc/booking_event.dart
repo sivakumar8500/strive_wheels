@@ -43,3 +43,14 @@ class SendLocationPingEvent extends BookingEvent {
     this.speedKmh = 0.0,
   });
 }
+
+class RideCancelledEvent extends BookingEvent {
+  final String reason;
+  RideCancelledEvent({this.reason = 'Ride cancelled by customer'});
+}
+
+class CancelRideEvent extends BookingEvent {
+  final int bookingId;
+  final String reason;
+  CancelRideEvent({required this.bookingId, this.reason = 'Rider cancelled trip'});
+}

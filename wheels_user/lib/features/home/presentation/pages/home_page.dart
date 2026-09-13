@@ -1,17 +1,21 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/network/api_constants.dart';
 import '../../../../core/network/customer_ws_controller.dart';
 import '../../../../core/services/active_booking_service.dart';
 import '../../../booking/presentation/bloc/booking_bloc.dart';
 import '../../../booking/presentation/pages/booking_confirmed_page.dart';
+import '../../../booking/presentation/pages/journey_complete_page.dart';
 import '../../../booking/presentation/pages/live_trip_tracking_page.dart';
 import '../../../booking/presentation/pages/location_search_page.dart';
 import '../../../favourites/presentation/bloc/favourites_bloc.dart';
@@ -29,19 +33,28 @@ import '../widgets/offers_carousel.dart';
 import '../widgets/popular_locations_grid.dart';
 import '../widgets/quick_services_grid.dart';
 import '../widgets/recent_ride_card.dart';
+import '../../../../core/widgets/app_map_widget.dart';
 
 /// Main Home Dashboard Page matching exact reference UI design.
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
+  static Route<dynamic> route() {
+    return MaterialPageRoute(
+      builder: (_) => BlocProvider<HomeBloc>(
+        create: (_) => sl<HomeBloc>(),
+        child: const HomePage(),
+      ),
+    );
+  }
+
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
+class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   GoogleMapController? _mapController;
-  LatLng _currentPosition = const LatLng(37.7749, -122.4194); // Default fallback (San Francisco)
-  bool _loadingLocation = true;
+  LatLng _currentPosition = const LatLng(17.4924, 78.3639); // Default fallback
 
   late final AnimationController _pulseController;
   BitmapDescriptor? _customMarker;
@@ -50,6 +63,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
@@ -58,6 +72,67 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     context.read<HomeBloc>().add(const LoadHomeDashboardEvent());
     _getCurrentLocation();
     _startLocationUpdates();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('[HomePage] App resumed. Triggering WS reconnect and active ride check...');
+      if (sl.isRegistered<CustomerWSController>()) {
+        sl<CustomerWSController>().reconnectIfNeeded();
+      }
+      _checkActiveBookingOnResume();
+    }
+  }
+
+  Future<void> _checkActiveBookingOnResume() async {
+    try {
+      if (!sl.isRegistered<ActiveBookingService>()) return;
+      final activeBookingService = sl<ActiveBookingService>();
+      final activeData = activeBookingService.activeBooking;
+      if (activeData == null) return;
+
+      final response = await sl<http.Client>().get(
+        Uri.parse('${ApiConstants.baseUrl}/bookings/${activeData.bookingId}'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final data = decoded['data'] as Map<String, dynamic>? ?? decoded;
+        final status = (data['status'] ?? '').toString().toUpperCase();
+
+        if (status == 'CANCELLED' || status == 'RIDER_CANCELLED' || status == 'CUSTOMER_CANCELLED') {
+          activeBookingService.clearActiveBooking();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Your ride was cancelled by the driver.'),
+                backgroundColor: Color(0xFFEF4444),
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
+        } else if (status == 'COMPLETED') {
+          activeBookingService.clearActiveBooking();
+          if (mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => JourneyCompletePage(
+                  driverName: activeData.driverName,
+                  vehicleInfo: activeData.vehicleInfo,
+                  finalPaymentText: activeData.totalAmount,
+                ),
+              ),
+            );
+          }
+        } else if (status.isNotEmpty) {
+          activeBookingService.updateBookingStatus(status);
+        }
+      }
+    } catch (e) {
+      debugPrint('HomePage resume HTTP status check error: $e');
+    }
   }
 
   Future<void> _loadCustomMarker() async {
@@ -74,15 +149,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   Future<void> _startLocationUpdates() async {
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return;
-
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
-          return;
-        }
+      }
+      if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
+        return;
       }
 
       _positionStreamSubscription = Geolocator.getPositionStream(
@@ -95,8 +167,19 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         if (mounted) {
           setState(() {
             _currentPosition = newLatLng;
-            _loadingLocation = false;
           });
+          try {
+            _mapController?.animateCamera(
+              CameraUpdate.newCameraPosition(
+                CameraPosition(
+                  target: newLatLng,
+                  zoom: 18.0,
+                ),
+              ),
+            );
+          } catch (e) {
+            debugPrint('Error animating map camera: $e');
+          }
         }
       });
     } catch (e) {
@@ -106,6 +189,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pulseController.dispose();
     _positionStreamSubscription?.cancel();
     super.dispose();
@@ -113,52 +197,38 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   Future<void> _getCurrentLocation() async {
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        setState(() { _loadingLocation = false; });
-        return;
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        permission = await Geolocator.requestPermission();
       }
 
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          setState(() { _loadingLocation = false; });
-          return;
+      if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+        Position position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        );
+
+        final newLatLng = LatLng(position.latitude, position.longitude);
+
+        if (mounted) {
+          setState(() {
+            _currentPosition = newLatLng;
+          });
+          try {
+            _mapController?.animateCamera(
+              CameraUpdate.newCameraPosition(
+                CameraPosition(
+                  target: newLatLng,
+                  zoom: 18.0,
+                ),
+              ),
+            );
+          } catch (e) {
+            debugPrint('Error animating camera: $e');
+          }
         }
       }
-
-      if (permission == LocationPermission.deniedForever) {
-        setState(() { _loadingLocation = false; });
-        return;
-      }
-
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      final newLatLng = LatLng(position.latitude, position.longitude);
-
-      if (mounted) {
-        setState(() {
-          _currentPosition = newLatLng;
-          _loadingLocation = false;
-        });
-      }
-
-      _mapController?.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: newLatLng,
-            zoom: 16.0,
-          ),
-        ),
-      );
     } catch (e) {
       debugPrint('Error getting current location: $e');
-      if (mounted) {
-        setState(() { _loadingLocation = false; });
-      }
     }
   }
 
@@ -377,9 +447,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         },
         builder: (context, state) {
           if (state.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.primaryBlue,
+            return Container(
+              color: isDark ? AppColors.onboardingBgDark : Colors.white,
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: AppColors.primaryBlue,
+                ),
               ),
             );
           }
@@ -435,67 +508,46 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               children: [
                 // 1. Map Layer Background
                 Positioned.fill(
-                  child: GoogleMap(
+                  child: AppMapWidget(
                     initialCameraPosition: CameraPosition(
                       target: _currentPosition,
-                      zoom: 16.0,
+                      zoom: 18.0,
                     ),
+                    onMapCreated: (controller) {
+                      _mapController = controller;
+                      try {
+                        _mapController?.animateCamera(
+                          CameraUpdate.newCameraPosition(
+                            CameraPosition(
+                              target: _currentPosition,
+                              zoom: 18.0,
+                            ),
+                          ),
+                        );
+                      } catch (e) {
+                        debugPrint('Error animating initial camera: $e');
+                      }
+                    },
+                    mapType: MapType.normal,
                     zoomControlsEnabled: false,
                     myLocationEnabled: false,
                     myLocationButtonEnabled: false,
                     compassEnabled: false,
                     mapToolbarEnabled: false,
-                    onMapCreated: (controller) {
-                      _mapController = controller;
-                    },
                     markers: {
                       Marker(
                         markerId: const MarkerId('current_location'),
                         position: _currentPosition,
                         infoWindow: const InfoWindow(title: 'Current Location'),
                         icon: _customMarker ??
-                            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+                            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
                         anchor: const Offset(0.5, 0.5),
                       ),
                     },
-                    circles: {
-                      Circle(
-                        circleId: const CircleId('user_pulse'),
-                        center: _currentPosition,
-                        radius: 100,
-                        fillColor: AppColors.primaryBlue.withValues(alpha: 0.2),
-                        strokeWidth: 2,
-                        strokeColor: AppColors.primaryBlue.withValues(alpha: 0.5),
-                      ),
-                    },
                   ),
                 ),
 
-                // 2. Floating Location Recenter Button
-                Positioned(
-                  top: MediaQuery.of(context).padding.top + 70,
-                  right: 16,
-                  child: FloatingActionButton.small(
-                    heroTag: 'gps_recenter',
-                    backgroundColor: isDark ? AppColors.cardBgDark : Colors.white,
-                    foregroundColor: AppColors.primaryBlue,
-                    onPressed: () {
-                      if (_mapController != null) {
-                        _mapController!.animateCamera(
-                          CameraUpdate.newCameraPosition(
-                            CameraPosition(
-                              target: _currentPosition,
-                              zoom: 16.0,
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                    child: const Icon(Icons.my_location),
-                  ),
-                ),
-
-                // 3. Floating Top Search Bar
+                // 2. Floating Top Search Bar
                 Positioned(
                   top: MediaQuery.of(context).padding.top + 8,
                   left: 0,
@@ -531,14 +583,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   ),
                 ),
 
-                // 4. Main Scrollable Floating Sheet
+                // 3. Main Scrollable Floating Sheet (collapsed at 35% so map is primary view)
                 Positioned.fill(
                   child: DraggableScrollableSheet(
-                    initialChildSize: 0.65,
-                    minChildSize: 0.3,
+                    key: const Key('home_draggable_sheet'),
+                    initialChildSize: 0.35,
+                    minChildSize: 0.25,
                     maxChildSize: 0.9,
                     snap: true,
-                    snapSizes: const [0.3, 0.65, 0.9],
+                    snapSizes: const [0.25, 0.35, 0.9],
                     builder: (BuildContext context, ScrollController scrollController) {
                       return Container(
                         decoration: BoxDecoration(
@@ -699,31 +752,107 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   },
                 ),
               ),
+
+                // 4. Floating GPS Recenter Button (positioned above bottom sheet)
+                Positioned(
+                  bottom: (MediaQuery.of(context).size.height * 0.35) + 16,
+                  right: 16,
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.my_location,
+                        color: isDark ? Colors.white : const Color(0xFF0D6EFD),
+                        size: 22,
+                      ),
+                      onPressed: () {
+                        if (_mapController != null && mounted) {
+                          try {
+                            _mapController!.animateCamera(
+                              CameraUpdate.newCameraPosition(
+                                CameraPosition(
+                                  target: _currentPosition,
+                                  zoom: 18.0,
+                                ),
+                              ),
+                            );
+                          } catch (e) {
+                            debugPrint('Error animating camera to current location: $e');
+                          }
+                        }
+                      },
+                    ),
+                  ),
+                ),
             ],
             );
           }
 
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: mainContent,
-              ),
+          return ValueListenableBuilder<ActiveBookingData?>(
+            valueListenable: sl.isRegistered<ActiveBookingService>()
+                ? sl<ActiveBookingService>().activeBookingNotifier
+                : ValueNotifier<ActiveBookingData?>(null),
+            builder: (context, activeData, _) {
+              Widget currentContent;
+              final activeStatus = activeData?.status.toUpperCase() ?? '';
+              final isTripActive = activeStatus == 'TRIP_STARTED' ||
+                  activeStatus == 'IN_TRANSIT' ||
+                  activeStatus == 'ON_THE_WAY' ||
+                  activeStatus == 'STARTED';
 
-              // Bottom Navigation Bar
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: HomeBottomNavBar(
-                  selectedIndex: state.selectedNavIndex,
-                  onTabSelected: (index) {
-                    context
-                        .read<HomeBloc>()
-                        .add(ChangeNavTabEvent(index));
-                  },
-                ),
-              ),
-            ],
+              if (activeData != null && isTripActive && state.selectedNavIndex == 0) {
+                currentContent = LiveTripTrackingPage(
+                  key: const ValueKey('home_embedded_live_trip'),
+                  driverName: activeData.driverName,
+                  driverRating: activeData.driverRating,
+                  vehicleInfo: activeData.vehicleInfo,
+                  pickupAddress: activeData.pickupAddress,
+                  dropAddress: activeData.dropAddress,
+                  pickupLatLng: activeData.pickupLatLng,
+                  dropLatLng: activeData.dropLatLng,
+                  initialRiderLatLng: activeData.initialRiderLatLng,
+                  startOtp: activeData.startOtp,
+                  initialStatus: activeData.status,
+                );
+              } else {
+                currentContent = mainContent;
+              }
+
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: currentContent,
+                  ),
+
+                  // Bottom Navigation Bar
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: HomeBottomNavBar(
+                      selectedIndex: state.selectedNavIndex,
+                      onTabSelected: (index) {
+                        context
+                            .read<HomeBloc>()
+                            .add(ChangeNavTabEvent(index));
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
           );
         },
       ),

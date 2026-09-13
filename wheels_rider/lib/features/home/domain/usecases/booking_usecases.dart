@@ -80,3 +80,23 @@ class SendLocationPingUseCase {
     );
   }
 }
+
+class GetRideCancelledStreamUseCase {
+  final BookingRepository repository;
+
+  GetRideCancelledStreamUseCase(this.repository);
+
+  Stream<Map<String, dynamic>> call() {
+    return repository.rideCancelledStream;
+  }
+}
+
+class CancelBookingUseCase {
+  final BookingRepository repository;
+
+  CancelBookingUseCase(this.repository);
+
+  void call(int bookingId, {String reason = 'Rider cancelled trip'}) {
+    repository.cancelBooking(bookingId, reason: reason);
+  }
+}

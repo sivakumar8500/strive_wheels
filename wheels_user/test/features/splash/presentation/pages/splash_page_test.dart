@@ -39,7 +39,7 @@ void main() {
   testWidgets('renders SplashPage with app name and branding text', (tester) async {
     await tester.pumpWidget(createWidgetUnderTest());
 
-    expect(find.text(AppStrings.appName), findsOneWidget);
+    expect(find.text('Wheels'), findsOneWidget);
     expect(find.text(AppStrings.ownedBy), findsOneWidget);
     expect(find.text(AppStrings.backedBy), findsOneWidget);
     expect(find.text(AppStrings.striveGroup), findsOneWidget);

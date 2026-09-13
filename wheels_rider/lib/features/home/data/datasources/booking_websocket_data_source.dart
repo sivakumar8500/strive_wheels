@@ -6,6 +6,7 @@ abstract class BookingWebSocketDataSource {
   void connect(int driverId, String token);
   void disconnect();
   void acceptBooking(int bookingId);
+  void cancelBooking(int bookingId, {String reason});
   void notifyBookingSuccess(int bookingId);
   void sendLocationPing({
     required double lat,
@@ -15,6 +16,7 @@ abstract class BookingWebSocketDataSource {
   });
   Stream<RideRequestModel> get rideRequestsStream;
   Stream<int> get bookingSuccessStream;
+  Stream<Map<String, dynamic>> get rideCancelledStream;
   Stream<String> get errorStream;
 }
 
@@ -23,6 +25,7 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
 
   final _rideRequestController = StreamController<RideRequestModel>.broadcast();
   final _bookingSuccessController = StreamController<int>.broadcast();
+  final _rideCancelledController = StreamController<Map<String, dynamic>>.broadcast();
   final _errorController = StreamController<String>.broadcast();
   
   StreamSubscription? _subscription;
@@ -74,6 +77,11 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
             _bookingSuccessController.add(bookingId);
           }
           break;
+        case 'booking.cancelled':
+        case 'booking.canceled':
+        case 'ride.cancelled':
+          _rideCancelledController.add(data);
+          break;
         case 'error':
           final errorMessage = data['message'] as String? ?? 'Unknown WebSocket Error';
           _errorController.add(errorMessage);
@@ -96,6 +104,18 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
         'booking_id': bookingId,
         'request_id': bookingId,
         'id': bookingId,
+      }
+    });
+  }
+
+  @override
+  void cancelBooking(int bookingId, {String reason = 'Rider cancelled trip'}) {
+    webSocketClient.sendMessage({
+      'event': 'booking.cancel',
+      'data': {
+        'booking_id': bookingId,
+        'id': bookingId,
+        'reason': reason,
       }
     });
   }
@@ -125,6 +145,9 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
 
   @override
   Stream<int> get bookingSuccessStream => _bookingSuccessController.stream;
+
+  @override
+  Stream<Map<String, dynamic>> get rideCancelledStream => _rideCancelledController.stream;
 
   @override
   Stream<String> get errorStream => _errorController.stream;

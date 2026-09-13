@@ -35,7 +35,19 @@ class RiderRepositoryImpl implements RiderRepository {
   }
 
   @override
-  Future<BookingActionResponse> completeTrip({required int bookingId, required double distanceKm, required int durationMins}) async {
-    return remoteDataSource.completeTrip(bookingId: bookingId, distanceKm: distanceKm, durationMins: durationMins);
+  Future<BookingActionResponse> completeTrip({
+    required int bookingId,
+    required double distanceKm,
+    required int durationMins,
+    double? riderLat,
+    double? riderLng,
+  }) async {
+    return remoteDataSource.completeTrip(
+      bookingId: bookingId,
+      distanceKm: distanceKm,
+      durationMins: durationMins,
+      riderLat: riderLat,
+      riderLng: riderLng,
+    );
   }
 }

@@ -13,6 +13,7 @@ import 'package:wheels_user/features/home/presentation/bloc/home_bloc.dart';
 import 'package:wheels_user/features/home/presentation/bloc/home_event.dart';
 import 'package:wheels_user/features/home/presentation/bloc/home_state.dart';
 import 'package:wheels_user/features/home/presentation/pages/home_page.dart';
+import 'package:wheels_user/features/home/presentation/widgets/home_search_bar.dart';
 
 class MockHomeBloc extends MockBloc<HomeEvent, HomeState> implements HomeBloc {}
 class MockBookingBloc extends MockBloc<BookingEvent, BookingState> implements BookingBloc {}
@@ -112,7 +113,8 @@ void main() {
     final searchTextField = find.byKey(const Key('home_search_text_field'));
     expect(searchTextField, findsOneWidget);
 
-    await widgetTester.enterText(searchTextField, 'Charminar');
+    final searchBar = widgetTester.widget<HomeSearchBar>(find.byType(HomeSearchBar));
+    searchBar.onChanged?.call('Charminar');
     await widgetTester.pump();
     verify(() => mockHomeBloc.add(const SearchQueryChangedEvent('Charminar'))).called(greaterThanOrEqualTo(1));
   });
