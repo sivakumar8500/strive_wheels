@@ -8,11 +8,25 @@ import 'package:wheels_user/features/permissions/presentation/bloc/permissions_b
 import 'package:wheels_user/features/permissions/presentation/bloc/permissions_event.dart';
 import 'package:wheels_user/features/permissions/presentation/bloc/permissions_state.dart';
 import 'package:wheels_user/features/permissions/presentation/pages/permissions_page.dart';
+import 'package:wheels_user/core/di/injection_container.dart';
+import 'package:wheels_user/features/home/presentation/bloc/home_bloc.dart';
+import 'package:wheels_user/features/home/presentation/bloc/home_event.dart';
+import 'package:wheels_user/features/home/presentation/bloc/home_state.dart';
 
 class MockPermissionsBloc extends MockBloc<PermissionsEvent, PermissionsState> implements PermissionsBloc {}
+class MockHomeBloc extends MockBloc<HomeEvent, HomeState> implements HomeBloc {}
 
 void main() {
   late MockPermissionsBloc mockBloc;
+  late MockHomeBloc mockHomeBloc;
+
+  setUpAll(() {
+    mockHomeBloc = MockHomeBloc();
+    when(() => mockHomeBloc.state).thenReturn(const HomeState());
+    if (!sl.isRegistered<HomeBloc>()) {
+      sl.registerFactory<HomeBloc>(() => mockHomeBloc);
+    }
+  });
 
   setUp(() {
     mockBloc = MockPermissionsBloc();
@@ -68,7 +82,9 @@ void main() {
     verify(() => mockBloc.add(const ToggleNotificationEvent(true))).called(1);
     
     // Tap Continue button
-    await tester.tap(find.byType(AppButton));
+    final continueButton = find.byType(AppButton);
+    await tester.ensureVisible(continueButton);
+    await tester.tap(continueButton);
     await tester.pump();
     verify(() => mockBloc.add(const SubmitPermissionsEvent())).called(1);
   });

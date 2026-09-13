@@ -16,7 +16,7 @@ void main() {
     await initDependencyInjection();
     await tester.pumpWidget(const WheelsUserApp());
     expect(find.byType(SplashPage), findsOneWidget);
-    expect(find.text(AppStrings.appName), findsOneWidget);
+    expect(find.text('Wheels'), findsOneWidget);
     await tester.pump(const Duration(seconds: 4));
   });
 }

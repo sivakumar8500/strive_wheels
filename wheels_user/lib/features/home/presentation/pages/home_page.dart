@@ -1,17 +1,21 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/network/api_constants.dart';
 import '../../../../core/network/customer_ws_controller.dart';
 import '../../../../core/services/active_booking_service.dart';
 import '../../../booking/presentation/bloc/booking_bloc.dart';
 import '../../../booking/presentation/pages/booking_confirmed_page.dart';
+import '../../../booking/presentation/pages/journey_complete_page.dart';
 import '../../../booking/presentation/pages/live_trip_tracking_page.dart';
 import '../../../booking/presentation/pages/location_search_page.dart';
 import '../../../favourites/presentation/bloc/favourites_bloc.dart';
@@ -35,11 +39,20 @@ import '../../../../core/widgets/app_map_widget.dart';
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
+  static Route<dynamic> route() {
+    return MaterialPageRoute(
+      builder: (_) => BlocProvider<HomeBloc>(
+        create: (_) => sl<HomeBloc>(),
+        child: const HomePage(),
+      ),
+    );
+  }
+
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
+class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   GoogleMapController? _mapController;
   LatLng _currentPosition = const LatLng(17.4924, 78.3639); // Default fallback
 
@@ -50,6 +63,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
@@ -58,6 +72,67 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     context.read<HomeBloc>().add(const LoadHomeDashboardEvent());
     _getCurrentLocation();
     _startLocationUpdates();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('[HomePage] App resumed. Triggering WS reconnect and active ride check...');
+      if (sl.isRegistered<CustomerWSController>()) {
+        sl<CustomerWSController>().reconnectIfNeeded();
+      }
+      _checkActiveBookingOnResume();
+    }
+  }
+
+  Future<void> _checkActiveBookingOnResume() async {
+    try {
+      if (!sl.isRegistered<ActiveBookingService>()) return;
+      final activeBookingService = sl<ActiveBookingService>();
+      final activeData = activeBookingService.activeBooking;
+      if (activeData == null) return;
+
+      final response = await sl<http.Client>().get(
+        Uri.parse('${ApiConstants.baseUrl}/bookings/${activeData.bookingId}'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final data = decoded['data'] as Map<String, dynamic>? ?? decoded;
+        final status = (data['status'] ?? '').toString().toUpperCase();
+
+        if (status == 'CANCELLED' || status == 'RIDER_CANCELLED' || status == 'CUSTOMER_CANCELLED') {
+          activeBookingService.clearActiveBooking();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Your ride was cancelled by the driver.'),
+                backgroundColor: Color(0xFFEF4444),
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
+        } else if (status == 'COMPLETED') {
+          activeBookingService.clearActiveBooking();
+          if (mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => JourneyCompletePage(
+                  driverName: activeData.driverName,
+                  vehicleInfo: activeData.vehicleInfo,
+                  finalPaymentText: activeData.totalAmount,
+                ),
+              ),
+            );
+          }
+        } else if (status.isNotEmpty) {
+          activeBookingService.updateBookingStatus(status);
+        }
+      }
+    } catch (e) {
+      debugPrint('HomePage resume HTTP status check error: $e');
+    }
   }
 
   Future<void> _loadCustomMarker() async {
@@ -93,14 +168,18 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           setState(() {
             _currentPosition = newLatLng;
           });
-          _mapController?.animateCamera(
-            CameraUpdate.newCameraPosition(
-              CameraPosition(
-                target: newLatLng,
-                zoom: 18.0,
+          try {
+            _mapController?.animateCamera(
+              CameraUpdate.newCameraPosition(
+                CameraPosition(
+                  target: newLatLng,
+                  zoom: 18.0,
+                ),
               ),
-            ),
-          );
+            );
+          } catch (e) {
+            debugPrint('Error animating map camera: $e');
+          }
         }
       });
     } catch (e) {
@@ -110,6 +189,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pulseController.dispose();
     _positionStreamSubscription?.cancel();
     super.dispose();
@@ -133,16 +213,19 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           setState(() {
             _currentPosition = newLatLng;
           });
+          try {
+            _mapController?.animateCamera(
+              CameraUpdate.newCameraPosition(
+                CameraPosition(
+                  target: newLatLng,
+                  zoom: 18.0,
+                ),
+              ),
+            );
+          } catch (e) {
+            debugPrint('Error animating camera: $e');
+          }
         }
-
-        _mapController?.animateCamera(
-          CameraUpdate.newCameraPosition(
-            CameraPosition(
-              target: newLatLng,
-              zoom: 18.0,
-            ),
-          ),
-        );
       }
     } catch (e) {
       debugPrint('Error getting current location: $e');
@@ -432,14 +515,18 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     ),
                     onMapCreated: (controller) {
                       _mapController = controller;
-                      _mapController?.animateCamera(
-                        CameraUpdate.newCameraPosition(
-                          CameraPosition(
-                            target: _currentPosition,
-                            zoom: 18.0,
+                      try {
+                        _mapController?.animateCamera(
+                          CameraUpdate.newCameraPosition(
+                            CameraPosition(
+                              target: _currentPosition,
+                              zoom: 18.0,
+                            ),
                           ),
-                        ),
-                      );
+                        );
+                      } catch (e) {
+                        debugPrint('Error animating initial camera: $e');
+                      }
                     },
                     mapType: MapType.normal,
                     zoomControlsEnabled: false,
@@ -691,15 +778,19 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                         size: 22,
                       ),
                       onPressed: () {
-                        if (_mapController != null) {
-                          _mapController!.animateCamera(
-                            CameraUpdate.newCameraPosition(
-                              CameraPosition(
-                                target: _currentPosition,
-                                zoom: 18.0,
+                        if (_mapController != null && mounted) {
+                          try {
+                            _mapController!.animateCamera(
+                              CameraUpdate.newCameraPosition(
+                                CameraPosition(
+                                  target: _currentPosition,
+                                  zoom: 18.0,
+                                ),
                               ),
-                            ),
-                          );
+                            );
+                          } catch (e) {
+                            debugPrint('Error animating camera to current location: $e');
+                          }
                         }
                       },
                     ),

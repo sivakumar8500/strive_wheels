@@ -11,6 +11,8 @@ _OtpVerificationModel _$OtpVerificationModelFromJson(
 ) => _OtpVerificationModel(
   fullPhoneNumber: json['phone'] as String,
   otpCode: json['otp'] as String,
+  fullName: json['full_name'] as String?,
+  role: json['role'] as String? ?? 'CUSTOMER',
 );
 
 Map<String, dynamic> _$OtpVerificationModelToJson(
@@ -18,4 +20,6 @@ Map<String, dynamic> _$OtpVerificationModelToJson(
 ) => <String, dynamic>{
   'phone': instance.fullPhoneNumber,
   'otp': instance.otpCode,
+  'full_name': instance.fullName,
+  'role': instance.role,
 };

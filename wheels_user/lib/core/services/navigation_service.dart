@@ -72,11 +72,12 @@ class NavigationStep {
       maneuverType = ManeuverType.straight;
     }
 
-    String instruction = _buildInstructionText(maneuverType, roadName);
+    final cleanRoad = (roadName.isEmpty || roadName.toLowerCase() == 'unnamed road') ? '' : roadName;
+    String instruction = _buildInstructionText(maneuverType, cleanRoad, distance);
 
     return NavigationStep(
       instruction: instruction,
-      roadName: roadName.isEmpty ? 'Unnamed Road' : roadName,
+      roadName: cleanRoad.isEmpty ? 'Road Ahead' : cleanRoad,
       distanceMeters: distance,
       durationSeconds: duration,
       maneuverType: maneuverType,
@@ -84,21 +85,24 @@ class NavigationStep {
     );
   }
 
-  static String _buildInstructionText(ManeuverType type, String roadName) {
-    final road = roadName.isEmpty ? 'ahead' : 'onto $roadName';
+  static String _buildInstructionText(ManeuverType type, String roadName, double distanceMeters) {
+    final hasRoad = roadName.isNotEmpty && roadName.toLowerCase() != 'unnamed road';
+    final road = hasRoad ? 'onto $roadName' : '';
+    final distStr = NavigationService.formatMetricDistance(distanceMeters);
+
     switch (type) {
       case ManeuverType.turnLeft:
-        return 'Turn left $road';
+        return hasRoad ? 'Turn left $road' : 'Turn left in $distStr';
       case ManeuverType.turnRight:
-        return 'Turn right $road';
+        return hasRoad ? 'Turn right $road' : 'Turn right in $distStr';
       case ManeuverType.slightLeft:
-        return 'Keep left $road';
+        return hasRoad ? 'Keep left $road' : 'Keep left in $distStr';
       case ManeuverType.slightRight:
-        return 'Keep right $road';
+        return hasRoad ? 'Keep right $road' : 'Keep right in $distStr';
       case ManeuverType.sharpLeft:
-        return 'Sharp left $road';
+        return hasRoad ? 'Sharp left $road' : 'Sharp left in $distStr';
       case ManeuverType.sharpRight:
-        return 'Sharp right $road';
+        return hasRoad ? 'Sharp right $road' : 'Sharp right in $distStr';
       case ManeuverType.uTurn:
         return 'Make a U-turn';
       case ManeuverType.depart:
@@ -107,7 +111,7 @@ class NavigationStep {
         return 'You have arrived at your destination';
       case ManeuverType.straight:
       default:
-        return 'Continue straight $road';
+        return hasRoad ? 'Continue straight $road' : 'Continue straight for $distStr';
     }
   }
 }
@@ -230,5 +234,32 @@ class NavigationService {
             (1 - cos((p2.longitude - p1.longitude) * p)) /
             2;
     return 12742000 * asin(sqrt(a));
+  }
+
+  static String formatMetricDistance(double meters) {
+    if (meters < 1000) {
+      final m = max(0, meters.round());
+      return '$m m';
+    }
+    final km = meters / 1000.0;
+    return '${km.toStringAsFixed(1)} km';
+  }
+
+  static String formatMetricDuration(double seconds) {
+    final mins = max(1, (seconds / 60.0).round());
+    if (mins < 60) {
+      return '$mins min';
+    }
+    final hours = mins ~/ 60;
+    final remainingMins = mins % 60;
+    return remainingMins > 0 ? '$hours hr $remainingMins min' : '$hours hr';
+  }
+
+  static String formatLocalArrivalTime(double remainingSeconds) {
+    final now = DateTime.now();
+    final arrivalTime = now.add(Duration(seconds: remainingSeconds.round()));
+    final hour = arrivalTime.hour.toString().padLeft(2, '0');
+    final minute = arrivalTime.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
   }
 }

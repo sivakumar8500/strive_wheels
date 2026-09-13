@@ -11,6 +11,8 @@ abstract class OtpVerificationModel with _$OtpVerificationModel {
   const factory OtpVerificationModel({
     @JsonKey(name: 'phone') required String fullPhoneNumber,
     @JsonKey(name: 'otp') required String otpCode,
+    @JsonKey(name: 'full_name') String? fullName,
+    @JsonKey(name: 'role') @Default('CUSTOMER') String role,
   }) = _OtpVerificationModel;
 
   factory OtpVerificationModel.fromJson(Map<String, dynamic> json) =>
@@ -20,6 +22,8 @@ abstract class OtpVerificationModel with _$OtpVerificationModel {
     return OtpVerificationModel(
       fullPhoneNumber: entity.fullPhoneNumber,
       otpCode: entity.otpCode,
+      fullName: entity.fullName,
+      role: entity.role,
     );
   }
 }

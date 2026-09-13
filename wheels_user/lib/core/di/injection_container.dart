@@ -6,12 +6,12 @@ import 'package:dio/dio.dart';
 import '../network/api_client.dart';
 import '../network/api_constants.dart';
 import '../network/auth_interceptor.dart';
-import '../network/session_manager.dart';
 import '../network/websocket_service.dart';
 import '../network/customer_ws_controller.dart';
 import '../services/route_condition_service.dart';
 import '../services/navigation_service.dart';
 import '../services/active_booking_service.dart';
+import '../services/fcm_token_service.dart';
 
 import '../../features/booking/data/datasources/booking_local_datasource.dart';
 import '../../features/booking/data/datasources/booking_remote_datasource.dart';
@@ -103,6 +103,13 @@ import '../../features/vehicle_details/data/repositories/vehicle_details_reposit
 import '../../features/vehicle_details/domain/repositories/vehicle_details_repository.dart';
 import '../../features/vehicle_details/domain/usecases/get_vehicle_details_usecase.dart';
 import '../../features/vehicle_details/presentation/bloc/vehicle_details_bloc.dart';
+import '../../features/chat/data/datasources/chat_remote_datasource.dart';
+import '../../features/chat/data/repositories/chat_repository_impl.dart';
+import '../../features/chat/domain/repositories/chat_repository.dart';
+import '../../features/chat/domain/usecases/get_chat_history_usecase.dart';
+import '../../features/chat/domain/usecases/send_chat_message_usecase.dart';
+import '../../features/chat/domain/usecases/listen_chat_messages_usecase.dart';
+import '../../features/chat/presentation/bloc/chat_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -116,14 +123,6 @@ Future<void> initDependencyInjection() async {
     }
   } catch (e) {
     debugPrint('SharedPreferences init error: $e');
-  }
-
-  // Session Manager Registration
-  final prefs = sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : sharedPreferences!;
-  if (!sl.isRegistered<SessionManager>()) {
-    sl.registerLazySingleton<SessionManager>(
-      () => SessionManager(prefs),
-    );
   }
 
   // Core Network Setup
@@ -143,8 +142,7 @@ Future<void> initDependencyInjection() async {
       // Add interceptors
       dio.interceptors.add(
         AuthInterceptor(
-          prefs,
-          sessionManager: sl<SessionManager>(),
+          sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : sharedPreferences!,
         ),
       );
       dio.interceptors.add(LogInterceptor(responseBody: true, requestBody: true));
@@ -187,6 +185,22 @@ Future<void> initDependencyInjection() async {
         sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : sharedPreferences!,
       ),
     );
+  }
+
+  if (!sl.isRegistered<FcmTokenService>()) {
+    sl.registerLazySingleton<FcmTokenService>(
+      () => FcmTokenService(
+        dio: sl<Dio>(),
+        sharedPreferences: sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : sharedPreferences!,
+      ),
+    );
+  }
+
+  // Auto trigger FCM token registration on app install/startup
+  try {
+    sl<FcmTokenService>().registerFcmTokenOnInstall();
+  } catch (e) {
+    debugPrint('FCM Token auto-register error: $e');
   }
 
   // Data Sources
@@ -637,6 +651,47 @@ Future<void> initDependencyInjection() async {
   if (!sl.isRegistered<PaymentMethodBloc>()) {
     sl.registerFactory<PaymentMethodBloc>(
       () => PaymentMethodBloc(getPaymentMethodUseCase: sl()),
+    );
+  }
+
+  // Chat Feature
+  if (!sl.isRegistered<ChatRemoteDataSource>()) {
+    sl.registerLazySingleton<ChatRemoteDataSource>(
+      () => ChatRemoteDataSourceImpl(
+        dio: sl(),
+        customerWSController: sl(),
+        webSocketService: sl(),
+      ),
+    );
+  }
+  if (!sl.isRegistered<ChatRepository>()) {
+    sl.registerLazySingleton<ChatRepository>(
+      () => ChatRepositoryImpl(remoteDataSource: sl()),
+    );
+  }
+  if (!sl.isRegistered<GetChatHistoryUseCase>()) {
+    sl.registerLazySingleton<GetChatHistoryUseCase>(
+      () => GetChatHistoryUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<SendChatMessageUseCase>()) {
+    sl.registerLazySingleton<SendChatMessageUseCase>(
+      () => SendChatMessageUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<ListenChatMessagesUseCase>()) {
+    sl.registerLazySingleton<ListenChatMessagesUseCase>(
+      () => ListenChatMessagesUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<ChatBloc>()) {
+    sl.registerFactoryParam<ChatBloc, int, dynamic>(
+      (bookingId, _) => ChatBloc(
+        getChatHistoryUseCase: sl(),
+        sendChatMessageUseCase: sl(),
+        listenChatMessagesUseCase: sl(),
+        bookingId: bookingId,
+      ),
     );
   }
 }

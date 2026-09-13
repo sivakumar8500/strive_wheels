@@ -105,7 +105,7 @@ class _SplashPageState extends State<SplashPage> {
         ),
         const SizedBox(height: 8),
         Text(
-          AppStrings.appName,
+          'Wheels',
           style: GoogleFonts.poppins(
             fontSize: 38,
             fontWeight: FontWeight.w800,

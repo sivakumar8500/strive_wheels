@@ -74,28 +74,5 @@ void main() {
       expect(find.text('2.4 km'), findsOneWidget);
       expect(find.text('Main Expressway'), findsOneWidget);
     });
-
-    testWidgets('triggers onToggleMute when mute button is tapped', (tester) async {
-      bool muteTapped = false;
-      await tester.pumpWidget(buildWidget(
-        isMuted: true,
-        onToggleMute: () => muteTapped = true,
-      ));
-
-      expect(find.byIcon(Icons.volume_off_rounded), findsOneWidget);
-      await tester.tap(find.byIcon(Icons.volume_off_rounded));
-      expect(muteTapped, isTrue);
-    });
-
-    testWidgets('triggers onOverviewTap when overview map button is tapped', (tester) async {
-      bool overviewTapped = false;
-      await tester.pumpWidget(buildWidget(
-        onOverviewTap: () => overviewTapped = true,
-      ));
-
-      expect(find.byIcon(Icons.map_rounded), findsOneWidget);
-      await tester.tap(find.byIcon(Icons.map_rounded));
-      expect(overviewTapped, isTrue);
-    });
   });
 }

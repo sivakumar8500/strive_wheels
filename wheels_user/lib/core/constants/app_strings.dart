@@ -1,6 +1,6 @@
 /// Centralized string constants for wheels_user.
 abstract class AppStrings {
-  static const String appName = 'Wheels';
+  static const String appName = 'Strive Wheels Customer';
   static const String ownedBy = 'Owned by';
   static const String striveGroup = 'Strive';
   static const String striveSubtext = 'Group of Companies';

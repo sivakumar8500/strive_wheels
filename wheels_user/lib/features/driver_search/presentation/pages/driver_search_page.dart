@@ -11,8 +11,10 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/customer_ws_controller.dart';
 import '../../../../core/services/active_booking_service.dart';
+import '../../../home/presentation/pages/home_page.dart';
 import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
 import '../../../booking/presentation/pages/booking_confirmed_page.dart';
+import '../../../booking/presentation/pages/live_trip_tracking_page.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../bloc/driver_search_bloc.dart';
 import '../bloc/driver_search_event.dart';
@@ -63,10 +65,15 @@ class _DriverSearchPageState extends State<DriverSearchPage>
   Map<String, dynamic>? _riderData;
   Map<String, dynamic>? _vehicleData;
   final String _orderTime = '10:42 AM';
+  late final AnimationController _progressController;
 
   @override
   void initState() {
     super.initState();
+    _progressController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat();
     context.read<DriverSearchBloc>().add(const LoadDriverSearchEvent());
     _setupWebSocket();
   }
@@ -108,8 +115,67 @@ class _DriverSearchPageState extends State<DriverSearchPage>
       _wsSubscription = _wsController!.bookingEventStream.listen((eventData) {
         final event = eventData['event'];
         final data = eventData['data'] ?? {};
+        final rawStatus = (data['status'] ?? data['booking']?['status'] ?? eventData['status'])?.toString().toUpperCase() ?? '';
 
         if (!mounted) return;
+
+        final isTripStarted =
+            event == 'booking.verify' ||
+            event == 'booking.verified' ||
+            event == 'otpverify' ||
+            event == 'booking.otp_verified' ||
+            event == 'otp_verified' ||
+            event == 'booking.trip_started' ||
+            event == 'booking.started' ||
+            event == 'rider.trip_started' ||
+            event == 'trip_started' ||
+            event == 'trip.started' ||
+            event == 'booking.updated' ||
+            event == 'booking.start_success' ||
+            event == 'ride.started' ||
+            event == 'booking.start' ||
+            data['otp_verified'] == true ||
+            rawStatus == 'TRIP_STARTED' ||
+            rawStatus == 'TRIP_IN_PROGRESS' ||
+            rawStatus == 'IN_TRANSIT' ||
+            rawStatus == 'STARTED';
+
+        if (isTripStarted) {
+          final booking = data['booking'] as Map<String, dynamic>? ?? {};
+          final rider = booking['rider'] as Map<String, dynamic>?;
+          final vehicle = booking['vehicle'] as Map<String, dynamic>?;
+          final dName = rider?['full_name']?.toString() ?? _riderData?['full_name']?.toString() ?? 'Marcus Thorne';
+          final dRating = (rider?['rating'] is num) ? (rider!['rating'] as num).toDouble() : 4.9;
+          final vMake = vehicle?['make']?.toString() ?? '';
+          final vModel = vehicle?['model']?.toString() ?? 'BMW i7';
+          final lPlate = vehicle?['license_plate']?.toString() ?? '7396';
+          final vInfo = (vMake.isNotEmpty && vModel.isNotEmpty && !vModel.contains(vMake))
+              ? '$vMake $vModel'
+              : vModel;
+
+          if (sl.isRegistered<ActiveBookingService>()) {
+            sl<ActiveBookingService>().updateBookingStatus('TRIP_STARTED');
+          }
+
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => LiveTripTrackingPage(
+                  driverName: dName,
+                  driverRating: dRating,
+                  vehicleInfo: '$vInfo • $lPlate',
+                  pickupAddress: widget.pickupAddress,
+                  dropAddress: widget.dropAddress,
+                  pickupLatLng: LatLng(widget.pickupLat, widget.pickupLng),
+                  dropLatLng: LatLng(widget.dropLat, widget.dropLng),
+                  startOtp: _startOtp,
+                  initialStatus: 'TRIP_STARTED',
+                ),
+              ),
+            );
+          }
+          return;
+        }
 
         if (event == 'booking.created') {
           final booking = data['booking'] ?? {};
@@ -157,6 +223,39 @@ class _DriverSearchPageState extends State<DriverSearchPage>
               ),
             ),
           );
+        } else if (event == 'booking.cancelled' ||
+            event == 'booking.rider_cancelled' ||
+            event == 'booking.customer_cancelled' ||
+            event == 'ride.cancelled' ||
+            event == 'booking.cancel_success') {
+          final reason = data['reason']?.toString() ?? 'Ride request was cancelled.';
+          if (sl.isRegistered<ActiveBookingService>()) {
+            sl<ActiveBookingService>().clearActiveBooking();
+          }
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(reason),
+                backgroundColor: const Color(0xFFEF4444),
+                duration: const Duration(seconds: 4),
+              ),
+            );
+            Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
+          }
+        } else if (event == 'booking.no_driver_found') {
+          if (sl.isRegistered<ActiveBookingService>()) {
+            sl<ActiveBookingService>().clearActiveBooking();
+          }
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No nearby drivers accepted your request. Please try again.'),
+                backgroundColor: Color(0xFFEF4444),
+                duration: Duration(seconds: 4),
+              ),
+            );
+            Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
+          }
         } else if (event == 'notification.new') {
           final notif = data['notification'] ?? {};
           final body = notif['body']?.toString();
@@ -180,6 +279,7 @@ class _DriverSearchPageState extends State<DriverSearchPage>
 
   @override
   void dispose() {
+    _progressController.dispose();
     _wsSubscription?.cancel();
     super.dispose();
   }
@@ -238,7 +338,7 @@ class _DriverSearchPageState extends State<DriverSearchPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Top Map Radar Card with circular expanding ripple waves
+                // Top Map Radar Card with circular expanding ripple waves & split 3-bar progress
                 _buildRadarCard(context, isDark, data),
                 const SizedBox(height: 16),
 
@@ -250,24 +350,13 @@ class _DriverSearchPageState extends State<DriverSearchPage>
 
                 // Estimated Confirmation Card
                 _buildEstimatedCard(context, isDark, data),
-                const SizedBox(height: 16),
-
-                // Ride Status Card
-                _buildRideStatusCard(context, isDark, data),
                 const SizedBox(height: 24),
 
                 // Cancel Request Button
                 SizedBox(
                   height: 52,
                   child: OutlinedButton(
-                    onPressed: () {
-                      if (sl.isRegistered<ActiveBookingService>()) {
-                        sl<ActiveBookingService>().clearActiveBooking();
-                      }
-                      context
-                          .read<DriverSearchBloc>()
-                          .add(const CancelDriverSearchEvent());
-                    },
+                    onPressed: () => _showCancelSearchDialog(context),
                     style: OutlinedButton.styleFrom(
                       backgroundColor: isDark ? const Color(0xFF2C1E1E) : Colors.white,
                       side: const BorderSide(color: Color(0xFFFECDD3), width: 1.2),
@@ -295,9 +384,62 @@ class _DriverSearchPageState extends State<DriverSearchPage>
         selectedIndex: 0,
         onTabSelected: (index) {
           if (index == 0) {
-            Navigator.of(context).popUntil((route) => route.isFirst);
+            Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
           }
         },
+      ),
+    );
+  }
+
+  void _showCancelSearchDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text(
+          'Cancel Search?',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to cancel your ride request search?',
+          style: GoogleFonts.poppins(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: Text(
+              'Keep Searching',
+              style: GoogleFonts.poppins(color: const Color(0xFF64748B)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(dialogCtx).pop();
+              if (_bookingId != null && sl.isRegistered<CustomerWSController>()) {
+                sl<CustomerWSController>().cancelRide(bookingId: _bookingId.toString());
+              }
+              if (sl.isRegistered<ActiveBookingService>()) {
+                sl<ActiveBookingService>().clearActiveBooking();
+              }
+              context.read<DriverSearchBloc>().add(const CancelDriverSearchEvent());
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Ride search cancelled successfully'),
+                  backgroundColor: Color(0xFFEF4444),
+                ),
+              );
+              Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text(
+              'Yes, Cancel',
+              style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -355,6 +497,8 @@ class _DriverSearchPageState extends State<DriverSearchPage>
                     color: isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B),
                   ),
                 ),
+                const SizedBox(height: 16),
+                _buildSplitProgressBar(isDark),
               ],
             ),
           ),
@@ -363,18 +507,73 @@ class _DriverSearchPageState extends State<DriverSearchPage>
     );
   }
 
+  Widget _buildSplitProgressBar(bool isDark) {
+    return AnimatedBuilder(
+      animation: _progressController,
+      builder: (context, child) {
+        final value = _progressController.value;
+        final p1 = (value / 0.333).clamp(0.0, 1.0);
+        final p2 = ((value - 0.333) / 0.333).clamp(0.0, 1.0);
+        final p3 = ((value - 0.666) / 0.334).clamp(0.0, 1.0);
+
+        final trackBg = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
+        return Row(
+          children: [
+            Expanded(child: _buildBarSegment(p1, trackBg)),
+            const SizedBox(width: 8),
+            Expanded(child: _buildBarSegment(p2, trackBg)),
+            const SizedBox(width: 8),
+            Expanded(child: _buildBarSegment(p3, trackBg)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildBarSegment(double fillFactor, Color trackBg) {
+    return Container(
+      height: 6,
+      decoration: BoxDecoration(
+        color: trackBg,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: FractionallySizedBox(
+            widthFactor: fillFactor,
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.primaryBlue,
+                borderRadius: BorderRadius.circular(4),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primaryBlue.withValues(alpha: 0.5),
+                    blurRadius: 4,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildDriverAssignedBanner(BuildContext context, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF132A1C) : const Color(0xFFECFDF5),
+        color: isDark ? const Color(0xFF0F1E36) : const Color(0xFFEFF6FF),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+        border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.4)),
       ),
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: const Color(0xFF10B981),
+            backgroundColor: AppColors.primaryBlue,
             child: const Icon(Icons.person, color: Colors.white),
           ),
           const SizedBox(width: 12),
@@ -387,14 +586,14 @@ class _DriverSearchPageState extends State<DriverSearchPage>
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
-                    color: isDark ? AppColors.textPrimaryDark : const Color(0xFF065F46),
+                    color: isDark ? AppColors.textPrimaryDark : AppColors.primaryBlue,
                   ),
                 ),
                 Text(
                   vehicleDetails,
                   style: GoogleFonts.poppins(
                     fontSize: 12,
-                    color: isDark ? AppColors.textSecondaryDark : const Color(0xFF047857),
+                    color: isDark ? AppColors.textSecondaryDark : const Color(0xFF1E40AF),
                   ),
                 ),
               ],
@@ -404,7 +603,7 @@ class _DriverSearchPageState extends State<DriverSearchPage>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF10B981),
+                color: AppColors.accentOrange,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Column(
@@ -485,153 +684,6 @@ class _DriverSearchPageState extends State<DriverSearchPage>
               Icons.timer_outlined,
               color: AppColors.primaryBlue,
               size: 24,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRideStatusCard(BuildContext context, bool isDark, dynamic data) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF1F5),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Ride Status',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: isDark ? AppColors.textPrimaryDark : const Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildTimelineStep(
-            context: context,
-            isDark: isDark,
-            icon: const Icon(Icons.check_circle_rounded, color: AppColors.primaryBlue, size: 24),
-            title: 'Requested',
-            subtitle: '${data?.orderTime ?? _orderTime} • Order confirmed',
-            isDone: true,
-            hasLine: true,
-          ),
-          _buildTimelineStep(
-            context: context,
-            isDark: isDark,
-            icon: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: _currentStep >= 2 ? AppColors.primaryBlue : const Color(0xFF94A3B8),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.sync_rounded, color: Colors.white, size: 16),
-            ),
-            title: 'Searching',
-            subtitle: data?.scanRadiusText ?? 'Scanning 1.2km radius...',
-            isCurrent: _currentStep == 2,
-            isDone: _currentStep > 2,
-            hasLine: true,
-          ),
-          _buildTimelineStep(
-            context: context,
-            isDark: isDark,
-            icon: Icon(
-              _currentStep >= 3 ? Icons.check_circle_rounded : Icons.circle_outlined,
-              color: _currentStep >= 3 ? AppColors.primaryBlue : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
-              size: 24,
-            ),
-            title: 'Accepted',
-            subtitle: _currentStep >= 3 ? 'Driver accepted ride' : 'Waiting for driver',
-            isCurrent: _currentStep == 3,
-            isDone: _currentStep > 3,
-            hasLine: true,
-          ),
-          _buildTimelineStep(
-            context: context,
-            isDark: isDark,
-            icon: Icon(
-              _currentStep >= 4 ? Icons.location_on_rounded : Icons.location_on_outlined,
-              color: _currentStep >= 4 ? AppColors.primaryBlue : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
-              size: 24,
-            ),
-            title: 'Assigned',
-            subtitle: _currentStep >= 4 ? 'Vehicle details: $vehicleDetails' : 'Vehicle details arrival',
-            isCurrent: _currentStep == 4,
-            isDone: _currentStep >= 4,
-            hasLine: false,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimelineStep({
-    required BuildContext context,
-    required bool isDark,
-    required Widget icon,
-    required String title,
-    required String subtitle,
-    bool isDone = false,
-    bool isCurrent = false,
-    required bool hasLine,
-  }) {
-    Color titleColor;
-    if (isCurrent) {
-      titleColor = AppColors.primaryBlue;
-    } else if (isDone) {
-      titleColor = isDark ? AppColors.textPrimaryDark : const Color(0xFF0F172A);
-    } else {
-      titleColor = isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B);
-    }
-
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Column(
-            children: [
-              icon,
-              if (hasLine)
-                Expanded(
-                  child: Container(
-                    width: 2,
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      fontWeight: isCurrent || isDone ? FontWeight.bold : FontWeight.w500,
-                      color: titleColor,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B),
-                    ),
-                  ),
-                ],
-              ),
             ),
           ),
         ],

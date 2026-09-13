@@ -10,8 +10,6 @@ import 'core/theme/presentation/bloc/theme_bloc.dart';
 import 'features/splash/presentation/bloc/splash_bloc.dart';
 import 'features/splash/presentation/pages/splash_page.dart';
 
-import 'core/network/session_manager.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final GoogleMapsFlutterPlatform mapsImplementation =
@@ -23,35 +21,8 @@ void main() async {
   runApp(const WheelsUserApp());
 }
 
-class WheelsUserApp extends StatefulWidget {
+class WheelsUserApp extends StatelessWidget {
   const WheelsUserApp({super.key});
-
-  @override
-  State<WheelsUserApp> createState() => _WheelsUserAppState();
-}
-
-class _WheelsUserAppState extends State<WheelsUserApp> with WidgetsBindingObserver {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      if (sl.isRegistered<SessionManager>()) {
-        debugPrint('[WheelsUserApp] App resumed. Proactively checking access token...');
-        sl<SessionManager>().getValidAccessToken();
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

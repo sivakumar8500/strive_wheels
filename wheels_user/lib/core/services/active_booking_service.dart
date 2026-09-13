@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -128,23 +130,33 @@ class ActiveBookingService {
 
   bool get hasActiveBooking => _activeBookingNotifier.value != null;
 
+  void _safeNotify(ActiveBookingData? data) {
+    if (WidgetsBinding.instance.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _activeBookingNotifier.value = data;
+      });
+    } else {
+      _activeBookingNotifier.value = data;
+    }
+  }
+
   void loadActiveBooking() {
     try {
       final jsonStr = _prefs.getString(_keyActiveBooking);
       if (jsonStr != null && jsonStr.isNotEmpty) {
         final map = json.decode(jsonStr) as Map<String, dynamic>;
-        _activeBookingNotifier.value = ActiveBookingData.fromJson(map);
+        _safeNotify(ActiveBookingData.fromJson(map));
       } else {
-        _activeBookingNotifier.value = null;
+        _safeNotify(null);
       }
     } catch (e) {
       debugPrint('[ActiveBookingService] Error loading active booking: $e');
-      _activeBookingNotifier.value = null;
+      _safeNotify(null);
     }
   }
 
   Future<void> setActiveBooking(ActiveBookingData booking) async {
-    _activeBookingNotifier.value = booking;
+    _safeNotify(booking);
     try {
       await _prefs.setString(_keyActiveBooking, json.encode(booking.toJson()));
     } catch (e) {
@@ -167,7 +179,7 @@ class ActiveBookingService {
   }
 
   Future<void> clearActiveBooking() async {
-    _activeBookingNotifier.value = null;
+    _safeNotify(null);
     try {
       await _prefs.remove(_keyActiveBooking);
     } catch (e) {

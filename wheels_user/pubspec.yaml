@@ -45,6 +45,8 @@ dependencies:
   google_maps_flutter: ^2.18.0
   google_maps_flutter_android: ^2.16.0
   web_socket_channel: ^3.0.1
+  wakelock_plus: ^1.4.1
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:

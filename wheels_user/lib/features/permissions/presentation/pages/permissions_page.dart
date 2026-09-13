@@ -42,12 +42,7 @@ class _PermissionsPageState extends State<PermissionsPage> {
           listener: (context, state) {
             if (state.isSuccess) {
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(
-                  builder: (_) => BlocProvider<HomeBloc>(
-                    create: (_) => sl<HomeBloc>(),
-                    child: const HomePage(),
-                  ),
-                ),
+                HomePage.route(),
                 (route) => false,
               );
             } else if (state.errorMessage != null) {
@@ -64,7 +59,7 @@ class _PermissionsPageState extends State<PermissionsPage> {
               return const Center(child: CircularProgressIndicator());
             }
 
-            return Padding(
+            return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,7 +137,7 @@ class _PermissionsPageState extends State<PermissionsPage> {
                     },
                   ),
                   
-                  const Spacer(),
+                  const SizedBox(height: 32),
                   AppButton(
                     title: 'Continue',
                     isEnabled: true,

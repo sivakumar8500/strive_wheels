@@ -57,24 +57,29 @@ class ManeuverBannerWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bannerBg = isDark ? const Color(0xFF0F172A) : const Color(0xFF1E293B);
+    final bannerBg = isDark ? AppColors.darkBlue : AppColors.primaryBlue;
+    final iconBg = isDark ? const Color(0xFF00194A) : const Color(0xFF00297A);
 
     final icon = _getManeuverIcon(currentStep?.maneuverType);
     final distanceStr = _formatDistance(distanceToStepMeters > 0 ? distanceToStepMeters : (currentStep?.distanceMeters ?? 0));
-    final roadName = currentStep?.roadName ?? 'Head towards destination';
+    final roadName = currentStep == null
+        ? 'Head towards destination'
+        : ((currentStep?.roadName == null || currentStep!.roadName.isEmpty || currentStep!.roadName.toLowerCase() == 'unnamed road')
+            ? ''
+            : currentStep!.roadName);
     final instruction = currentStep?.instruction ?? 'Follow highlighted route';
 
     return SafeArea(
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: bannerBg,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 16,
+              blurRadius: 14,
               offset: const Offset(0, 4),
             ),
           ],
@@ -83,28 +88,22 @@ class ManeuverBannerWidget extends StatelessWidget {
           children: [
             // Turn Direction Icon Circle
             Container(
-              width: 48,
-              height: 48,
+              width: 46,
+              height: 46,
               decoration: BoxDecoration(
-                color: AppColors.primaryBlue,
+                color: iconBg,
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primaryBlue.withValues(alpha: 0.4),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
               ),
               child: Icon(
                 icon,
                 color: Colors.white,
-                size: 28,
+                size: 26,
               ),
             ),
             const SizedBox(width: 14),
 
-            // Distance & Road Name
+            // Distance & Instruction Text
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -120,19 +119,21 @@ class ManeuverBannerWidget extends StatelessWidget {
                           color: Colors.white,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          roadName,
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF94A3B8),
+                      if (roadName.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            roadName,
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.accentOrange,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 2),
@@ -141,55 +142,13 @@ class ManeuverBannerWidget extends StatelessWidget {
                     style: GoogleFonts.poppins(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: const Color(0xFFCBD5E1),
+                      color: const Color(0xFFE2E8F0),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
-            ),
-
-            const SizedBox(width: 8),
-
-            // Route Overview & Mute Action Buttons
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                InkWell(
-                  onTap: onOverviewTap,
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.map_rounded,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                InkWell(
-                  onTap: onToggleMute,
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                      color: isMuted ? const Color(0xFFEF4444) : Colors.white,
-                      size: 18,
-                    ),
-                  ),
-                ),
-              ],
             ),
           ],
         ),

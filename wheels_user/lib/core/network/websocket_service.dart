@@ -47,50 +47,64 @@ class WebSocketService {
     }
     final encodedToken = Uri.encodeComponent(cleanToken);
 
-    final wsUrl = '$cleanBase/ws/$role/$userId?token=$encodedToken';
-    _currentUrl = wsUrl;
-    _establishConnection(wsUrl);
+    final candidateUrls = [
+      '$cleanBase/ws/$role/$userId?token=$encodedToken',
+      'ws://15.252.129.37:8200/ws/$role/$userId?token=$encodedToken',
+      'ws://15.252.129.37:8200/ws/customer/$userId?token=$encodedToken',
+      'ws://15.252.129.37:8200/ws/v1/connect?token=$encodedToken',
+    ];
+
+    _establishConnectionWithCandidates(candidateUrls);
   }
 
-  void _establishConnection(String url) {
-    try {
-      debugPrint('[WebSocket] Connecting to $url');
-      _channel = WebSocketChannel.connect(Uri.parse(url));
-      _isConnected = true;
-      _reconnectAttempts = 0;
+  Future<void> _establishConnectionWithCandidates(List<String> candidateUrls) async {
+    for (final url in candidateUrls) {
+      try {
+        debugPrint('[WebSocket] Attempting connection to $url');
+        final channel = WebSocketChannel.connect(Uri.parse(url));
+        await channel.ready;
 
-      _channel!.stream.listen(
-        (data) {
-          _handleIncomingData(data);
-        },
-        onError: (error) {
-          debugPrint('[WebSocket] Error: $error');
-          _handleDisconnect();
-        },
-        onDone: () async {
-          final closeCode = _channel?.closeCode;
-          debugPrint('[WebSocket] Connection closed. Code: $closeCode');
-          if (closeCode == 4001) {
-            debugPrint('[WebSocket] Received 4001 (TOKEN_EXPIRED). Refreshing token...');
-            final newToken = await _refreshAccessToken();
-            if (newToken != null && newToken.isNotEmpty) {
-              if (_currentUrl != null) {
-                final updatedUrl = _currentUrl!.replaceAll(RegExp(r'token=[^&]+'), 'token=${Uri.encodeComponent(newToken)}');
-                _currentUrl = updatedUrl;
-                _establishConnection(updatedUrl);
-                return;
+        _channel = channel;
+        _currentUrl = url;
+        _isConnected = true;
+        _reconnectAttempts = 0;
+        debugPrint('[WebSocket] Connection established successfully via $url');
+
+        _startPingHeartbeat();
+
+        _channel!.stream.listen(
+          (data) {
+            _handleIncomingData(data);
+          },
+          onError: (error) {
+            debugPrint('[WebSocket] Error: $error');
+            _handleDisconnect();
+          },
+          onDone: () async {
+            final closeCode = _channel?.closeCode;
+            debugPrint('[WebSocket] Connection closed. Code: $closeCode');
+            if (closeCode == 4001) {
+              debugPrint('[WebSocket] Received 4001 (TOKEN_EXPIRED). Refreshing token...');
+              final newToken = await _refreshAccessToken();
+              if (newToken != null && newToken.isNotEmpty) {
+                if (_currentUrl != null) {
+                  final updatedUrl = _currentUrl!.replaceAll(RegExp(r'token=[^&]+'), 'token=${Uri.encodeComponent(newToken)}');
+                  _currentUrl = updatedUrl;
+                  _establishConnectionWithCandidates([updatedUrl]);
+                  return;
+                }
               }
             }
-          }
-          _handleDisconnect();
-        },
-      );
-
-      _startPingHeartbeat();
-    } catch (e) {
-      debugPrint('[WebSocket] Connection failure: $e');
-      _handleDisconnect();
+            _handleDisconnect();
+          },
+        );
+        return; // Connected successfully!
+      } catch (e) {
+        debugPrint('[WebSocket] Connection failed for $url: $e');
+      }
     }
+
+    _handleDisconnect();
   }
 
   void _handleIncomingData(dynamic data) {
@@ -136,7 +150,7 @@ class WebSocketService {
       _reconnectTimer?.cancel();
       _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
         if (!_isConnected && _currentUrl != null) {
-          _establishConnection(_currentUrl!);
+          _establishConnectionWithCandidates([_currentUrl!]);
         }
       });
     }

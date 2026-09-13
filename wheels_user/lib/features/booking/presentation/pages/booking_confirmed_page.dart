@@ -9,6 +9,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/customer_ws_controller.dart';
 import '../../../../core/services/active_booking_service.dart';
+import '../../../home/presentation/pages/home_page.dart';
 import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
 import 'live_trip_tracking_page.dart';
 import '../../../../core/widgets/app_map_widget.dart';
@@ -56,15 +57,29 @@ class BookingConfirmedPage extends StatefulWidget {
   State<BookingConfirmedPage> createState() => _BookingConfirmedPageState();
 }
 
-class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
+class _BookingConfirmedPageState extends State<BookingConfirmedPage> with WidgetsBindingObserver {
   bool _isRideCompleted = false;
   StreamSubscription? _wsSubscription;
 
   @override
   void initState() {
     super.initState();
-    _saveActiveBookingState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _saveActiveBookingState();
+      }
+    });
     _listenForRideCompletion();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (sl.isRegistered<CustomerWSController>()) {
+        sl<CustomerWSController>().reconnectIfNeeded();
+      }
+    }
   }
 
   void _listenForRideCompletion() {
@@ -74,20 +89,30 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
       final data = message['data'] as Map<String, dynamic>? ?? {};
       final rawStatus = (data['status'] ?? data['booking']?['status'] ?? message['status'])?.toString().toUpperCase() ?? '';
 
-      final isTripStarted = event == 'booking.started' ||
-          event == 'rider.trip_started' ||
-          event == 'booking.trip_started' ||
-          event == 'trip_started' ||
-          event == 'trip.started' ||
-          event == 'booking.otp_verified' ||
-          event == 'otp_verified' ||
+      final isTripStarted =
+          // 1. Dedicated OTP Verification & Multi-Broadcast Events
+          event == 'booking.verify' ||         // Primary OTP Verify Event from Rider
+          event == 'booking.verified' ||       // OTP Verified Event Alias
+          event == 'otpverify' ||              // Primary Dedicated OTP Verify Event
+          event == 'booking.otp_verified' ||   // OTP Verify Alias 1
+          event == 'otp_verified' ||           // OTP Verify Alias 2
+          event == 'booking.trip_started' ||   // Primary Multi-Broadcast Event
+          event == 'booking.started' ||        // Multi-Broadcast Alias 2
+          event == 'rider.trip_started' ||      // Multi-Broadcast Alias 3
+          event == 'trip_started' ||           // Multi-Broadcast Alias 4
+          event == 'trip.started' ||           // Multi-Broadcast Alias 5
+          event == 'booking.updated' ||        // Multi-Broadcast Alias 6
+
+          // 2. Additional WS ACK & Legacy Events
+          event == 'booking.start_success' ||
           event == 'ride.started' ||
-          event == 'booking.in_transit' ||
-          event == 'in_transit' ||
-          (event == 'booking.updated' && (rawStatus == 'TRIP_STARTED' || rawStatus == 'IN_TRANSIT')) ||
-          rawStatus == 'TRIP_STARTED' ||
+          event == 'booking.start' ||
+          data['otp_verified'] == true ||
+
+          // 3. Official Backend DB Status Values
+          rawStatus == 'TRIP_STARTED' ||      // Primary DB status
+          rawStatus == 'TRIP_IN_PROGRESS' ||  // Secondary DB status for ongoing trip
           rawStatus == 'IN_TRANSIT' ||
-          rawStatus == 'ON_THE_WAY' ||
           rawStatus == 'STARTED';
 
       // OTP verified by rider — directly show map tracking screen
@@ -96,12 +121,24 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
           sl<ActiveBookingService>().updateBookingStatus('TRIP_STARTED');
         }
         if (mounted) {
+          final booking = data['booking'] as Map<String, dynamic>? ?? {};
+          final rider = booking['rider'] as Map<String, dynamic>?;
+          final vehicle = booking['vehicle'] as Map<String, dynamic>?;
+          final dName = rider?['full_name']?.toString() ?? widget.driverName;
+          final dRating = (rider?['rating'] is num) ? (rider!['rating'] as num).toDouble() : widget.driverRating;
+          final vMake = vehicle?['make']?.toString() ?? '';
+          final vModel = vehicle?['model']?.toString() ?? widget.vehicleModel;
+          final lPlate = vehicle?['license_plate']?.toString() ?? widget.licensePlate;
+          final vInfo = (vMake.isNotEmpty && vModel.isNotEmpty && !vModel.contains(vMake))
+              ? '$vMake $vModel • $lPlate'
+              : (vModel.contains(lPlate) ? vModel : '$vModel • $lPlate');
+
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (_) => LiveTripTrackingPage(
-                driverName: widget.driverName,
-                driverRating: widget.driverRating,
-                vehicleInfo: '${widget.vehicleModel} • ${widget.licensePlate}',
+                driverName: dName,
+                driverRating: dRating,
+                vehicleInfo: vInfo,
                 pickupAddress: widget.pickupAddress,
                 dropAddress: widget.dropAddress,
                 pickupLatLng: widget.pickupLatLng,
@@ -118,20 +155,27 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
       // Rider cancelled — clear and go home with notification
       if (event == 'booking.cancelled' ||
           event == 'booking.rider_cancelled' ||
+          event == 'booking.customer_cancelled' ||
           event == 'ride.cancelled' ||
           event == 'booking.cancel_success') {
+        final reason = data['reason']?.toString() ?? '';
+        final cancelledBy = data['cancelled_by']?.toString() ?? '';
+        final displayMsg = cancelledBy.toUpperCase() == 'CUSTOMER'
+            ? 'Ride cancelled successfully.'
+            : (reason.isNotEmpty ? reason : 'Your ride was cancelled by the rider.');
+
         if (sl.isRegistered<ActiveBookingService>()) {
           sl<ActiveBookingService>().clearActiveBooking();
         }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Your ride was cancelled by the rider.'),
-              backgroundColor: Color(0xFFEF4444),
-              duration: Duration(seconds: 4),
+            SnackBar(
+              content: Text(displayMsg),
+              backgroundColor: const Color(0xFFEF4444),
+              duration: const Duration(seconds: 4),
             ),
           );
-          Navigator.of(context).popUntil((route) => route.isFirst);
+          Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
         }
         return;
       }
@@ -148,6 +192,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _wsSubscription?.cancel();
     super.dispose();
   }
@@ -208,7 +253,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
                   backgroundColor: Color(0xFFEF4444),
                 ),
               );
-              Navigator.of(context).popUntil((route) => route.isFirst);
+              Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
@@ -363,7 +408,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
         selectedIndex: 0,
         onTabSelected: (index) {
           if (index == 0) {
-            Navigator.of(context).popUntil((route) => route.isFirst);
+            Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
           }
         },
       ),
@@ -391,8 +436,12 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> {
             AppMapWidget(
               initialCameraPosition: CameraPosition(
                 target: widget.pickupLatLng,
-                zoom: 14.0,
+                zoom: 17.0,
+                tilt: 55.0,
               ),
+              buildingsEnabled: true,
+              tiltGesturesEnabled: true,
+              rotateGesturesEnabled: true,
               onMapCreated: (controller) {
                 final bounds = LatLngBounds(
                   southwest: LatLng(

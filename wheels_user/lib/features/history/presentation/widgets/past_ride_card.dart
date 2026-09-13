@@ -172,18 +172,20 @@ class PastRideCard extends StatelessWidget {
             children: [
               Expanded(
                 child: SizedBox(
-                  height: 40,
+                  height: 44,
                   child: ElevatedButton(
                     key: Key('book_again_button_${ride.id}'),
                     onPressed: onBookAgainTap,
                     style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                      alignment: Alignment.center,
                       backgroundColor: isDark
                           ? const Color(0xFF1E293B)
                           : const Color(0xFFEEF2FF),
                       foregroundColor: AppColors.primaryBlue,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(22),
                         side: BorderSide(
                           color: isDark
                               ? const Color(0xFF334155)
@@ -195,7 +197,7 @@ class PastRideCard extends StatelessWidget {
                     child: Text(
                       AppStrings.bookAgain,
                       style: GoogleFonts.inter(
-                        fontSize: 13,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: AppColors.primaryBlue,
                       ),
@@ -209,15 +211,15 @@ class PastRideCard extends StatelessWidget {
               InkWell(
                 key: Key('ride_details_chevron_${ride.id}'),
                 onTap: onBookAgainTap,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(22),
                 child: Container(
-                  width: 40,
-                  height: 40,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     color: isDark
                         ? const Color(0xFF1E293B)
                         : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(22),
                     border: Border.all(
                       color: isDark
                           ? const Color(0xFF334155)

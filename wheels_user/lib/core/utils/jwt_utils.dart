@@ -28,34 +28,4 @@ class JwtUtils {
     }
     return null;
   }
-
-  /// Parses the exp claim from a JWT token string
-  static DateTime? getTokenExpiration(String? token) {
-    if (token == null || token.trim().isEmpty) return null;
-
-    try {
-      final parts = token.trim().split('.');
-      if (parts.length != 3) return null;
-
-      final normalized = base64Url.normalize(parts[1]);
-      final payloadString = utf8.decode(base64Url.decode(normalized));
-      final Map<String, dynamic> payload = jsonDecode(payloadString);
-
-      final exp = payload['exp'];
-      if (exp is num) {
-        return DateTime.fromMillisecondsSinceEpoch(exp.toInt() * 1000, isUtc: true);
-      }
-    } catch (e) {
-      debugPrint('[JwtUtils] Error parsing JWT exp: $e');
-    }
-    return null;
-  }
-
-  /// Checks if token is null, invalid, or expiring within [marginSeconds]
-  static bool isTokenExpiring(String? token, {int marginSeconds = 120}) {
-    final exp = getTokenExpiration(token);
-    if (exp == null) return true;
-    final cutoff = DateTime.now().toUtc().add(Duration(seconds: marginSeconds));
-    return exp.isBefore(cutoff);
-  }
 }

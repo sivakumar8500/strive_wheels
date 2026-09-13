@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../di/injection_container.dart';
+import '../utils/jwt_utils.dart';
 import 'api_constants.dart';
 import 'websocket_service.dart';
 
@@ -16,6 +19,27 @@ class CustomerWSController {
 
   Stream<Map<String, dynamic>> get bookingEventStream =>
       _bookingEventController.stream;
+
+  void reconnectIfNeeded() {
+    try {
+      final prefs = sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : null;
+      final rawToken = prefs?.getString('access_token') ??
+          prefs?.getString('auth_token') ??
+          prefs?.getString('user_token');
+      final token = (rawToken != null && rawToken.trim().isNotEmpty) ? rawToken.trim() : 'demo_token';
+
+      int? userId = prefs?.getInt('user_id') ?? prefs?.getInt('customer_id');
+      if (userId == null && rawToken != null && rawToken.trim().isNotEmpty) {
+        userId = JwtUtils.getUserIdFromJwt(rawToken);
+      }
+      userId ??= 1;
+
+      initCustomerWebSocket(userId, token);
+      debugPrint('[CustomerWSController] Reconnect executed for customerId: $userId');
+    } catch (e) {
+      debugPrint('[CustomerWSController] Reconnect error: $e');
+    }
+  }
 
   void initCustomerWebSocket(int customerId, String jwtToken, {String? baseUrl}) {
     final url = baseUrl ?? ApiConstants.wsBaseUrl;
@@ -42,8 +66,33 @@ class CustomerWSController {
           break;
         case 'rider.location_updated':
         case 'rider.location':
-          final lat = (data['lat'] as num?)?.toDouble();
-          final lng = (data['lng'] as num?)?.toDouble();
+        case 'location_update':
+        case 'location.update':
+        case 'location.updated':
+        case 'driver.location':
+        case 'driver.location_updated':
+        case 'booking.location_updated':
+          double? parseCoord(dynamic val) {
+            if (val == null) return null;
+            if (val is num) return val.toDouble();
+            return double.tryParse(val.toString());
+          }
+          final lat = parseCoord(
+            data['lat'] ??
+            data['latitude'] ??
+            data['rider_lat'] ??
+            data['driver_lat'] ??
+            (data['location'] is Map ? data['location']['lat'] ?? data['location']['latitude'] : null) ??
+            (data['coords'] is Map ? data['coords']['lat'] ?? data['coords']['latitude'] : null)
+          );
+          final lng = parseCoord(
+            data['lng'] ??
+            data['longitude'] ??
+            data['rider_lng'] ??
+            data['driver_lng'] ??
+            (data['location'] is Map ? data['location']['lng'] ?? data['location']['longitude'] : null) ??
+            (data['coords'] is Map ? data['coords']['lng'] ?? data['coords']['longitude'] : null)
+          );
           debugPrint('[CustomerWSController] Rider location update: $lat, $lng');
           break;
         case 'booking.arrived':
@@ -51,13 +100,19 @@ class CustomerWSController {
         case 'booking.rider_arrived':
           debugPrint('[CustomerWSController] Rider Arrived at Pickup!');
           break;
+        case 'booking.verify':
+        case 'booking.verified':
         case 'booking.started':
         case 'rider.trip_started':
         case 'booking.trip_started':
+        case 'booking.start_success':
+        case 'booking.start':
         case 'trip_started':
         case 'trip.started':
         case 'booking.otp_verified':
         case 'otp_verified':
+        case 'otpverify':
+        case 'booking.updated':
         case 'ride.started':
         case 'booking.in_transit':
         case 'in_transit':
@@ -72,6 +127,10 @@ class CustomerWSController {
         case 'booking.cancel_success':
         case 'booking.customer_cancelled':
           debugPrint('[CustomerWSController] Trip Cancelled!');
+          break;
+        case 'booking.drop_requested':
+          final reason = data['reason'] ?? 'No reason provided';
+          debugPrint('[CustomerWSController] Drop Requested by rider! Reason: $reason');
           break;
         case 'notification.new':
           final notif = data['notification'] ?? {};
@@ -153,5 +212,44 @@ class CustomerWSController {
   void dispose() {
     _subscription?.cancel();
     _ws.disconnect();
+  }
+
+  /// Request custom/early drop location from customer side.
+  void requestDrop({required dynamic bookingId, required String reason}) {
+    final bIdInt = bookingId is String ? int.tryParse(bookingId.replaceAll(RegExp(r'[^0-9]'), '')) : bookingId;
+    final payload = {
+      'booking_id': bIdInt ?? bookingId,
+      'requested_by': 'CUSTOMER',
+      'reason': reason,
+      'is_drop_requested': true,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+    _ws.send('booking.drop_requested', payload);
+    debugPrint('[CustomerWSController] Drop requested WS sent for booking: $bookingId, reason: $reason');
+  }
+
+  /// Approve a drop request from the rider / counterpart.
+  void sendDropApproved({required dynamic bookingId}) {
+    final bIdInt = bookingId is String ? int.tryParse(bookingId.replaceAll(RegExp(r'[^0-9]'), '')) : bookingId;
+    final payload = {
+      'booking_id': bIdInt ?? bookingId,
+      'accepted_by': 'CUSTOMER',
+      'is_drop_accepted': true,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+    _ws.send('booking.drop_accepted', payload);
+    _ws.send('booking.drop_approved', payload);
+    debugPrint('[CustomerWSController] Drop accepted/approved WS sent for booking: $bookingId');
+  }
+
+  /// Reject a drop request from the rider with a reason.
+  void sendDropRejected({required dynamic bookingId, required String reason}) {
+    final bIdInt = bookingId is String ? int.tryParse(bookingId.replaceAll(RegExp(r'[^0-9]'), '')) : bookingId;
+    _ws.send('booking.drop_rejected', {
+      'booking_id': bIdInt ?? bookingId,
+      'rejected_by': 'CUSTOMER',
+      'reason': reason,
+    });
+    debugPrint('[CustomerWSController] Drop rejected WS sent for booking: $bookingId, reason: $reason');
   }
 }
