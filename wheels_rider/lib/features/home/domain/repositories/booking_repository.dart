@@ -4,6 +4,7 @@ abstract class BookingRepository {
   void connectToBookingSocket(int driverId, String token);
   void disconnect();
   void acceptBooking(int bookingId);
+  void cancelBooking(int bookingId, {String reason});
   void sendLocationPing({
     required double lat,
     required double lng,

@@ -14,6 +14,8 @@ class NavigationBottomPanelWidget extends StatefulWidget {
   final bool isTripStarted;
   final bool isLoading;
   final VoidCallback onMainActionTap;
+  final VoidCallback? onRequestDrop;
+  final VoidCallback? onCancelRide;
 
   const NavigationBottomPanelWidget({
     super.key,
@@ -27,6 +29,8 @@ class NavigationBottomPanelWidget extends StatefulWidget {
     required this.isTripStarted,
     required this.isLoading,
     required this.onMainActionTap,
+    this.onRequestDrop,
+    this.onCancelRide,
   });
 
   @override
@@ -223,13 +227,101 @@ class _NavigationBottomPanelWidgetState extends State<NavigationBottomPanelWidge
 
           const SizedBox(height: 14),
 
+          // Secondary Action Buttons (Request Drop & Cancel Ride)
+          if (widget.isTripStarted) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 44,
+                    child: OutlinedButton.icon(
+                      onPressed: widget.isLoading ? null : widget.onRequestDrop,
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.orange, width: 1.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: const Icon(Icons.flag_rounded, color: Colors.orange, size: 18),
+                      label: Text(
+                        'REQUEST DROP',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                if (widget.onCancelRide != null) ...[
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: SizedBox(
+                      height: 44,
+                      child: OutlinedButton.icon(
+                        onPressed: widget.isLoading ? null : widget.onCancelRide,
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        icon: const Icon(Icons.cancel_outlined, color: Color(0xFFEF4444), size: 18),
+                        label: Text(
+                          'CANCEL RIDE',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFFEF4444),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 10),
+          ] else if (widget.onCancelRide != null) ...[
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: OutlinedButton.icon(
+                onPressed: widget.isLoading ? null : widget.onCancelRide,
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                icon: const Icon(Icons.cancel_outlined, color: Color(0xFFEF4444), size: 18),
+                label: Text(
+                  'CANCEL RIDE',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFFEF4444),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+
           // Main Action Button
           SizedBox(
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed: widget.isLoading ? null : widget.onMainActionTap,
+              onPressed: (widget.isLoading || (widget.isTripStarted && widget.remainingKm > 0.2)) 
+                  ? null 
+                  : widget.onMainActionTap,
               style: ElevatedButton.styleFrom(
+                disabledBackgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                 backgroundColor: actionColor,
                 elevation: 2,
                 shape: RoundedRectangleBorder(
@@ -247,8 +339,9 @@ class _NavigationBottomPanelWidgetState extends State<NavigationBottomPanelWidge
                       style: GoogleFonts.poppins(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 0.5,
+                        color: (widget.isTripStarted && widget.remainingKm > 0.2) 
+                            ? (isDark ? const Color(0xFF94A3B8) : const Color(0xFF94A3B8))
+                            : Colors.white,
                       ),
                     ),
             ),

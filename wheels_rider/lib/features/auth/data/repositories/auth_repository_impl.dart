@@ -44,11 +44,10 @@ class AuthRepositoryImpl implements AuthRepository {
       );
 
       final token = response.data.accessToken;
-      final refreshToken = response.data.refreshToken;
       final driverRegistration = response.data.riderProfile?.driverRegistration ?? response.data.driverRegistration;
 
-      // Cache token & refresh token
-      await localDataSource.cacheUserToken(token, refreshToken: refreshToken);
+      // Cache token
+      await localDataSource.cacheUserToken(token);
       
       if (driverRegistration == null) {
         return const AuthResult(authStatus: AuthStatus.registrationPending);

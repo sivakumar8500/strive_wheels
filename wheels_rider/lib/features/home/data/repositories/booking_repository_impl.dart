@@ -38,6 +38,11 @@ class BookingRepositoryImpl implements BookingRepository {
   }
 
   @override
+  void cancelBooking(int bookingId, {String reason = 'Rider cancelled trip'}) {
+    webSocketDataSource.cancelBooking(bookingId, reason: reason);
+  }
+
+  @override
   void sendLocationPing({
     required double lat,
     required double lng,

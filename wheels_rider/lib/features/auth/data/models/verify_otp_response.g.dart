@@ -35,14 +35,12 @@ _VerifyOtpData _$VerifyOtpDataFromJson(Map<String, dynamic> json) =>
       riderProfile: json['rider_profile'] == null
           ? null
           : RiderProfile.fromJson(
-              json['rider_profile'] as Map<String, dynamic>,
-            ),
+              json['rider_profile'] as Map<String, dynamic>),
       customerProfile: json['customer_profile'],
       driverRegistration: json['driver_registration'] == null
           ? null
           : DriverRegistration.fromJson(
-              json['driver_registration'] as Map<String, dynamic>,
-            ),
+              json['driver_registration'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$VerifyOtpDataToJson(_VerifyOtpData instance) =>

@@ -6,6 +6,7 @@ abstract class BookingWebSocketDataSource {
   void connect(int driverId, String token);
   void disconnect();
   void acceptBooking(int bookingId);
+  void cancelBooking(int bookingId, {String reason});
   void notifyBookingSuccess(int bookingId);
   void sendLocationPing({
     required double lat,
@@ -103,6 +104,18 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
         'booking_id': bookingId,
         'request_id': bookingId,
         'id': bookingId,
+      }
+    });
+  }
+
+  @override
+  void cancelBooking(int bookingId, {String reason = 'Rider cancelled trip'}) {
+    webSocketClient.sendMessage({
+      'event': 'booking.cancel',
+      'data': {
+        'booking_id': bookingId,
+        'id': bookingId,
+        'reason': reason,
       }
     });
   }

@@ -27,10 +27,12 @@ import '../../domain/entities/ride_request_entity.dart';
 import '../../data/models/ride_request_model.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/network/websocket_client.dart';
 import '../../../../core/services/navigation_service.dart';
 import '../widgets/availability_dialog.dart';
 import '../widgets/maneuver_banner_widget.dart';
 import '../widgets/navigation_bottom_panel_widget.dart';
+import '../../../trips/presentation/pages/trip_payment_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -54,6 +56,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   String _userToken = '';
   Timer? _locationTimer;
   RideRequestEntity? _currentRideRequest;
+  StreamSubscription<Map<String, dynamic>>? _wsDropSubscription;
+  bool _isCustomerDropModalShowing = false;
 
   GoogleMapController? _mapController;
 
@@ -68,6 +72,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   late final NavigationService _navigationService;
 
   List<LatLng> _navigationPolylinePoints = [];
+  // ignore: unused_field
   List<NavigationStep> _navigationSteps = [];
   NavigationStep? _currentManeuverStep;
   double _distanceToStepMeters = 0.0;
@@ -80,6 +85,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   
   BitmapDescriptor? _customMarker;
   LatLng? _currentLatLng;
+  final TextEditingController _dropReasonController = TextEditingController();
 
   @override
   void initState() {
@@ -92,6 +98,29 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _loadCustomMarker();
     _startLocationTracking();
     _restoreActiveRideState();
+    _setupDropRequestWebSocketListener();
+  }
+
+  void _setupDropRequestWebSocketListener() {
+    if (!sl.isRegistered<WebSocketClient>()) return;
+    _wsDropSubscription = sl<WebSocketClient>().messageStream.listen((msg) {
+      if (!mounted) return;
+      final event = msg['event']?.toString() ?? '';
+      final data = (msg['data'] ?? {}) as Map<String, dynamic>;
+
+      if (event == 'booking.drop_requested') {
+        final requestedBy = data['requested_by']?.toString() ?? '';
+        // Only show popup if requested by the CUSTOMER (not by RIDER themselves)
+        if (requestedBy.toUpperCase() != 'RIDER') {
+          final reason = (data['reason'] ?? 'No reason provided').toString();
+          final bookingId = data['booking_id'];
+          _showCustomerDropRequestModal(reason: reason, bookingId: bookingId);
+        }
+      } else if (event == 'booking.drop_accepted' || event == 'booking.drop_approved') {
+        // Customer approved rider's drop request → navigate to payment screen
+        _navigateToPaymentScreen(bookingId: data['booking_id']);
+      }
+    });
   }
 
   Future<void> _saveActiveRideState() async {
@@ -261,7 +290,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   @override
   void dispose() {
+    _wsDropSubscription?.cancel();
     _stopLocationTracking();
+    _dropReasonController.dispose();
     _homeBloc.close();
     _profileBloc.close();
     _bookingBloc.close();
@@ -629,41 +660,51 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFF10A142),
-                                        shape: BoxShape.circle,
+                            Flexible(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: BoxDecoration(
+                                          color: _isOnDuty ? const Color(0xFF10A142) : Colors.grey,
+                                          shape: BoxShape.circle,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'ON DUTY',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        color: const Color(0xFF10A142),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(
+                                          _isOnDuty ? 'ON DUTY' : 'OFF DUTY',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: _isOnDuty ? const Color(0xFF10A142) : Colors.grey,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  "You're available\nfor rides",
-                                  textAlign: TextAlign.right,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 8,
-                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+                                    ],
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _isOnDuty ? "You're available\nfor rides" : "You're offline",
+                                    textAlign: TextAlign.right,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 8,
+                                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
                             ),
                             Transform.scale(
                               scale: 0.7,
@@ -902,6 +943,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 isTripStarted: _isTripStarted,
                 isLoading: _isLoadingAction,
                 onMainActionTap: () => _showActiveTripBottomSheet(context),
+                onRequestDrop: _isTripStarted ? () => _showDropRequestDialog(context) : null,
+                onCancelRide: () => _showRiderCancelDialog(context),
               ),
             ),
         ],
@@ -1567,127 +1610,514 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-  Widget _buildActiveTripMiniCard(bool isDark) {
-    if (_currentRideRequest == null) return const SizedBox.shrink();
-
-    return Positioned(
-      bottom: 20,
-      left: 16,
-      right: 16,
-      child: GestureDetector(
-        onTap: () => _showActiveTripBottomSheet(context),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.surfaceDark : Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 18,
-                offset: const Offset(0, 6),
+  void _showDropRequestDialog(BuildContext ctx) {
+    if (_currentRideRequest == null) return;
+    _dropReasonController.clear();
+    showDialog(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.flag_rounded, color: Colors.orange, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Request Drop',
+                style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 17),
               ),
             ],
           ),
-          child: Column(
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Drag hint handle
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
+              Text(
+                'Provide a reason for the early drop. The customer will be notified and must approve.',
+                style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600, height: 1.5),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _dropReasonController,
+                maxLines: 3,
+                maxLength: 200,
+                decoration: InputDecoration(
+                  hintText: 'e.g. Road blocked, vehicle issue...',
+                  hintStyle: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: Theme.of(dialogCtx).brightness == Brightness.dark
+                        ? Colors.grey.shade400
+                        : Colors.grey.shade500,
                   ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.orange, width: 1.5),
+                  ),
+                  filled: true,
+                  fillColor: Theme.of(dialogCtx).brightness == Brightness.dark
+                      ? Colors.grey.shade800
+                      : Colors.grey.shade50,
+                  contentPadding: const EdgeInsets.all(12),
                 ),
-              ),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0D6EFD).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.directions_car, size: 14, color: Color(0xFF0D6EFD)),
-                        const SizedBox(width: 4),
-                        Text(
-                          'TRIP IN PROGRESS',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF0D6EFD),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '₹${_currentRideRequest!.estimatedFare.toStringAsFixed(2)}',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.expand_less_rounded,
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  const Icon(Icons.my_location, size: 16, color: Color(0xFF0D6EFD)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _currentRideRequest!.pickupAddress,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  const Icon(Icons.location_on, size: 16, color: Colors.redAccent),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _currentRideRequest!.dropAddress,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: Theme.of(dialogCtx).brightness == Brightness.dark
+                      ? Colors.white
+                      : const Color(0xFF1E293B),
+                ),
               ),
             ],
           ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogCtx);
+              },
+              child: Text('Cancel', style: GoogleFonts.inter(color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final reason = _dropReasonController.text.trim();
+                if (reason.isEmpty) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('Please enter a reason for the drop request.')),
+                  );
+                  return;
+                }
+                Navigator.pop(dialogCtx);
+                // Send booking.drop_requested via WebSocket
+                if (sl.isRegistered<WebSocketClient>()) {
+                  sl<WebSocketClient>().sendMessage({
+                    'event': 'booking.drop_requested',
+                    'data': {
+                      'booking_id': _currentRideRequest!.id,
+                      'reason': reason,
+                    },
+                  });
+                }
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Drop request sent. Waiting for customer approval...',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+                    ),
+                    backgroundColor: Colors.orange,
+                    duration: const Duration(seconds: 4),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              child: Text(
+                'Submit',
+                style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showRiderCancelDialog(BuildContext ctx) {
+    if (_currentRideRequest == null) return;
+    String selectedReason = 'Customer requested cancellation';
+    final reasons = [
+      'Customer requested cancellation',
+      'Vehicle issues / breakdown',
+      'Heavy traffic / long delay',
+      'Safety concerns',
+      'Other',
+    ];
+
+    showDialog(
+      context: ctx,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.cancel_outlined, color: Color(0xFFEF4444), size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Cancel Trip?',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 17),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Please select a reason for cancelling this trip:',
+                    style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600, height: 1.4),
+                  ),
+                  const SizedBox(height: 12),
+                  ...reasons.map((reason) => RadioListTile<String>(
+                        title: Text(
+                          reason,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: Theme.of(dialogCtx).brightness == Brightness.dark
+                                ? Colors.white
+                                : const Color(0xFF1E293B),
+                          ),
+                        ),
+                        value: reason,
+                        groupValue: selectedReason,
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        activeColor: const Color(0xFFEF4444),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() => selectedReason = val);
+                          }
+                        },
+                      )),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: Text('Back', style: GoogleFonts.inter(color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(dialogCtx);
+                    final bookingId = _currentRideRequest?.id;
+                    if (bookingId != null) {
+                      _bookingBloc.add(CancelRideEvent(bookingId: bookingId, reason: selectedReason));
+                      if (sl.isRegistered<WebSocketClient>()) {
+                        sl<WebSocketClient>().sendMessage({
+                          'event': 'booking.cancelled',
+                          'data': {
+                            'booking_id': bookingId,
+                            'cancelled_by': 'RIDER',
+                            'reason': selectedReason,
+                          },
+                        });
+                      }
+                    }
+                    _clearActiveRideState();
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(
+                        content: Text('Trip cancelled successfully'),
+                        backgroundColor: Color(0xFFEF4444),
+                        duration: Duration(seconds: 4),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEF4444),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                  child: Text(
+                    'Confirm Cancel',
+                    style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showCustomerDropRequestModal({required String reason, dynamic bookingId}) {
+    if (_isCustomerDropModalShowing) return;
+    _isCustomerDropModalShowing = true;
+
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        int remainingSeconds = 30;
+        Timer? timer;
+
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            timer ??= Timer.periodic(const Duration(seconds: 1), (t) {
+              if (remainingSeconds > 1) {
+                if (mounted) {
+                  setSheetState(() {
+                    remainingSeconds--;
+                  });
+                }
+              } else {
+                t.cancel();
+                if (mounted) {
+                  // Auto Accept on 30s timeout
+                  Navigator.pop(ctx);
+                  _isCustomerDropModalShowing = false;
+                  if (sl.isRegistered<WebSocketClient>()) {
+                    sl<WebSocketClient>().sendMessage({
+                      'event': 'booking.drop_accepted',
+                      'data': {
+                        'booking_id': bookingId ?? _currentRideRequest?.id,
+                        'accepted_by': 'RIDER',
+                        'is_drop_accepted': true,
+                      },
+                    });
+                    sl<WebSocketClient>().sendMessage({
+                      'event': 'booking.drop_approved',
+                      'data': {
+                        'booking_id': bookingId ?? _currentRideRequest?.id,
+                        'accepted_by': 'RIDER',
+                        'is_drop_accepted': true,
+                      },
+                    });
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Drop request auto-accepted. Collect payment.',
+                              style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: const Color(0xFF10B981),
+                      duration: const Duration(seconds: 4),
+                    ),
+                  );
+                  Future.delayed(const Duration(milliseconds: 500), () {
+                    if (mounted) _navigateToPaymentScreen(bookingId: bookingId);
+                  });
+                }
+              }
+            });
+
+            return Container(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEFF6FF),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.flag_rounded, color: Color(0xFF2563EB), size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Customer Drop Request',
+                              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              'Early drop requested by customer',
+                              style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.timer_outlined, size: 14, color: Colors.orange),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${remainingSeconds}s',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Text(
+                      'Reason: "$reason"',
+                      style: GoogleFonts.inter(fontSize: 14, fontStyle: FontStyle.italic, color: const Color(0xFF334155)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Auto-accepting in ${remainingSeconds}s if no action taken.',
+                    style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            timer?.cancel();
+                            Navigator.pop(ctx);
+                            _isCustomerDropModalShowing = false;
+                            if (sl.isRegistered<WebSocketClient>()) {
+                              sl<WebSocketClient>().sendMessage({
+                                'event': 'booking.drop_rejected',
+                                'data': {
+                                  'booking_id': bookingId ?? _currentRideRequest?.id,
+                                  'rejected_by': 'RIDER',
+                                  'reason': 'Rider declined early drop request',
+                                },
+                              });
+                            }
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFCBD5E1)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text(
+                            'Decline',
+                            style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: const Color(0xFF64748B)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            timer?.cancel();
+                            Navigator.pop(ctx);
+                            _isCustomerDropModalShowing = false;
+                            if (sl.isRegistered<WebSocketClient>()) {
+                              sl<WebSocketClient>().sendMessage({
+                                'event': 'booking.drop_accepted',
+                                'data': {
+                                  'booking_id': bookingId ?? _currentRideRequest?.id,
+                                  'accepted_by': 'RIDER',
+                                  'is_drop_accepted': true,
+                                },
+                              });
+                              sl<WebSocketClient>().sendMessage({
+                                'event': 'booking.drop_approved',
+                                'data': {
+                                  'booking_id': bookingId ?? _currentRideRequest?.id,
+                                  'accepted_by': 'RIDER',
+                                  'is_drop_accepted': true,
+                                },
+                              });
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Drop request accepted! Collect payment.',
+                                        style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                backgroundColor: const Color(0xFF10B981),
+                                duration: const Duration(seconds: 4),
+                              ),
+                            );
+                            Future.delayed(const Duration(milliseconds: 500), () {
+                              if (mounted) _navigateToPaymentScreen(bookingId: bookingId);
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text(
+                            'Accept (${remainingSeconds}s)',
+                            style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() => _isCustomerDropModalShowing = false);
+  }
+
+  void _navigateToPaymentScreen({dynamic bookingId}) {
+    if (_currentRideRequest == null) {
+      _clearActiveRideState();
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TripPaymentPage(
+          bookingId: bookingId is int ? bookingId : (_currentRideRequest?.id ?? 0),
+          estimatedFare: _currentRideRequest?.estimatedFare ?? 0.0,
+          pickupAddress: _currentRideRequest?.pickupAddress ?? '',
+          dropAddress: _currentRideRequest?.dropAddress ?? '',
+          riderLat: _currentLatLng?.latitude,
+          riderLng: _currentLatLng?.longitude,
+          onCompleted: () {
+            _clearActiveRideState();
+          },
         ),
       ),
     );
   }
+
+
 }
 
 class DashedLinePainter extends CustomPainter {

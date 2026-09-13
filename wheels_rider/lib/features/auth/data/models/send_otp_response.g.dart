@@ -25,10 +25,10 @@ Map<String, dynamic> _$SendOtpResponseToJson(_SendOtpResponse instance) =>
     };
 
 _SendOtpData _$SendOtpDataFromJson(Map<String, dynamic> json) => _SendOtpData(
-  phone: json['phone'] as String,
-  otpSent: json['otp_sent'] as bool,
-  devOtp: json['dev_otp'] as String?,
-);
+      phone: json['phone'] as String,
+      otpSent: json['otp_sent'] as bool,
+      devOtp: json['dev_otp'] as String?,
+    );
 
 Map<String, dynamic> _$SendOtpDataToJson(_SendOtpData instance) =>
     <String, dynamic>{

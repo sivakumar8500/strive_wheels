@@ -46,8 +46,8 @@ void main() {
   testWidgets('renders EditProfilePage properly', (tester) async {
     await tester.pumpWidget(createWidgetUnderTest());
     expect(find.text('Edit Profile'), findsOneWidget);
-    expect(find.text('Name'), findsOneWidget);
-    expect(find.text('Phone'), findsOneWidget);
+    expect(find.text('First Name'), findsOneWidget);
+    expect(find.text('Last Name'), findsOneWidget);
     expect(find.text('Email'), findsOneWidget);
     expect(find.text('Alex'), findsOneWidget);
     expect(find.text('123456'), findsOneWidget);

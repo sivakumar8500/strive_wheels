@@ -24,8 +24,10 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
           "lng": lng,
         },
       );
+    } on DioException catch (e) {
+      throw Exception(e.message ?? 'Failed to update location');
     } catch (e) {
-      // Ignore background location ping errors silently to prevent interrupting rider app UI
+      throw Exception('An unexpected error occurred: $e');
     }
   }
 

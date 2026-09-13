@@ -54,6 +54,13 @@ void main() {
         requestOptions: RequestOptions(path: ''),
       ),
     );
+    when(() => mockApiClient.get(any())).thenAnswer(
+      (_) async => Response(
+        data: tProfileJson,
+        statusCode: 200,
+        requestOptions: RequestOptions(path: ''),
+      ),
+    );
 
     final result = await dataSource.updateProfile({'name': 'Alex'});
     expect(result.user?['full_name'], equals('Alex'));

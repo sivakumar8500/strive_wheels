@@ -16,8 +16,7 @@ _RiderProfile _$RiderProfileFromJson(Map<String, dynamic> json) =>
       driverRegistration: json['driver_registration'] == null
           ? null
           : DriverRegistration.fromJson(
-              json['driver_registration'] as Map<String, dynamic>,
-            ),
+              json['driver_registration'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$RiderProfileToJson(_RiderProfile instance) =>

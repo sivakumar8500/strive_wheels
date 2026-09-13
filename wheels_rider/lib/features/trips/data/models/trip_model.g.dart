@@ -33,13 +33,13 @@ Map<String, dynamic> _$BookingModelToJson(_BookingModel instance) =>
     };
 
 _TripModel _$TripModelFromJson(Map<String, dynamic> json) => _TripModel(
-  totalMileage: (json['total_mileage'] as num).toDouble(),
-  totalRides: (json['total_rides'] as num).toInt(),
-  avgRating: (json['avg_rating'] as num).toDouble(),
-  bookings: (json['bookings'] as List<dynamic>)
-      .map((e) => BookingModel.fromJson(e as Map<String, dynamic>))
-      .toList(),
-);
+      totalMileage: (json['total_mileage'] as num).toDouble(),
+      totalRides: (json['total_rides'] as num).toInt(),
+      avgRating: (json['avg_rating'] as num).toDouble(),
+      bookings: (json['bookings'] as List<dynamic>)
+          .map((e) => BookingModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
 
 Map<String, dynamic> _$TripModelToJson(_TripModel instance) =>
     <String, dynamic>{

@@ -32,4 +32,34 @@ void main() {
     await tester.tap(find.text('ARRIVED AT PICKUP'));
     expect(actionTapped, isTrue);
   });
+
+  testWidgets('NavigationBottomPanelWidget renders CANCEL RIDE button when onCancelRide is provided', (tester) async {
+    bool cancelTapped = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: NavigationBottomPanelWidget(
+            remainingMins: 14,
+            remainingKm: 3.8,
+            arrivalEta: '10:45 AM',
+            destinationAddress: 'Gachibowli Flyover, Hyderabad',
+            pickupAddress: 'Hitech City Metro, Hyderabad',
+            isTripStarted: true,
+            isLoading: false,
+            onMainActionTap: () {},
+            onRequestDrop: () {},
+            onCancelRide: () => cancelTapped = true,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('REQUEST DROP'), findsOneWidget);
+    expect(find.text('CANCEL RIDE'), findsOneWidget);
+    expect(find.text('COMPLETE TRIP'), findsOneWidget);
+
+    await tester.tap(find.text('CANCEL RIDE'));
+    expect(cancelTapped, isTrue);
+  });
 }
