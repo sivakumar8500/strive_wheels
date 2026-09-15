@@ -48,7 +48,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   // ignore: unused_field
   List<DateTime> _corporateSelectedDates = [];
   bool _isRideRequestMinimized = false;
-  bool _hasActiveRideRequest = true;
+  bool _hasActiveRideRequest = false;
   /// True once the rider verifies OTP — unlocks pickup→drop route on map
   bool _isTripStarted = false;
 
@@ -312,6 +312,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           });
 
           _fetchNavigationRoute();
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _hasActiveRideRequest = false;
+            _currentRideRequest = null;
+          });
         }
       }
     } catch (e) {
