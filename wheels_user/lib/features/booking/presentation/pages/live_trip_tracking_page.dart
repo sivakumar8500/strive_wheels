@@ -109,6 +109,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
   double _animTargetRotation = 0.0;
 
   bool _isDropRequestBottomSheetShowing = false;
+  bool _isRiderDropModalShowing = false;
 
   late final Dio _dio;
 
@@ -535,6 +536,30 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                 ),
               ),
             );
+          } else if (event == 'booking.drop_requested' ||
+              event == 'booking.drop_request' ||
+              event == 'trip.drop_requested' ||
+              event == 'trip.drop_request' ||
+              event == 'booking.early_drop_requested' ||
+              event == 'drop_requested') {
+            final requestedBy = (data['requested_by'] ?? eventData['requested_by'] ?? data['requestedBy'] ?? eventData['requestedBy'])?.toString() ?? '';
+            // Only show popup to customer if requested by RIDER (not by CUSTOMER themselves)
+            if (requestedBy.toUpperCase() != 'CUSTOMER') {
+              final reason = (data['reason'] ?? data['drop_reason'] ?? eventData['reason'] ?? eventData['drop_reason'] ?? 'Early drop requested by driver').toString();
+              _showRiderDropRequestModal(reason: reason);
+            }
+          } else if (event == 'booking.drop_rejected') {
+            final reason = (data['reason'] ?? 'Rider declined early drop request').toString();
+            _dropCountdownTimer?.cancel();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Drop Request Declined: $reason'),
+                  backgroundColor: const Color(0xFFEF4444),
+                  duration: const Duration(seconds: 4),
+                ),
+              );
+            }
           } else if (event == 'booking.drop_approved' ||
               event == 'booking.drop_accepted' ||
               event == 'trip.drop_approved' ||
@@ -1337,12 +1362,17 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                 children: [
                   const Icon(Icons.timer_outlined, color: AppColors.accentOrange, size: 20),
                   const SizedBox(width: 8),
-                  Text(
-                    'Auto-approving in ${_dropCountdownSeconds}s...',
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: const Color(0xFFC2410C),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'Auto-approving in ${_dropCountdownSeconds}s...',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: const Color(0xFFC2410C),
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -1397,6 +1427,196 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
         ),
       ),
     );
+  }
+
+  void _showRiderDropRequestModal({required String reason}) {
+    if (_isRiderDropModalShowing) return;
+    _isRiderDropModalShowing = true;
+
+    int remainingSeconds = 30;
+    Timer? timer;
+
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            timer ??= Timer.periodic(const Duration(seconds: 1), (t) {
+              if (remainingSeconds > 1) {
+                setModalState(() {
+                  remainingSeconds--;
+                });
+              } else {
+                t.cancel();
+                if (Navigator.canPop(ctx)) {
+                  Navigator.pop(ctx);
+                }
+                _isRiderDropModalShowing = false;
+                final activeBooking = sl.isRegistered<ActiveBookingService>()
+                    ? sl<ActiveBookingService>().activeBooking
+                    : null;
+                final bookingId = activeBooking?.bookingId ?? 'ER-9921-X4B';
+                if (sl.isRegistered<CustomerWSController>()) {
+                  sl<CustomerWSController>().sendDropApproved(bookingId: bookingId);
+                }
+                _onRiderApprovedDrop();
+              }
+            });
+
+            return Container(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEFF6FF),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.flag_rounded, color: AppColors.primaryBlue, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Driver Drop Request',
+                              style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              'Early drop requested by driver',
+                              style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.timer_outlined, size: 14, color: Colors.orange),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${remainingSeconds}s',
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Text(
+                      'Reason: "$reason"',
+                      style: GoogleFonts.poppins(fontSize: 14, fontStyle: FontStyle.italic, color: const Color(0xFF334155)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Auto-accepting in ${remainingSeconds}s if no action taken.',
+                    style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            timer?.cancel();
+                            if (Navigator.canPop(ctx)) {
+                              Navigator.pop(ctx);
+                            }
+                            _isRiderDropModalShowing = false;
+                            final activeBooking = sl.isRegistered<ActiveBookingService>()
+                                ? sl<ActiveBookingService>().activeBooking
+                                : null;
+                            final bookingId = activeBooking?.bookingId ?? 'ER-9921-X4B';
+                            if (sl.isRegistered<CustomerWSController>()) {
+                              sl<CustomerWSController>().sendDropRejected(
+                                bookingId: bookingId,
+                                reason: 'Customer declined early drop request',
+                              );
+                            }
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFCBD5E1)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text(
+                            'Decline',
+                            style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: const Color(0xFF64748B)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            timer?.cancel();
+                            if (Navigator.canPop(ctx)) {
+                              Navigator.pop(ctx);
+                            }
+                            _isRiderDropModalShowing = false;
+                            final activeBooking = sl.isRegistered<ActiveBookingService>()
+                                ? sl<ActiveBookingService>().activeBooking
+                                : null;
+                            final bookingId = activeBooking?.bookingId ?? 'ER-9921-X4B';
+                            if (sl.isRegistered<CustomerWSController>()) {
+                              sl<CustomerWSController>().sendDropApproved(bookingId: bookingId);
+                            }
+                            _onRiderApprovedDrop();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text(
+                            'Accept (${remainingSeconds}s)',
+                            style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).then((_) {
+      timer?.cancel();
+      _isRiderDropModalShowing = false;
+    });
   }
 
   void _onAutoApproveDrop() {

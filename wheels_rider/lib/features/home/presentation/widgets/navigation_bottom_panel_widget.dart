@@ -17,6 +17,8 @@ class NavigationBottomPanelWidget extends StatefulWidget {
   final VoidCallback? onRequestDrop;
   final VoidCallback? onCancelRide;
 
+  final bool isDropPending;
+
   const NavigationBottomPanelWidget({
     super.key,
     required this.remainingMins,
@@ -28,6 +30,7 @@ class NavigationBottomPanelWidget extends StatefulWidget {
     this.customerRating = 4.9,
     required this.isTripStarted,
     required this.isLoading,
+    this.isDropPending = false,
     required this.onMainActionTap,
     this.onRequestDrop,
     this.onCancelRide,
@@ -235,20 +238,24 @@ class _NavigationBottomPanelWidgetState extends State<NavigationBottomPanelWidge
                   child: SizedBox(
                     height: 44,
                     child: OutlinedButton.icon(
-                      onPressed: widget.isLoading ? null : widget.onRequestDrop,
+                      onPressed: (widget.isLoading || widget.isDropPending) ? null : widget.onRequestDrop,
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.orange, width: 1.5),
+                        side: BorderSide(color: widget.isDropPending ? Colors.grey : Colors.orange, width: 1.5),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      icon: const Icon(Icons.flag_rounded, color: Colors.orange, size: 18),
+                      icon: Icon(
+                        widget.isDropPending ? Icons.timer_outlined : Icons.flag_rounded,
+                        color: widget.isDropPending ? Colors.grey : Colors.orange,
+                        size: 18,
+                      ),
                       label: Text(
-                        'REQUEST DROP',
+                        widget.isDropPending ? 'WAITING APPROVAL...' : 'REQUEST DROP',
                         style: GoogleFonts.poppins(
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: Colors.orange,
+                          color: widget.isDropPending ? Colors.grey : Colors.orange,
                           letterSpacing: 0.5,
                         ),
                       ),

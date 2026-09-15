@@ -132,12 +132,18 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
     super.dispose();
   }
 
-  void _setupDropResponseListener() {
+  void _setupDropResponseListener() async {
     if (!sl.isRegistered<WebSocketClient>()) return;
-    _wsDropSubscription = sl<WebSocketClient>().messageStream.listen((msg) {
+    final wsClient = sl<WebSocketClient>();
+    await wsClient.ensureConnected();
+
+    _wsDropSubscription?.cancel();
+    _wsDropSubscription = wsClient.messageStream.listen((msg) {
       if (!mounted) return;
       final event = msg['event']?.toString() ?? '';
-      final data = (msg['data'] ?? {}) as Map<String, dynamic>;
+      final Map<String, dynamic> data = (msg['data'] is Map)
+          ? Map<String, dynamic>.from(msg['data'] as Map)
+          : Map<String, dynamic>.from(msg);
       final rawStatus = (data['status'] ?? data['booking']?['status'] ?? msg['status'])?.toString().toUpperCase() ?? '';
 
       final isTripStartedEvent =
@@ -193,7 +199,10 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
         return;
       }
 
-      if (event == 'booking.drop_accepted' || event == 'booking.drop_approved') {
+      if (event == 'booking.drop_accepted' ||
+          event == 'booking.drop_approved' ||
+          event == 'trip.drop_accepted' ||
+          event == 'trip.drop_approved') {
         // Drop approved — navigate rider to payment collection screen
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -237,10 +246,18 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
             );
           }
         });
-      } else if (event == 'booking.drop_requested') {
-        final reason = (data['reason'] ?? 'No reason provided').toString();
-        if (mounted) {
-          _showCustomerDropRequestModal(reason, widget.bookingId);
+      } else if (event == 'booking.drop_requested' ||
+          event == 'booking.drop_request' ||
+          event == 'trip.drop_requested' ||
+          event == 'trip.drop_request' ||
+          event == 'booking.early_drop_requested' ||
+          event == 'drop_requested') {
+        final requestedBy = (data['requested_by'] ?? msg['requested_by'] ?? data['requestedBy'] ?? msg['requestedBy'])?.toString() ?? '';
+        if (requestedBy.toUpperCase() != 'RIDER') {
+          final reason = (data['reason'] ?? msg['reason'] ?? data['drop_reason'] ?? msg['drop_reason'] ?? 'Early drop requested by customer').toString();
+          if (mounted) {
+            _showCustomerDropRequestModal(reason, widget.bookingId);
+          }
         }
       } else if (event == 'booking.drop_rejected') {
         // Customer rejected — show the rejection reason
@@ -379,6 +396,14 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                         'booking_id': widget.bookingId,
                         'accepted_by': 'RIDER',
                         'is_drop_accepted': true,
+                      },
+                    });
+                    sl<WebSocketClient>().sendMessage({
+                      'event': 'booking.complete',
+                      'data': {
+                        'booking_id': widget.bookingId,
+                        'rider_lat': widget.riderLat,
+                        'rider_lng': widget.riderLng,
                       },
                     });
                   }
@@ -535,6 +560,14 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                                   'booking_id': widget.bookingId,
                                   'accepted_by': 'RIDER',
                                   'is_drop_accepted': true,
+                                },
+                              });
+                              sl<WebSocketClient>().sendMessage({
+                                'event': 'booking.complete',
+                                'data': {
+                                  'booking_id': widget.bookingId,
+                                  'rider_lat': widget.riderLat,
+                                  'rider_lng': widget.riderLng,
                                 },
                               });
                             }
@@ -940,6 +973,7 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
           'event': 'booking.drop_requested',
           'data': {
             'booking_id': widget.bookingId,
+            'requested_by': 'RIDER',
             'reason': reason,
           },
         });

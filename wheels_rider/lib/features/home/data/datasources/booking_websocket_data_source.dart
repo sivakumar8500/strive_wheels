@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import '../../../../core/network/websocket_client.dart';
 import '../models/ride_request_model.dart';
 
@@ -38,36 +39,72 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
     
     _subscription?.cancel();
     _subscription = webSocketClient.messageStream.listen((message) {
-      final event = message['event'] as String?;
-      final data = message['data'] as Map<String, dynamic>?;
+      final event = message['event']?.toString();
+      final Map<String, dynamic> data = (message['data'] is Map)
+          ? Map<String, dynamic>.from(message['data'] as Map)
+          : Map<String, dynamic>.from(message);
 
-      if (event == null || data == null) return;
+      if (event == null) return;
 
       switch (event) {
         case 'booking.new_request':
-          Map<String, dynamic> bookingMap = {};
-          if (data['booking'] is Map<String, dynamic>) {
-            bookingMap = Map<String, dynamic>.from(data['booking'] as Map<String, dynamic>);
-          } else {
-            bookingMap = Map<String, dynamic>.from(data);
+        case 'booking.created':
+        case 'booking.requested':
+        case 'booking.broadcast':
+        case 'booking.near_by':
+        case 'booking.searching':
+        case 'booking_request':
+        case 'ride.created':
+        case 'ride.requested':
+        case 'ride_request':
+        case 'new_ride_request':
+          try {
+            Map<String, dynamic> bookingMap = {};
+            if (data['booking'] is Map) {
+              bookingMap = Map<String, dynamic>.from(data['booking'] as Map);
+            } else {
+              bookingMap = Map<String, dynamic>.from(data);
+            }
+
+            int? parseInt(dynamic val) {
+              if (val == null) return null;
+              if (val is int) return val;
+              if (val is num) return val.toInt();
+              return int.tryParse(val.toString());
+            }
+
+            double? parseDouble(dynamic val) {
+              if (val == null) return null;
+              if (val is double) return val;
+              if (val is num) return val.toDouble();
+              return double.tryParse(val.toString());
+            }
+
+            final int? trueBookingId = parseInt(bookingMap['booking_id']) ??
+                parseInt(bookingMap['id']) ??
+                parseInt(data['booking_id']) ??
+                parseInt(data['id']);
+
+            final int? reqId = parseInt(data['request_id']) ?? parseInt(bookingMap['request_id']);
+
+            if (trueBookingId != null) {
+              bookingMap['id'] = trueBookingId;
+              bookingMap['booking_id'] = trueBookingId;
+            }
+            if (reqId != null) {
+              bookingMap['request_id'] = reqId;
+            }
+
+            if (bookingMap['pickup_lat'] != null) bookingMap['pickup_lat'] = parseDouble(bookingMap['pickup_lat']);
+            if (bookingMap['pickup_lng'] != null) bookingMap['pickup_lng'] = parseDouble(bookingMap['pickup_lng']);
+            if (bookingMap['drop_lat'] != null) bookingMap['drop_lat'] = parseDouble(bookingMap['drop_lat']);
+            if (bookingMap['drop_lng'] != null) bookingMap['drop_lng'] = parseDouble(bookingMap['drop_lng']);
+            if (bookingMap['estimated_fare'] != null) bookingMap['estimated_fare'] = parseDouble(bookingMap['estimated_fare']);
+
+            _rideRequestController.add(RideRequestModel.fromJson(bookingMap));
+          } catch (e) {
+            debugPrint('[BookingWebSocket] Error parsing new ride request: $e');
           }
-
-          final int? trueBookingId = (bookingMap['booking_id'] as int?) ??
-              (bookingMap['id'] as int?) ??
-              (data['booking_id'] as int?) ??
-              (data['id'] as int?);
-
-          final int? reqId = (data['request_id'] as int?) ?? (bookingMap['request_id'] as int?);
-
-          if (trueBookingId != null) {
-            bookingMap['id'] = trueBookingId;
-            bookingMap['booking_id'] = trueBookingId;
-          }
-          if (reqId != null) {
-            bookingMap['request_id'] = reqId;
-          }
-
-          _rideRequestController.add(RideRequestModel.fromJson(bookingMap));
           break;
         case 'booking.accepted_success':
         case 'booking.rider_accepted':

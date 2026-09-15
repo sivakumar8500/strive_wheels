@@ -36,14 +36,31 @@ class WebSocketClient {
     _establishConnection();
   }
 
+  Future<void> ensureConnected() async {
+    if (_isConnected) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('user_token') ?? prefs.getString('access_token') ?? prefs.getString('token');
+      final driverId = prefs.getInt('driver_id') ?? prefs.getInt('user_id') ?? prefs.getInt('rider_id');
+      if (token != null && token.isNotEmpty && driverId != null) {
+        connect(driverId, token);
+      } else if (_currentDriverId != null && _currentToken != null) {
+        connect(_currentDriverId!, _currentToken!);
+      }
+    } catch (e) {
+      debugPrint('[WebSocketClient] ensureConnected error: $e');
+    }
+  }
+
   Future<void> _establishConnection() async {
     if (_currentDriverId == null || _currentToken == null) return;
 
     final candidateUrls = [
+      '${ApiEndpoints.wsRiderConnect(_currentDriverId!)}?token=$_currentToken',
       '${ApiEndpoints.wsDriverConnect(_currentDriverId!)}?token=$_currentToken',
-      'ws://15.252.129.37:8200/ws/driver/$_currentDriverId?token=$_currentToken',
-      '${ApiEndpoints.wsConnect}?token=$_currentToken',
-      'ws://15.252.129.37:8200/ws/v1/connect?token=$_currentToken',
+      'ws://15.252.129.37:8200/api/v1/ws/rider/$_currentDriverId?token=$_currentToken',
+      'ws://15.252.129.37:8200/api/v1/ws/driver/$_currentDriverId?token=$_currentToken',
+      'ws://15.252.129.37:8200/api/v1/ws/connect?token=$_currentToken',
     ];
 
     for (final url in candidateUrls) {
@@ -58,7 +75,9 @@ class WebSocketClient {
         _channel = channel;
         _isConnected = true;
         _reconnectAttempts = 0;
-        debugPrint('[WebSocket] Connection established successfully via $uri');
+        debugPrint('=====================================================');
+        debugPrint('🟢 [Rider WS Connected] URL: $uri');
+        debugPrint('=====================================================');
         _startPingHeartbeat();
 
         _subscription?.cancel();
@@ -67,10 +86,10 @@ class WebSocketClient {
             try {
               final decoded = jsonDecode(message) as Map<String, dynamic>;
               final eventName = decoded['event'] ?? 'unknown';
-              debugPrint('[WebSocket] Received Event: "$eventName" -> $decoded');
+              debugPrint('📩 [Rider WS Received] Event: "$eventName" -> $decoded');
               _messageController.add(decoded);
             } catch (e) {
-              debugPrint('[WebSocket] Message decode error: $e | Raw: $message');
+              debugPrint('⚠️ [WebSocket] Message decode error: $e | Raw: $message');
             }
           },
           onDone: () async {

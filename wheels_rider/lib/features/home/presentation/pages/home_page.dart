@@ -82,6 +82,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   bool _isNavMuted = false;
   bool _isManualPan = false;
   bool _isLoadingAction = false;
+  bool _isDropRequestPending = false;
   
   BitmapDescriptor? _customMarker;
   LatLng? _currentLatLng;
@@ -101,24 +102,125 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _setupDropRequestWebSocketListener();
   }
 
-  void _setupDropRequestWebSocketListener() {
+  void _setupDropRequestWebSocketListener() async {
     if (!sl.isRegistered<WebSocketClient>()) return;
-    _wsDropSubscription = sl<WebSocketClient>().messageStream.listen((msg) {
+    final wsClient = sl<WebSocketClient>();
+    await wsClient.ensureConnected();
+
+    _wsDropSubscription?.cancel();
+    _wsDropSubscription = wsClient.messageStream.listen((msg) {
       if (!mounted) return;
       final event = msg['event']?.toString() ?? '';
-      final data = (msg['data'] ?? {}) as Map<String, dynamic>;
+      final Map<String, dynamic> data = (msg['data'] is Map)
+          ? Map<String, dynamic>.from(msg['data'] as Map)
+          : Map<String, dynamic>.from(msg);
 
-      if (event == 'booking.drop_requested') {
-        final requestedBy = data['requested_by']?.toString() ?? '';
-        // Only show popup if requested by the CUSTOMER (not by RIDER themselves)
-        if (requestedBy.toUpperCase() != 'RIDER') {
-          final reason = (data['reason'] ?? 'No reason provided').toString();
-          final bookingId = data['booking_id'];
-          _showCustomerDropRequestModal(reason: reason, bookingId: bookingId);
+      final requestedBy = (data['requested_by'] ?? msg['requested_by'] ?? data['requestedBy'] ?? msg['requestedBy'] ?? data['user_type'] ?? msg['user_type'])?.toString() ?? '';
+
+      final isNewRideRequest =
+          event == 'booking.new_request' ||
+          event == 'booking.created' ||
+          event == 'booking.requested' ||
+          event == 'booking.broadcast' ||
+          event == 'booking.near_by' ||
+          event == 'booking.searching' ||
+          event == 'booking_request' ||
+          event == 'ride.created' ||
+          event == 'ride.requested' ||
+          event == 'ride_request' ||
+          event == 'new_ride_request';
+
+      if (isNewRideRequest) {
+        try {
+          Map<String, dynamic> bookingMap = {};
+          if (data['booking'] is Map) {
+            bookingMap = Map<String, dynamic>.from(data['booking'] as Map);
+          } else {
+            bookingMap = Map<String, dynamic>.from(data);
+          }
+
+          int? parseInt(dynamic val) {
+            if (val == null) return null;
+            if (val is int) return val;
+            if (val is num) return val.toInt();
+            return int.tryParse(val.toString());
+          }
+
+          double? parseDouble(dynamic val) {
+            if (val == null) return null;
+            if (val is double) return val;
+            if (val is num) return val.toDouble();
+            return double.tryParse(val.toString());
+          }
+
+          final int? trueBookingId = parseInt(bookingMap['booking_id']) ??
+              parseInt(bookingMap['id']) ??
+              parseInt(data['booking_id']) ??
+              parseInt(data['id']);
+
+          if (trueBookingId != null) {
+            bookingMap['id'] = trueBookingId;
+            bookingMap['booking_id'] = trueBookingId;
+          }
+
+          if (bookingMap['pickup_lat'] != null) bookingMap['pickup_lat'] = parseDouble(bookingMap['pickup_lat']);
+          if (bookingMap['pickup_lng'] != null) bookingMap['pickup_lng'] = parseDouble(bookingMap['pickup_lng']);
+          if (bookingMap['drop_lat'] != null) bookingMap['drop_lat'] = parseDouble(bookingMap['drop_lat']);
+          if (bookingMap['drop_lng'] != null) bookingMap['drop_lng'] = parseDouble(bookingMap['drop_lng']);
+          if (bookingMap['estimated_fare'] != null) bookingMap['estimated_fare'] = parseDouble(bookingMap['estimated_fare']);
+
+          final model = RideRequestModel.fromJson(bookingMap);
+          final entity = model.toEntity();
+
+          if (mounted) {
+            setState(() {
+              _hasActiveRideRequest = true;
+              _isRideRequestMinimized = false;
+              _currentRideRequest = entity;
+            });
+            _bookingBloc.add(RideRequestReceivedEvent(entity));
+          }
+        } catch (e) {
+          debugPrint('Error handling new ride request WS event in HomePage: $e');
         }
-      } else if (event == 'booking.drop_accepted' || event == 'booking.drop_approved') {
-        // Customer approved rider's drop request → navigate to payment screen
-        _navigateToPaymentScreen(bookingId: data['booking_id']);
+      } else {
+        final isDropRequested =
+            event == 'booking.drop_requested' ||
+            event == 'booking.drop_request' ||
+            event == 'trip.drop_requested' ||
+            event == 'trip.drop_request' ||
+            event == 'booking.early_drop_requested' ||
+            event == 'booking.customer_drop_requested' ||
+            event == 'ride.drop_requested' ||
+            event == 'drop_requested' ||
+            (data['is_drop_requested'] == true && requestedBy.toUpperCase() != 'RIDER') ||
+            (data['status']?.toString().toUpperCase() == 'DROP_REQUESTED' && requestedBy.toUpperCase() != 'RIDER');
+
+        if (isDropRequested) {
+          // Only show popup if requested by the CUSTOMER (not by RIDER themselves)
+          if (requestedBy.toUpperCase() != 'RIDER') {
+            final reason = (data['reason'] ?? msg['reason'] ?? data['drop_reason'] ?? msg['drop_reason'] ?? 'Early drop requested by customer').toString();
+            final bookingId = data['booking_id'] ?? msg['booking_id'] ?? _currentRideRequest?.id;
+            _showCustomerDropRequestModal(reason: reason, bookingId: bookingId);
+          }
+        } else if (event == 'booking.drop_accepted' ||
+            event == 'booking.drop_approved' ||
+            event == 'trip.drop_accepted' ||
+            event == 'trip.drop_approved' ||
+            event == 'booking.completed') {
+          setState(() => _isDropRequestPending = false);
+          _navigateToPaymentScreen(bookingId: data['booking_id'] ?? msg['booking_id']);
+        } else if (event == 'booking.drop_rejected') {
+          final reason = (data['reason'] ?? 'Customer declined drop request').toString();
+          setState(() => _isDropRequestPending = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Drop Request Declined: $reason'),
+              backgroundColor: const Color(0xFFEF4444),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
       }
     });
   }
@@ -942,6 +1044,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 pickupAddress: _currentRideRequest!.pickupAddress,
                 isTripStarted: _isTripStarted,
                 isLoading: _isLoadingAction,
+                isDropPending: _isDropRequestPending,
                 onMainActionTap: () => _showActiveTripBottomSheet(context),
                 onRequestDrop: _isTripStarted ? () => _showDropRequestDialog(context) : null,
                 onCancelRide: () => _showRiderCancelDialog(context),
@@ -1694,12 +1797,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   return;
                 }
                 Navigator.pop(dialogCtx);
+                setState(() => _isDropRequestPending = true);
                 // Send booking.drop_requested via WebSocket
                 if (sl.isRegistered<WebSocketClient>()) {
                   sl<WebSocketClient>().sendMessage({
                     'event': 'booking.drop_requested',
                     'data': {
                       'booking_id': _currentRideRequest!.id,
+                      'requested_by': 'RIDER',
                       'reason': reason,
                     },
                   });
@@ -1878,10 +1983,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   Navigator.pop(ctx);
                   _isCustomerDropModalShowing = false;
                   if (sl.isRegistered<WebSocketClient>()) {
+                    final bId = bookingId ?? _currentRideRequest?.id;
+                    final bIdInt = bId is String ? int.tryParse(bId.replaceAll(RegExp(r'[^0-9]'), '')) : bId;
                     sl<WebSocketClient>().sendMessage({
                       'event': 'booking.drop_accepted',
                       'data': {
-                        'booking_id': bookingId ?? _currentRideRequest?.id,
+                        'booking_id': bIdInt ?? bId,
                         'accepted_by': 'RIDER',
                         'is_drop_accepted': true,
                       },
@@ -1889,9 +1996,17 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     sl<WebSocketClient>().sendMessage({
                       'event': 'booking.drop_approved',
                       'data': {
-                        'booking_id': bookingId ?? _currentRideRequest?.id,
+                        'booking_id': bIdInt ?? bId,
                         'accepted_by': 'RIDER',
                         'is_drop_accepted': true,
+                      },
+                    });
+                    sl<WebSocketClient>().sendMessage({
+                      'event': 'booking.complete',
+                      'data': {
+                        'booking_id': bIdInt ?? bId,
+                        'rider_lat': _currentLatLng?.latitude,
+                        'rider_lng': _currentLatLng?.longitude,
                       },
                     });
                   }
@@ -2034,10 +2149,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                             Navigator.pop(ctx);
                             _isCustomerDropModalShowing = false;
                             if (sl.isRegistered<WebSocketClient>()) {
+                              final bId = bookingId ?? _currentRideRequest?.id;
+                              final bIdInt = bId is String ? int.tryParse(bId.replaceAll(RegExp(r'[^0-9]'), '')) : bId;
                               sl<WebSocketClient>().sendMessage({
                                 'event': 'booking.drop_accepted',
                                 'data': {
-                                  'booking_id': bookingId ?? _currentRideRequest?.id,
+                                  'booking_id': bIdInt ?? bId,
                                   'accepted_by': 'RIDER',
                                   'is_drop_accepted': true,
                                 },
@@ -2045,9 +2162,17 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                               sl<WebSocketClient>().sendMessage({
                                 'event': 'booking.drop_approved',
                                 'data': {
-                                  'booking_id': bookingId ?? _currentRideRequest?.id,
+                                  'booking_id': bIdInt ?? bId,
                                   'accepted_by': 'RIDER',
                                   'is_drop_accepted': true,
+                                },
+                              });
+                              sl<WebSocketClient>().sendMessage({
+                                'event': 'booking.complete',
+                                'data': {
+                                  'booking_id': bIdInt ?? bId,
+                                  'rider_lat': _currentLatLng?.latitude,
+                                  'rider_lng': _currentLatLng?.longitude,
                                 },
                               });
                             }
@@ -2095,18 +2220,26 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     ).whenComplete(() => _isCustomerDropModalShowing = false);
   }
 
+  bool _isNavigatingToPayment = false;
+
   void _navigateToPaymentScreen({dynamic bookingId}) {
-    if (_currentRideRequest == null) {
-      _clearActiveRideState();
-      return;
-    }
+    if (_isNavigatingToPayment) return;
+    _isNavigatingToPayment = true;
+
+    final req = _currentRideRequest;
+    _clearActiveRideState();
+
+    final id = bookingId is int
+        ? bookingId
+        : (bookingId is String ? int.tryParse(bookingId) : null) ?? req?.id ?? 0;
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => TripPaymentPage(
-          bookingId: bookingId is int ? bookingId : (_currentRideRequest?.id ?? 0),
-          estimatedFare: _currentRideRequest?.estimatedFare ?? 0.0,
-          pickupAddress: _currentRideRequest?.pickupAddress ?? '',
-          dropAddress: _currentRideRequest?.dropAddress ?? '',
+          bookingId: id,
+          estimatedFare: req?.estimatedFare ?? 0.0,
+          pickupAddress: req?.pickupAddress ?? '',
+          dropAddress: req?.dropAddress ?? '',
           riderLat: _currentLatLng?.latitude,
           riderLng: _currentLatLng?.longitude,
           onCompleted: () {
@@ -2114,7 +2247,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           },
         ),
       ),
-    );
+    ).then((_) {
+      _isNavigatingToPayment = false;
+    });
   }
 
 

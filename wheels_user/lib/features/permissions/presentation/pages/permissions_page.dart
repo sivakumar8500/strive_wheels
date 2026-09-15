@@ -3,9 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/di/injection_container.dart';
 import '../../../../core/widgets/app_button.dart';
-import '../../../home/presentation/bloc/home_bloc.dart';
 import '../../../home/presentation/pages/home_page.dart';
 import '../bloc/permissions_bloc.dart';
 import '../bloc/permissions_event.dart';

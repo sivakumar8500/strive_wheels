@@ -5,7 +5,6 @@ import 'package:mocktail/mocktail.dart';
 import 'package:wheels_user/core/network/customer_ws_controller.dart';
 import 'package:wheels_user/core/network/websocket_service.dart';
 import 'package:wheels_user/features/chat/data/datasources/chat_remote_datasource.dart';
-import 'package:wheels_user/features/chat/data/models/chat_message_model.dart';
 
 class MockDio extends Mock implements Dio {}
 class MockCustomerWSController extends Mock implements CustomerWSController {}

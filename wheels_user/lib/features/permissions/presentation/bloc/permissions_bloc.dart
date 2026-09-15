@@ -1,7 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter_contacts/flutter_contacts.dart' as fc;
 import '../../domain/entities/permissions_entity.dart';
 import '../../domain/usecases/get_permissions_usecase.dart';
 import '../../domain/usecases/save_permissions_usecase.dart';

@@ -25,9 +25,9 @@ class HomeRepositoryImpl implements HomeRepository {
     try {
       final rawServices = await remoteDataSource.getQuickServices();
       quickServices = rawServices.map((m) => QuickServiceEntity(
-        id: (m.id ?? 0).toString(),
-        title: m.title ?? '',
-        subtitle: m.subtitle ?? '',
+        id: m.id.toString(),
+        title: m.title,
+        subtitle: m.subtitle,
         iconUrl: m.iconUrl ?? '',
       )).toList();
     } catch (_) {}
@@ -35,19 +35,19 @@ class HomeRepositoryImpl implements HomeRepository {
     try {
       final rawLocations = await remoteDataSource.getPopularLocations();
       popularLocations = rawLocations.map((m) => PopularLocationEntity(
-        id: (m.id ?? 0).toString(),
-        title: m.title ?? '',
-        address: m.address ?? '',
-        type: m.type ?? '',
+        id: m.id.toString(),
+        title: m.title,
+        address: m.address,
+        type: m.type,
       )).toList();
     } catch (_) {}
 
     try {
       final rawCoupons = await remoteDataSource.getActiveCoupons();
       coupons = rawCoupons.map((m) => CouponEntity(
-        id: (m.id ?? 0).toString(),
-        title: '${m.discountValue ?? 0} OFF',
-        code: m.code ?? '',
+        id: m.id.toString(),
+        title: '${m.discountValue} OFF',
+        code: m.code,
         description: m.discountType ?? '',
       )).toList();
     } catch (_) {}
