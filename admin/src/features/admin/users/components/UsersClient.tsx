@@ -8,7 +8,7 @@ import {
   useUpdateAdminUser,
   useDeleteAdminUser,
 } from "../hooks/use-users";
-import PageHeaderwithAddButton from "@/components/shared/PageHeader";
+import PageHeader from "@/components/shared/PageHeader";
 import { UserDialog } from "./UserDialog";
 import { AdminUser, CreateAdminUserRequest, UpdateAdminUserRequest } from "../types";
 import { Button } from "@/components/ui/button";
@@ -20,16 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import DeleteDialog from "@/components/shared/DeleteDialog";
 import { Loader2, Plus, MoreHorizontal, Pencil, Trash2, Shield, UserCog, Building } from "lucide-react";
 
 export function UsersClient() {
@@ -203,15 +194,14 @@ export function UsersClient() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <PageHeaderwithAddButton
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 w-full">
+        <PageHeader
           title="Super Admin User Provisioning"
           description="Manage administrative accounts, assign roles (Super Admin, Admin, Company Admin), and control system access."
+          buttonText="Provision User"
+          icon={<Plus className="mr-2 h-4 w-4" />}
+          onAddButtonClick={handleOpenCreate}
         />
-        <Button onClick={handleOpenCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Provision User
-        </Button>
       </div>
 
       <DataTable
@@ -229,26 +219,13 @@ export function UsersClient() {
         isSubmitting={createMutation.isPending || updateMutation.isPending}
       />
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Revoke Admin Access?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete this administrative user and revoke their access to the system. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700"
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? "Revoking..." : "Revoke Access"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDelete}
+        title="Revoke Admin Access?"
+        message="This will permanently delete this administrative user and revoke their access to the system. This action cannot be undone."
+      />
     </div>
   );
 }

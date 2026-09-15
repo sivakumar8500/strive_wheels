@@ -9,7 +9,7 @@ import { MOCK_COUPONS } from "../data/mockData";
 
 const USE_MOCK_DATA = true;
 
-let localMockData: Coupon[] = JSON.parse(JSON.stringify(MOCK_COUPONS));
+const localMockData: Coupon[] = JSON.parse(JSON.stringify(MOCK_COUPONS));
 
 export async function getCoupons(): Promise<Coupon[]> {
   if (USE_MOCK_DATA) {

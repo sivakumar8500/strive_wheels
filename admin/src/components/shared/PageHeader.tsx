@@ -16,7 +16,7 @@ interface PageHeaderProps {
   isBackButton?: boolean;
 }
 
-const PageHeaderwithAddButton = ({
+const PageHeader = ({
   title,
   description,
   buttonText,
@@ -75,4 +75,4 @@ const PageHeaderwithAddButton = ({
   );
 };
 
-export default PageHeaderwithAddButton;
+export default PageHeader;

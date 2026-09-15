@@ -5,7 +5,6 @@ import { DataTable, ColumnDef } from "@/components/common/Table";
 import { Badge } from "@/components/ui/badge";
 import { EditIcon, DeleteIcon } from "@/icons";
 import { User } from "../types";
-import { getStatusColor } from "../utils/helpers";
 
 interface UsersTableProps {
   users: User[];

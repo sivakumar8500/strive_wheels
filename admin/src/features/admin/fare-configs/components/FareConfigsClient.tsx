@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Save, RefreshCcw, DollarSign } from "lucide-react";
+import { Loader2, Save, RefreshCcw } from "lucide-react";
 import { BulkUpdateFareConfigRequest } from "../types";
 
 export function FareConfigsClient() {

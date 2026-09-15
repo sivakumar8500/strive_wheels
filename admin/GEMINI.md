@@ -8,11 +8,11 @@ You are assisting with the frontend Next.js application. Please adhere to the fo
 - Always encapsulate features within `src/features/`. If a new domain is introduced (e.g., `invoices`), create `src/features/invoices` and include its components, hooks, services, and types inside.
 - **Feature Implementation Sequence**: Build from the data layer upwards. Always create files in this order: `types.ts` -> `data/mockData.ts` -> `services/` -> `hooks/` -> `components/` -> `app/page.tsx`.
 
-## 2. No Role-Based Access Control (RBAC)
+## 2. Role-Based Access Control (RBAC)
 
-- The application previously used RBAC and different personas, but this has been **entirely removed**.
-- Assume all users have full `Admin` capabilities.
-- Do not add role-checking wrappers, `usePermissionsStore`, or role-based logic to new components or pages.
+- The application uses Edge Middleware for RBAC.
+- Ensure that the `user_role` cookie is properly respected in `middleware.ts`.
+- Client-side `<RoleGuard>` wrappers are NOT needed and should not be added to new components or pages.
 
 ## 3. State Management
 
@@ -30,3 +30,5 @@ For more detailed architectural choices, read the knowledge base files in the `d
 - [Architecture](docs/architecture.md)
 - [Authentication & State Management](docs/auth_and_state.md)
 - [Logs](docs/logs.md)
+- [Admin Role](docs/roles/admin_role.md)
+- [Company Admin Role](docs/roles/company_admin_role.md)

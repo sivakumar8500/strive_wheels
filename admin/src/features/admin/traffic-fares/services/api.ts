@@ -5,7 +5,7 @@ import { MOCK_TRAFFIC_MULTIPLIERS } from "../data/mockData";
 
 const USE_MOCK_DATA = true;
 
-let localMockData: TrafficMultiplier[] = JSON.parse(JSON.stringify(MOCK_TRAFFIC_MULTIPLIERS));
+const localMockData: TrafficMultiplier[] = JSON.parse(JSON.stringify(MOCK_TRAFFIC_MULTIPLIERS));
 
 export async function getTrafficFares(): Promise<TrafficMultiplier[]> {
   if (USE_MOCK_DATA) {

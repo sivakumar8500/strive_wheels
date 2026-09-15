@@ -10,7 +10,7 @@ import { MOCK_QUICK_SERVICES } from "../data/mockData";
 
 const USE_MOCK_DATA = true;
 
-let localMockData: QuickService[] = JSON.parse(JSON.stringify(MOCK_QUICK_SERVICES));
+const localMockData: QuickService[] = JSON.parse(JSON.stringify(MOCK_QUICK_SERVICES));
 
 export async function getQuickServices(): Promise<QuickService[]> {
   if (USE_MOCK_DATA) {

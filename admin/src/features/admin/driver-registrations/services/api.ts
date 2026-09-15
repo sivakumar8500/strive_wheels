@@ -6,7 +6,7 @@ import { MOCK_DRIVER_REGISTRATIONS } from "../data/mockData";
 const USE_MOCK_DATA = true;
 
 // Mutable mock data store for local session changes
-let localMockData = [...MOCK_DRIVER_REGISTRATIONS];
+const localMockData = [...MOCK_DRIVER_REGISTRATIONS];
 
 export async function getDriverRegistrations(
   status?: string,

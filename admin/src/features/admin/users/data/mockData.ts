@@ -1,4 +1,4 @@
-import { AdminUser } from "../types";
+import { AdminUser, UsersResponse } from "../types";
 
 export const MOCK_ADMIN_USERS: AdminUser[] = [
   {
@@ -42,7 +42,7 @@ export const MOCK_ADMIN_USERS: AdminUser[] = [
   },
 ];
 
-export const getMockUsers = (params?: any) => ({
+export const getMockUsers = async (params?: any): Promise<UsersResponse> => ({
   data: MOCK_ADMIN_USERS,
   total: MOCK_ADMIN_USERS.length,
   page: 1,

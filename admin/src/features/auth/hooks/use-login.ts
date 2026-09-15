@@ -47,7 +47,7 @@ export function useLogin() {
             accessToken: data.access_token,
             refreshToken: data.refresh_token,
           },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           me as any,
         );
 

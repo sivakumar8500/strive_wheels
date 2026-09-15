@@ -6,6 +6,7 @@ import { Users, Car, Map, Clock, CheckCircle, FileText, IndianRupee } from "luci
 import { RevenueChart } from "./RevenueChart";
 import { BookingsChart } from "./BookingsChart";
 import { Loader2 } from "lucide-react";
+import PageHeader from "@/components/shared/PageHeader";
 
 export function AdminDashboardClient() {
   const { data, isLoading, isError } = useDashboardStats();
@@ -30,14 +31,10 @@ export function AdminDashboardClient() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-          Dashboard Overview
-        </h1>
-        <p className="text-muted-foreground">
-          Welcome to the Strive Admin Panel. Here is what's happening today.
-        </p>
-      </div>
+      <PageHeader
+        title="Dashboard Overview"
+        description="Welcome to the Strive Admin Panel. Here is what&apos;s happening today."
+      />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard

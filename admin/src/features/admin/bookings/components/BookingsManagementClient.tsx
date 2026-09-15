@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { DataTable } from "@/components/common/Table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -15,6 +14,7 @@ import {
 import { Search } from "lucide-react";
 import { useBookings, useCancelBooking } from "../hooks/use-bookings";
 import { CancelBookingDialog } from "./CancelBookingDialog";
+import PageHeader from "@/components/shared/PageHeader";
 import type { Booking, BookingsQuery } from "../types";
 
 export function BookingsManagementClient() {
@@ -58,6 +58,14 @@ export function BookingsManagementClient() {
     }
   };
 
+  const handlePageChange = (page: number) => {
+    setQuery((prev) => ({ ...prev, skip: (page - 1) * (prev.limit || 10) }));
+  };
+
+  const handleItemsPerPageChange = (limit: number) => {
+    setQuery((prev) => ({ ...prev, limit, skip: 0 }));
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "COMPLETED":
@@ -67,7 +75,7 @@ export function BookingsManagementClient() {
         return "secondary";
       case "IN_TRIP":
       case "ARRIVED":
-        return "default"; // Maybe a different color in reality
+        return "default";
       case "CANCELLED":
       case "ADMIN_CANCELLED":
         return "destructive";
@@ -80,8 +88,8 @@ export function BookingsManagementClient() {
     { key: "booking_code" as const, label: "Booking Code" },
     {
       key: "customer_id" as const,
-      label: "Customer",
-      render: (_: any, row: any) => row.customer?.user?.full_name || "Unknown",
+      label: "Customer ID",
+      render: (_: any, row: any) => <span className="font-medium text-muted-foreground">#{row.customer_id}</span>,
     },
     {
       key: "service_mode" as const,
@@ -139,19 +147,17 @@ export function BookingsManagementClient() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Booking Management</h1>
-        <p className="text-muted-foreground">
-          View and manage all system bookings.
-        </p>
-      </div>
+      <PageHeader
+        title="Booking Management"
+        description="View and manage all system bookings."
+      />
 
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-1 items-center gap-2 max-w-sm">
           <div className="relative w-full">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by code or customer..."
+              placeholder="Search by code..."
               className="pl-8"
               value={query.search}
               onChange={handleSearch}
@@ -198,10 +204,15 @@ export function BookingsManagementClient() {
       <DataTable
         columns={columns}
         data={paginatedData?.items || []}
-        actions={actions}
+        actions={rowActions}
         isLoading={isLoading}
-        itemsPerPage={query.limit}
+        itemsPerPage={query.limit || 10}
         showCard={true}
+        serverSidePagination={true}
+        totalItems={paginatedData?.total || 0}
+        currentPage={Math.floor((query.skip || 0) / (query.limit || 10)) + 1}
+        onItemsPerPageChange={handleItemsPerPageChange}
+        onPageChange={handlePageChange}
       />
 
       <CancelBookingDialog

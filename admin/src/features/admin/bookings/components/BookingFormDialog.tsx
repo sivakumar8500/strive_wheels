@@ -27,7 +27,7 @@ export function BookingFormDialog({
   onSubmit,
 }: BookingFormDialogProps) {
   const isEdit = !!booking;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const methods = useForm<BookingFormData>({
     resolver: zodResolver(bookingFormSchema) as any,
     defaultValues: {
@@ -38,7 +38,7 @@ export function BookingFormDialog({
     },
   });
 
-  const { handleSubmit, reset } = methods;
+  const { reset } = methods;
 
   useEffect(() => {
     if (booking && isOpen) {
@@ -74,7 +74,7 @@ export function BookingFormDialog({
         />
 
         <FormProvider {...methods}>
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          { }
           <form onSubmit={(methods.handleSubmit as any)(onFormSubmit)} className="space-y-4">
             <TextInput
               name="customer_id"
@@ -123,7 +123,7 @@ export function BookingFormDialog({
               isEdit={isEdit}
               isPending={isLoading}
               onClose={onClose}
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+               
               onSubmit={(methods.handleSubmit as any)(onFormSubmit)}
               createText="Create Booking"
               createLoadingText="Creating..."

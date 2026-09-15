@@ -30,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Plus, MoreHorizontal, Pencil, Trash2, Tag, CalendarIcon, Activity } from "lucide-react";
+import { Loader2, Plus, MoreHorizontal, Pencil, Trash2, Tag, CalendarIcon } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 export function CouponsClient() {

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { createBooking, updateBooking } from "../services/bookingsApi";
-import { Booking } from "../types"; type BookingType = any;
+type BookingType = any;
 
 interface UseBookingFormOptions {
   onSuccess?: () => void;
@@ -36,7 +36,7 @@ export function useBookingForm(options: UseBookingFormOptions = {}) {
       closeDialog();
       options.onSuccess?.();
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onError: (error: any) => {
       toast.error(error.message || "Failed to create booking");
     },
@@ -51,7 +51,7 @@ export function useBookingForm(options: UseBookingFormOptions = {}) {
       closeDialog();
       options.onSuccess?.();
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     onError: (error: any) => {
       toast.error(error.message || "Failed to update booking");
     },

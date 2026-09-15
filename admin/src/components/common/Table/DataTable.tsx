@@ -31,7 +31,7 @@ export interface ActionDef<T> {
 interface DataTableProps<T extends { id?: string | number }> {
   columns: ColumnDef<T>[];
   data: T[];
-  actions?: ActionDef<T>[];
+  actions?: ActionDef<T>[] | ((row: T) => ActionDef<T>[]);
   itemsPerPage?: number;
   onRowClick?: (row: T) => void;
   emptyMessage?: string;
@@ -143,7 +143,7 @@ export function DataTable<T extends { id?: string | number }>({
                 {actions && (
                   <TableCell className="transition-colors">
                     <div className="flex items-center gap-2">
-                      {actions.map((action, idx) => (
+                      {(typeof actions === "function" ? actions(row) : actions).map((action, idx) => (
                         <button
                           key={idx}
                           onClick={() => action.onClick(row)}

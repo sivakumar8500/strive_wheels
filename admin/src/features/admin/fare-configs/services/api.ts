@@ -5,7 +5,7 @@ import { MOCK_FARE_CONFIGS } from "../data/mockData";
 
 const USE_MOCK_DATA = true;
 
-let localMockData: FareConfigurationsResponse = JSON.parse(JSON.stringify(MOCK_FARE_CONFIGS));
+const localMockData: FareConfigurationsResponse = JSON.parse(JSON.stringify(MOCK_FARE_CONFIGS));
 
 export async function getFareConfigs(): Promise<FareConfigurationsResponse> {
   if (USE_MOCK_DATA) {

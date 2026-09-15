@@ -61,7 +61,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
                   boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                 }}
                 itemStyle={{ color: "#1f2937", fontWeight: 600 }}
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                 
                 formatter={(value: any) => [
                   `$${Number(value).toLocaleString()}`,
                   "Revenue",

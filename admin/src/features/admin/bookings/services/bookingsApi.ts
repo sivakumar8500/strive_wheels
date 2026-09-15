@@ -3,9 +3,9 @@ import type { Booking, BookingDetails, BookingsQuery, PaginatedBookings } from "
 import { mockBookings } from "../data/mockData";
 import BOOKINGS_ENDPOINTS from "./bookingsEndpoints";
 
-const USE_MOCK_DATA = true;
+const USE_MOCK_DATA = false;
 
-let currentMockData = [...mockBookings];
+const currentMockData = [...mockBookings];
 
 export async function getBookings(query?: BookingsQuery): Promise<PaginatedBookings> {
   if (USE_MOCK_DATA) {
@@ -27,7 +27,7 @@ export async function getBookings(query?: BookingsQuery): Promise<PaginatedBooki
           filtered = filtered.filter(
             (b) =>
               b.booking_code.toLowerCase().includes(lowerSearch) ||
-              b.customer.user.full_name.toLowerCase().includes(lowerSearch)
+              (b.customer?.user?.full_name?.toLowerCase().includes(lowerSearch) ?? false)
           );
         }
 
@@ -45,11 +45,22 @@ export async function getBookings(query?: BookingsQuery): Promise<PaginatedBooki
     });
   }
 
+  const queryParams = new URLSearchParams();
+  if (query) {
+    if (query.skip !== undefined) queryParams.append("skip", query.skip.toString());
+    if (query.limit !== undefined) queryParams.append("limit", query.limit.toString());
+    if (query.status) queryParams.append("status", query.status);
+    if (query.service_mode) queryParams.append("service_mode", query.service_mode);
+    if (query.booking_mode) queryParams.append("booking_mode", query.booking_mode);
+    if (query.search) queryParams.append("search", query.search);
+  }
+
+  const queryString = queryParams.toString() ? `?${queryParams.toString()}` : "";
   const response = await apiService.get<{
     success: boolean;
     message: string;
     data: PaginatedBookings;
-  }>(BOOKINGS_ENDPOINTS.LIST, null);
+  }>(`${BOOKINGS_ENDPOINTS.LIST}${queryString}`, null);
 
   return response.data;
 }

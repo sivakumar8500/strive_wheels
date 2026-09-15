@@ -86,7 +86,7 @@ export function capitalize(str: string): string {
 }
 
 //Debounces a function
-export function debounce<T extends (...args: any[]) => any>( // eslint-disable-line @typescript-eslint/no-explicit-any
+export function debounce<T extends (...args: any[]) => any>(  
   func: T,
   wait: number,
 ): (...args: Parameters<T>) => void {

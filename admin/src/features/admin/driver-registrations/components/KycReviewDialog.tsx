@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { DriverRegistration, DriverDocument } from "../types";
+import { DriverRegistration } from "../types";
 import { useVerifyDocument, useApproveApplication } from "../hooks/use-drivers";
 import { Check, X, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -118,6 +118,7 @@ export function KycReviewDialog({ driver, isOpen, onClose }: KycReviewDialogProp
                   </div>
 
                   <div className="aspect-video bg-slate-100 rounded-md overflow-hidden relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={doc.document_url}
                       alt={doc.document_type}

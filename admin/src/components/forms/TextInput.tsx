@@ -45,14 +45,14 @@ export default function TextInput({
     formState: { errors },
   } = useFormContext();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const getNestedError = (obj: any, path: string) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     return path
       .split(/[.[\]]/)
       .filter(Boolean)
       .reduce(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         (res: any, key) => (res !== null && res !== undefined ? res[key] : res),
         obj,
       );

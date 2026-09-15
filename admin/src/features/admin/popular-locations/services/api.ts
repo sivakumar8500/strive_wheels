@@ -9,7 +9,7 @@ import { MOCK_POPULAR_LOCATIONS } from "../data/mockData";
 
 const USE_MOCK_DATA = true;
 
-let localMockData: PopularLocation[] = JSON.parse(JSON.stringify(MOCK_POPULAR_LOCATIONS));
+const localMockData: PopularLocation[] = JSON.parse(JSON.stringify(MOCK_POPULAR_LOCATIONS));
 
 export async function getPopularLocations(): Promise<PopularLocation[]> {
   if (USE_MOCK_DATA) {

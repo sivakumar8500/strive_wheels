@@ -40,6 +40,12 @@ export function BookingsTable({
         width: "140px",
       },
       {
+        key: "customer_id" as const,
+        label: "Customer ID",
+        width: "100px",
+        render: (customer_id: number) => <span className="font-medium text-muted-foreground">#{customer_id}</span>,
+      },
+      {
         key: "service_mode" as const,
         label: "Service Mode",
         width: "140px",
@@ -63,10 +69,10 @@ export function BookingsTable({
         ),
       },
       {
-        key: "created_at" as const,
-        label: "Created At",
+        key: "scheduled_at" as const,
+        label: "Scheduled At",
         width: "130px",
-        render: (created_at: string) => new Date(created_at).toLocaleDateString(),
+        render: (scheduled_at?: string | null) => scheduled_at ? new Date(scheduled_at).toLocaleDateString() : "—",
       },
     ],
     [],

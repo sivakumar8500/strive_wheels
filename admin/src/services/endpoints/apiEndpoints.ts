@@ -4,7 +4,7 @@ import UPLOAD_ENDPOINTS from "./uploadEndpoints";
 import USERS_ENDPOINTS from "@/features/admin/users/services/usersEndpoints";
 
 // Type for API endpoints
-type EndpointValue = string | ((...args: any[]) => string); // eslint-disable-line @typescript-eslint/no-explicit-any
+type EndpointValue = string | ((...args: any[]) => string);  
 
 export interface ApiEndpoints {
   [key: string]: EndpointValue;

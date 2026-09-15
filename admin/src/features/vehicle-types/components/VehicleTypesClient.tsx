@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { DataTable } from "@/components/common/Table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import {
   useVehicleTypes,
@@ -13,6 +12,8 @@ import {
 } from "../hooks/use-vehicle-types";
 import { VehicleTypeFormDialog } from "./VehicleTypeFormDialog";
 import { VehicleType, CreateVehicleTypeDto } from "../types";
+import PageHeader from "@/components/shared/PageHeader";
+import DeleteDialog from "@/components/shared/DeleteDialog";
 
 export function VehicleTypesClient() {
   const { data: vehicleTypes, isLoading } = useVehicleTypes();
@@ -22,11 +23,19 @@ export function VehicleTypesClient() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<VehicleType | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<VehicleType | null>(null);
   
-  // For simplicity, using native confirm for delete, but normally use a DeleteDialog
-  const handleDelete = async (row: VehicleType) => {
-    if (confirm(`Are you sure you want to deactivate ${row.name}?`)) {
-      await deleteMutation.mutateAsync(row.id);
+  const confirmDelete = (row: VehicleType) => {
+    setItemToDelete(row);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (itemToDelete) {
+      await deleteMutation.mutateAsync(itemToDelete.id);
+      setDeleteDialogOpen(false);
+      setItemToDelete(null);
     }
   };
 
@@ -74,24 +83,20 @@ export function VehicleTypesClient() {
     },
     {
       label: "Deactivate",
-      onClick: handleDelete,
+      onClick: confirmDelete,
       isDestructive: true,
     },
   ];
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Vehicle Types</h1>
-          <p className="text-muted-foreground">
-            Manage the vehicle categories available on the platform.
-          </p>
-        </div>
-        <Button onClick={handleCreateNew}>
-          <Plus className="mr-2 h-4 w-4" /> Add Vehicle Type
-        </Button>
-      </div>
+      <PageHeader
+        title="Vehicle Types"
+        description="Manage the vehicle categories available on the platform."
+        buttonText="Add Vehicle Type"
+        icon={<Plus className="mr-2 h-4 w-4" />}
+        onAddButtonClick={handleCreateNew}
+      />
 
       <DataTable
         columns={columns}
@@ -108,6 +113,14 @@ export function VehicleTypesClient() {
         initialData={editingItem}
         onSubmit={handleSubmitForm}
         isSubmitting={createMutation.isPending || updateMutation.isPending}
+      />
+
+      <DeleteDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDelete}
+        title={`Deactivate ${itemToDelete?.name}?`}
+        message={`Are you sure you want to deactivate the vehicle type ${itemToDelete?.name}? This action can be undone later by re-activating it.`}
       />
     </div>
   );

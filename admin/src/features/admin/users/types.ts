@@ -9,8 +9,16 @@ export interface AdminUser {
   last_login?: string;
 }
 
-export type CreateAdminUserRequest = Omit<AdminUser, "id" | "created_at" | "last_login">;
-export type UpdateAdminUserRequest = Partial<CreateAdminUserRequest>;
+export interface CreateAdminUserRequest {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  role: "SUPER_ADMIN" | "COMPANY_ADMIN";
+  password?: string; // Often required on creation
+}
+
+export type UpdateAdminUserRequest = Partial<Omit<AdminUser, "id" | "created_at" | "last_login">>;
 
 export type User = AdminUser;
 export interface GetUsersParams {

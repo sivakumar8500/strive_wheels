@@ -37,6 +37,7 @@ export async function createAdminUser(data: CreateAdminUserRequest): Promise<Adm
         const newItem: AdminUser = {
           ...data,
           id: newId,
+          is_active: true,
           created_at: new Date().toISOString(),
         };
         localMockData.push(newItem);

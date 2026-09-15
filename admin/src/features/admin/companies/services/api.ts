@@ -9,7 +9,7 @@ import { MOCK_COMPANIES } from "../data/mockData";
 
 const USE_MOCK_DATA = true;
 
-let localMockData: Company[] = JSON.parse(JSON.stringify(MOCK_COMPANIES));
+const localMockData: Company[] = JSON.parse(JSON.stringify(MOCK_COMPANIES));
 
 export async function getCompanies(): Promise<Company[]> {
   if (USE_MOCK_DATA) {
