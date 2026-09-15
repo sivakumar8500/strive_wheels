@@ -61,9 +61,9 @@ export default function PasswordInput({
           placeholder={placeholder}
           disabled={disabled}
           {...register(name, rules)}
-          onCopy={(e) => e.preventDefault()}
-          onCut={(e) => e.preventDefault()}
-          onPaste={(e) => e.preventDefault()}
+          // onCopy={(e) => e.preventDefault()}
+          // onCut={(e) => e.preventDefault()}
+          // onPaste={(e) => e.preventDefault()}
           className={cn(
             "pr-10",
             sizeClasses[size],

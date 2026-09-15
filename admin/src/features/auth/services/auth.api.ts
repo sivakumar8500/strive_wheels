@@ -13,18 +13,12 @@ export async function login(credentials: LoginCredentials) {
     success: boolean;
     message: string;
     data: AuthTokens & {
-      expires_in: number;
-      user: {
-        id: number;
-        phone: string;
-        email: string;
-        full_name: string;
-        profile_image_url: string;
-        roles: string[];
-        is_active: boolean;
-        is_verified: boolean;
-        created_at: string;
-      };
+      user_id: number;
+      phone: string;
+      roles: string[];
+      rider_profile?: unknown | null;
+      customer_profile?: unknown | null;
+      driver_registration?: unknown | null;
     };
   }>(AUTH_ENDPOINTS.LOGIN, {
     email_or_phone: credentials.email,
@@ -39,26 +33,17 @@ export async function login(credentials: LoginCredentials) {
 }
 
 export async function getMe(token: string): Promise<UserPermissionsResponse> {
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  const response = await apiService.get<{
+    success: boolean;
+    message: string;
+    data: UserPermissionsResponse;
+  }>(AUTH_ENDPOINTS.ME, token);
 
-  return {
-    user: {
-      id: "mock-user-1",
-      email: "admin@example.com",
-      status: "active",
-      user_type: "admin",
-      first_name: "Mock",
-      last_name: "Admin",
-      full_name: "Mock Admin",
-      mfa_enabled: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    access_token: token,
-    token_type: "Bearer",
-    organizations: [],
-  };
+  if (response?.success === false || !response?.data) {
+    throw new Error(response?.message || "Failed to fetch user profile");
+  }
+
+  return response.data;
 }
 
 export async function logout(accessToken: string, refreshToken: string) {

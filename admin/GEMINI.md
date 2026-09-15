@@ -29,3 +29,4 @@ For more detailed architectural choices, read the knowledge base files in the `d
 
 - [Architecture](docs/architecture.md)
 - [Authentication & State Management](docs/auth_and_state.md)
+- [Logs](docs/logs.md)

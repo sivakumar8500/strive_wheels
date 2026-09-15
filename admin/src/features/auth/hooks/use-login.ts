@@ -27,13 +27,13 @@ export function useLogin() {
         // Construct `me` directly from the login token response
         const me = {
           user: {
-            id: String(data.user.id),
-            email: data.user.email || credentials.email,
-            status: data.user.is_active ? "active" : "inactive",
-            user_type: data.user.roles?.[0] || "admin",
-            phone_number: data.user.phone,
+            id: String(data.user_id),
+            email: credentials.email,
+            status: "active",
+            user_type: data.roles?.[0]?.toLowerCase() || "admin",
+            phone_number: data.phone,
             mfa_enabled: false,
-            created_at: data.user.created_at || new Date().toISOString(),
+            created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           },
           access_token: data.access_token,
@@ -52,11 +52,13 @@ export function useLogin() {
         );
 
         // Navigate based on RBAC roles
-        const role = data.user.roles?.[0]?.toUpperCase() || "ADMIN";
+        const role = data.roles?.[0]?.toUpperCase() || "ADMIN";
+        document.cookie = `user_role=${role}; path=/; max-age=86400; SameSite=Strict`;
+        
         if (role === "COMPANY_ADMIN") {
-          router.push("/company-profile");
+          router.push("/company");
         } else {
-          router.push("/dashboard");
+          router.push("/admin");
         }
 
         toast.success("Logged in successfully");

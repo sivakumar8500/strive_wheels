@@ -20,14 +20,15 @@ This project uses Next.js with the App Router (`src/app`) and a Feature-Sliced D
 
 ## Routing & Role-Based Access Control (RBAC)
 
-The application implements a strict Role-Based Access Control (RBAC) system with three primary roles: `SUPER_ADMIN`, `ADMIN` (Operational Admin), and `COMPANY_ADMIN` (Corporate B2B).
+The application implements a strict Role-Based Access Control (RBAC) system with primary roles including `SUPER_ADMIN`, `ADMIN` (Operational Admin), and `COMPANY_ADMIN` (Corporate B2B).
 
 - The app uses route groups for layout organization and role segregation:
   - `(auth)` for authentication pages (`/login`). Shared across all admin roles.
-  - `(super-admin)` for Super Admin routes (e.g., `/admin-users`, `/companies`, `/system-config`). Requires `SUPER_ADMIN` role.
-  - `(operational-admin)` for Operational Admin routes (e.g., `/dashboard`, `/kyc-verifications`, `/bookings`). Requires `SUPER_ADMIN` or `ADMIN` role.
-  - `(corporate-portal)` for Company Admin routes (e.g., `/company-profile`, `/employees`, `/billing-invoices`). Requires `COMPANY_ADMIN` role.
-- Route protection and redirection are strictly enforced via Next.js Middleware which reads the authenticated user's role and redirects them if they attempt to access an unauthorized route group.
+  - `(strive_wheels)/admin` for all StriveWheels Operational/Super Admin routes (e.g., `/admin/users`, `/admin/bookings`). Requires `SUPER_ADMIN` or `ADMIN` role.
+  - `(strive_wheels)/company` for all Company Admin routes (e.g., `/company/employees`, `/company/riders`). Requires `COMPANY_ADMIN` role.
+- **Route protection is strictly enforced via Next.js Edge Middleware (`middleware.ts`)**. 
+  - Upon login, a `user_role` cookie is generated alongside the authentication tokens.
+  - The middleware intercepts every request, reads the `user_role` cookie, and securely redirects users to their designated portals if they attempt to access an unauthorized route segment. Client-side `<RoleGuard>` wrappers are not needed on individual pages.
 
 ## New Feature Implementation
 

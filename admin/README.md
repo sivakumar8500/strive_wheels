@@ -70,6 +70,38 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to view th
 
 ---
 
+## 🔐 Login Credentials
+
+### Backend API
+- **Base URL**: `http://15.252.129.37:8200/api/v1`
+- **Login Endpoint**: `POST /auth/admin/login`
+
+### Test Accounts by Role
+
+| Role | Email | Password | Access |
+| :--- | :--- | :--- | :--- |
+| **👑 Super Admin** | `admin@strive.com` | `SuperSecurePassword123!` | Full platform access — user provisioning, bulk pricing, all modules |
+| **🛡️ Operational Admin** | `admin@strivewheels.com` | `SecureAdminPassword123!` | KYC review, bookings, fare config, coupons |
+| **🏢 Company Admin** | `company@strivewheels.com` | `CompanyAdmin@123` | Corporate portal — employees, riders, billing |
+
+> ⚠️ **Note**: The above are default/example credentials. If login fails, the actual credentials were set during backend database seeding. Ask your backend team for the seeded admin account details.
+
+### Login Request Format
+```json
+{
+  "email_or_phone": "admin@strive.com",
+  "password": "SuperSecurePassword123!"
+}
+```
+
+### After Login — Role-Based Redirects
+| Role | Redirected To |
+| :--- | :--- |
+| `SUPER_ADMIN` / `ADMIN` | `/dashboard` |
+| `COMPANY_ADMIN` | `/company-profile` |
+
+---
+
 ## 🔌 API Integration Reference
 
 All admin API endpoints interact with the StriveWheels FastAPI backend (`/api/v1`). All protected routes require a Bearer token: `Authorization: Bearer <JWT_ACCESS_TOKEN>`.

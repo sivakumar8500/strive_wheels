@@ -10,6 +10,8 @@ export function performGlobalLogout() {
     "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict";
   document.cookie =
     "refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict";
+  document.cookie =
+    "user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict";
 
   // 3. Clear Local Storage items
   localStorage.removeItem("access_token");
