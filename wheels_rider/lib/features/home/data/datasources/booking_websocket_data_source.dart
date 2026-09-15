@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../../../core/network/websocket_client.dart';
@@ -58,12 +59,36 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
         case 'ride.requested':
         case 'ride_request':
         case 'new_ride_request':
+        case 'notification.new':
+        case 'booking.status':
+        case 'booking.status_response':
+        case 'booking.status_info':
           try {
             Map<String, dynamic> bookingMap = {};
             if (data['booking'] is Map) {
               bookingMap = Map<String, dynamic>.from(data['booking'] as Map);
+            } else if (data['notification'] is Map) {
+              final notif = Map<String, dynamic>.from(data['notification'] as Map);
+              if (notif['metadata_json'] is String) {
+                try {
+                  final meta = jsonDecode(notif['metadata_json'] as String);
+                  if (meta is Map) bookingMap = Map<String, dynamic>.from(meta);
+                } catch (_) {}
+              }
+              if (notif['metadata'] is Map) {
+                bookingMap = Map<String, dynamic>.from(notif['metadata'] as Map);
+              }
             } else {
               bookingMap = Map<String, dynamic>.from(data);
+            }
+            if (data['pickup_address'] != null && bookingMap['pickup_address'] == null) {
+              bookingMap['pickup_address'] = data['pickup_address'];
+            }
+            if (data['drop_address'] != null && bookingMap['drop_address'] == null) {
+              bookingMap['drop_address'] = data['drop_address'];
+            }
+            if (data['estimated_fare'] != null && bookingMap['estimated_fare'] == null) {
+              bookingMap['estimated_fare'] = data['estimated_fare'];
             }
 
             int? parseInt(dynamic val) {

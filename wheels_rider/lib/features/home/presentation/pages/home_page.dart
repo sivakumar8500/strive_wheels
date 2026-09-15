@@ -128,15 +128,39 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           event == 'ride.created' ||
           event == 'ride.requested' ||
           event == 'ride_request' ||
-          event == 'new_ride_request';
+          event == 'new_ride_request' ||
+          event == 'notification.new' ||
+          event == 'booking.status' ||
+          event == 'booking.status_response' ||
+          event == 'booking.status_info';
 
       if (isNewRideRequest) {
         try {
           Map<String, dynamic> bookingMap = {};
           if (data['booking'] is Map) {
             bookingMap = Map<String, dynamic>.from(data['booking'] as Map);
+          } else if (data['notification'] is Map) {
+            final notif = Map<String, dynamic>.from(data['notification'] as Map);
+            if (notif['metadata_json'] is String) {
+              try {
+                final meta = jsonDecode(notif['metadata_json'] as String);
+                if (meta is Map) bookingMap = Map<String, dynamic>.from(meta);
+              } catch (_) {}
+            }
+            if (notif['metadata'] is Map) {
+              bookingMap = Map<String, dynamic>.from(notif['metadata'] as Map);
+            }
           } else {
             bookingMap = Map<String, dynamic>.from(data);
+          }
+          if (data['pickup_address'] != null && bookingMap['pickup_address'] == null) {
+            bookingMap['pickup_address'] = data['pickup_address'];
+          }
+          if (data['drop_address'] != null && bookingMap['drop_address'] == null) {
+            bookingMap['drop_address'] = data['drop_address'];
+          }
+          if (data['estimated_fare'] != null && bookingMap['estimated_fare'] == null) {
+            bookingMap['estimated_fare'] = data['estimated_fare'];
           }
 
           int? parseInt(dynamic val) {
@@ -478,7 +502,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             listener: (context, state) async {
               if (state is ProfileLoaded) {
                 final prefs = await SharedPreferences.getInstance();
-                _userToken = prefs.getString('user_token') ?? '';
+                _userToken = prefs.getString('user_token') ?? prefs.getString('access_token') ?? prefs.getString('token') ?? '';
                 _driverId = state.profile.id;
 
                 await _restoreActiveRideState();
