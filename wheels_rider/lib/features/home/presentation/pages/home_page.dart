@@ -2096,6 +2096,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   void _showCustomerDropRequestModal({required String reason, dynamic bookingId}) {
+    debugPrint('🔔 [HomePage] Received customer drop request modal trigger: reason=$reason, bookingId=$bookingId');
     if (_isCustomerDropModalShowing) return;
     _isCustomerDropModalShowing = true;
 
