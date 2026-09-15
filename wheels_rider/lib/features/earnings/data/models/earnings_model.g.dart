@@ -45,6 +45,5 @@ Map<String, dynamic> _$EarningsModelToJson(_EarningsModel instance) =>
       'trips': instance.trips,
       'hours': instance.hours,
       'rating': instance.rating,
-      'recent_activities':
-          instance.recentActivities.map((e) => e.toJson()).toList(),
+      'recent_activities': instance.recentActivities,
     };

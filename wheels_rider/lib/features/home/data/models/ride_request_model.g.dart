@@ -18,6 +18,10 @@ _RideRequestModel _$RideRequestModelFromJson(Map<String, dynamic> json) =>
       pickupLng: (json['pickup_lng'] as num?)?.toDouble(),
       dropLat: (json['drop_lat'] as num?)?.toDouble(),
       dropLng: (json['drop_lng'] as num?)?.toDouble(),
+      estimatedDistanceKm: (json['estimated_distance_km'] as num?)?.toDouble(),
+      estimatedDurationMins: (json['estimated_duration_mins'] as num?)?.toInt(),
+      bookingCode: json['booking_code'] as String?,
+      serviceMode: json['service_mode'] as String?,
     );
 
 Map<String, dynamic> _$RideRequestModelToJson(_RideRequestModel instance) =>
@@ -32,4 +36,8 @@ Map<String, dynamic> _$RideRequestModelToJson(_RideRequestModel instance) =>
       'pickup_lng': instance.pickupLng,
       'drop_lat': instance.dropLat,
       'drop_lng': instance.dropLng,
+      'estimated_distance_km': instance.estimatedDistanceKm,
+      'estimated_duration_mins': instance.estimatedDurationMins,
+      'booking_code': instance.bookingCode,
+      'service_mode': instance.serviceMode,
     };

@@ -22,6 +22,10 @@ mixin _$RideRequestEntity {
   double get pickupLng;
   double get dropLat;
   double get dropLng;
+  double? get estimatedDistanceKm;
+  int? get estimatedDurationMins;
+  String? get bookingCode;
+  String? get serviceMode;
 
   /// Create a copy of RideRequestEntity
   /// with the given fields replaced by the non-null parameter values.
@@ -48,16 +52,36 @@ mixin _$RideRequestEntity {
             (identical(other.pickupLng, pickupLng) ||
                 other.pickupLng == pickupLng) &&
             (identical(other.dropLat, dropLat) || other.dropLat == dropLat) &&
-            (identical(other.dropLng, dropLng) || other.dropLng == dropLng));
+            (identical(other.dropLng, dropLng) || other.dropLng == dropLng) &&
+            (identical(other.estimatedDistanceKm, estimatedDistanceKm) ||
+                other.estimatedDistanceKm == estimatedDistanceKm) &&
+            (identical(other.estimatedDurationMins, estimatedDurationMins) ||
+                other.estimatedDurationMins == estimatedDurationMins) &&
+            (identical(other.bookingCode, bookingCode) ||
+                other.bookingCode == bookingCode) &&
+            (identical(other.serviceMode, serviceMode) ||
+                other.serviceMode == serviceMode));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, id, pickupAddress, dropAddress,
-      estimatedFare, pickupLat, pickupLng, dropLat, dropLng);
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      pickupAddress,
+      dropAddress,
+      estimatedFare,
+      pickupLat,
+      pickupLng,
+      dropLat,
+      dropLng,
+      estimatedDistanceKm,
+      estimatedDurationMins,
+      bookingCode,
+      serviceMode);
 
   @override
   String toString() {
-    return 'RideRequestEntity(id: $id, pickupAddress: $pickupAddress, dropAddress: $dropAddress, estimatedFare: $estimatedFare, pickupLat: $pickupLat, pickupLng: $pickupLng, dropLat: $dropLat, dropLng: $dropLng)';
+    return 'RideRequestEntity(id: $id, pickupAddress: $pickupAddress, dropAddress: $dropAddress, estimatedFare: $estimatedFare, pickupLat: $pickupLat, pickupLng: $pickupLng, dropLat: $dropLat, dropLng: $dropLng, estimatedDistanceKm: $estimatedDistanceKm, estimatedDurationMins: $estimatedDurationMins, bookingCode: $bookingCode, serviceMode: $serviceMode)';
   }
 }
 
@@ -75,7 +99,11 @@ abstract mixin class $RideRequestEntityCopyWith<$Res> {
       double pickupLat,
       double pickupLng,
       double dropLat,
-      double dropLng});
+      double dropLng,
+      double? estimatedDistanceKm,
+      int? estimatedDurationMins,
+      String? bookingCode,
+      String? serviceMode});
 }
 
 /// @nodoc
@@ -99,6 +127,10 @@ class _$RideRequestEntityCopyWithImpl<$Res>
     Object? pickupLng = null,
     Object? dropLat = null,
     Object? dropLng = null,
+    Object? estimatedDistanceKm = freezed,
+    Object? estimatedDurationMins = freezed,
+    Object? bookingCode = freezed,
+    Object? serviceMode = freezed,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -133,6 +165,22 @@ class _$RideRequestEntityCopyWithImpl<$Res>
           ? _self.dropLng
           : dropLng // ignore: cast_nullable_to_non_nullable
               as double,
+      estimatedDistanceKm: freezed == estimatedDistanceKm
+          ? _self.estimatedDistanceKm
+          : estimatedDistanceKm // ignore: cast_nullable_to_non_nullable
+              as double?,
+      estimatedDurationMins: freezed == estimatedDurationMins
+          ? _self.estimatedDurationMins
+          : estimatedDurationMins // ignore: cast_nullable_to_non_nullable
+              as int?,
+      bookingCode: freezed == bookingCode
+          ? _self.bookingCode
+          : bookingCode // ignore: cast_nullable_to_non_nullable
+              as String?,
+      serviceMode: freezed == serviceMode
+          ? _self.serviceMode
+          : serviceMode // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -238,7 +286,11 @@ extension RideRequestEntityPatterns on RideRequestEntity {
             double pickupLat,
             double pickupLng,
             double dropLat,
-            double dropLng)?
+            double dropLng,
+            double? estimatedDistanceKm,
+            int? estimatedDurationMins,
+            String? bookingCode,
+            String? serviceMode)?
         $default, {
     required TResult orElse(),
   }) {
@@ -253,7 +305,11 @@ extension RideRequestEntityPatterns on RideRequestEntity {
             _that.pickupLat,
             _that.pickupLng,
             _that.dropLat,
-            _that.dropLng);
+            _that.dropLng,
+            _that.estimatedDistanceKm,
+            _that.estimatedDurationMins,
+            _that.bookingCode,
+            _that.serviceMode);
       case _:
         return orElse();
     }
@@ -282,7 +338,11 @@ extension RideRequestEntityPatterns on RideRequestEntity {
             double pickupLat,
             double pickupLng,
             double dropLat,
-            double dropLng)
+            double dropLng,
+            double? estimatedDistanceKm,
+            int? estimatedDurationMins,
+            String? bookingCode,
+            String? serviceMode)
         $default,
   ) {
     final _that = this;
@@ -296,7 +356,11 @@ extension RideRequestEntityPatterns on RideRequestEntity {
             _that.pickupLat,
             _that.pickupLng,
             _that.dropLat,
-            _that.dropLng);
+            _that.dropLng,
+            _that.estimatedDistanceKm,
+            _that.estimatedDurationMins,
+            _that.bookingCode,
+            _that.serviceMode);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -324,7 +388,11 @@ extension RideRequestEntityPatterns on RideRequestEntity {
             double pickupLat,
             double pickupLng,
             double dropLat,
-            double dropLng)?
+            double dropLng,
+            double? estimatedDistanceKm,
+            int? estimatedDurationMins,
+            String? bookingCode,
+            String? serviceMode)?
         $default,
   ) {
     final _that = this;
@@ -338,7 +406,11 @@ extension RideRequestEntityPatterns on RideRequestEntity {
             _that.pickupLat,
             _that.pickupLng,
             _that.dropLat,
-            _that.dropLng);
+            _that.dropLng,
+            _that.estimatedDistanceKm,
+            _that.estimatedDurationMins,
+            _that.bookingCode,
+            _that.serviceMode);
       case _:
         return null;
     }
@@ -356,7 +428,11 @@ class _RideRequestEntity implements RideRequestEntity {
       required this.pickupLat,
       required this.pickupLng,
       required this.dropLat,
-      required this.dropLng});
+      required this.dropLng,
+      this.estimatedDistanceKm,
+      this.estimatedDurationMins,
+      this.bookingCode,
+      this.serviceMode});
 
   @override
   final int id;
@@ -374,6 +450,14 @@ class _RideRequestEntity implements RideRequestEntity {
   final double dropLat;
   @override
   final double dropLng;
+  @override
+  final double? estimatedDistanceKm;
+  @override
+  final int? estimatedDurationMins;
+  @override
+  final String? bookingCode;
+  @override
+  final String? serviceMode;
 
   /// Create a copy of RideRequestEntity
   /// with the given fields replaced by the non-null parameter values.
@@ -400,16 +484,36 @@ class _RideRequestEntity implements RideRequestEntity {
             (identical(other.pickupLng, pickupLng) ||
                 other.pickupLng == pickupLng) &&
             (identical(other.dropLat, dropLat) || other.dropLat == dropLat) &&
-            (identical(other.dropLng, dropLng) || other.dropLng == dropLng));
+            (identical(other.dropLng, dropLng) || other.dropLng == dropLng) &&
+            (identical(other.estimatedDistanceKm, estimatedDistanceKm) ||
+                other.estimatedDistanceKm == estimatedDistanceKm) &&
+            (identical(other.estimatedDurationMins, estimatedDurationMins) ||
+                other.estimatedDurationMins == estimatedDurationMins) &&
+            (identical(other.bookingCode, bookingCode) ||
+                other.bookingCode == bookingCode) &&
+            (identical(other.serviceMode, serviceMode) ||
+                other.serviceMode == serviceMode));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, id, pickupAddress, dropAddress,
-      estimatedFare, pickupLat, pickupLng, dropLat, dropLng);
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      pickupAddress,
+      dropAddress,
+      estimatedFare,
+      pickupLat,
+      pickupLng,
+      dropLat,
+      dropLng,
+      estimatedDistanceKm,
+      estimatedDurationMins,
+      bookingCode,
+      serviceMode);
 
   @override
   String toString() {
-    return 'RideRequestEntity(id: $id, pickupAddress: $pickupAddress, dropAddress: $dropAddress, estimatedFare: $estimatedFare, pickupLat: $pickupLat, pickupLng: $pickupLng, dropLat: $dropLat, dropLng: $dropLng)';
+    return 'RideRequestEntity(id: $id, pickupAddress: $pickupAddress, dropAddress: $dropAddress, estimatedFare: $estimatedFare, pickupLat: $pickupLat, pickupLng: $pickupLng, dropLat: $dropLat, dropLng: $dropLng, estimatedDistanceKm: $estimatedDistanceKm, estimatedDurationMins: $estimatedDurationMins, bookingCode: $bookingCode, serviceMode: $serviceMode)';
   }
 }
 
@@ -429,7 +533,11 @@ abstract mixin class _$RideRequestEntityCopyWith<$Res>
       double pickupLat,
       double pickupLng,
       double dropLat,
-      double dropLng});
+      double dropLng,
+      double? estimatedDistanceKm,
+      int? estimatedDurationMins,
+      String? bookingCode,
+      String? serviceMode});
 }
 
 /// @nodoc
@@ -453,6 +561,10 @@ class __$RideRequestEntityCopyWithImpl<$Res>
     Object? pickupLng = null,
     Object? dropLat = null,
     Object? dropLng = null,
+    Object? estimatedDistanceKm = freezed,
+    Object? estimatedDurationMins = freezed,
+    Object? bookingCode = freezed,
+    Object? serviceMode = freezed,
   }) {
     return _then(_RideRequestEntity(
       id: null == id
@@ -487,6 +599,22 @@ class __$RideRequestEntityCopyWithImpl<$Res>
           ? _self.dropLng
           : dropLng // ignore: cast_nullable_to_non_nullable
               as double,
+      estimatedDistanceKm: freezed == estimatedDistanceKm
+          ? _self.estimatedDistanceKm
+          : estimatedDistanceKm // ignore: cast_nullable_to_non_nullable
+              as double?,
+      estimatedDurationMins: freezed == estimatedDurationMins
+          ? _self.estimatedDurationMins
+          : estimatedDurationMins // ignore: cast_nullable_to_non_nullable
+              as int?,
+      bookingCode: freezed == bookingCode
+          ? _self.bookingCode
+          : bookingCode // ignore: cast_nullable_to_non_nullable
+              as String?,
+      serviceMode: freezed == serviceMode
+          ? _self.serviceMode
+          : serviceMode // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }

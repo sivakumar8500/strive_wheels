@@ -13,5 +13,9 @@ abstract class RideRequestEntity with _$RideRequestEntity {
     required double pickupLng,
     required double dropLat,
     required double dropLng,
+    double? estimatedDistanceKm,
+    int? estimatedDurationMins,
+    String? bookingCode,
+    String? serviceMode,
   }) = _RideRequestEntity;
 }

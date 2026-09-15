@@ -710,8 +710,7 @@ extension EarningsModelPatterns on EarningsModel {
 }
 
 /// @nodoc
-
-@JsonSerializable(explicitToJson: true)
+@JsonSerializable()
 class _EarningsModel extends EarningsModel {
   const _EarningsModel(
       {@JsonKey(name: 'total_earnings') required this.totalEarnings,

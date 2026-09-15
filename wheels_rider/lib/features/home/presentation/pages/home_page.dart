@@ -153,15 +153,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           } else {
             bookingMap = Map<String, dynamic>.from(data);
           }
-          if (data['pickup_address'] != null && bookingMap['pickup_address'] == null) {
-            bookingMap['pickup_address'] = data['pickup_address'];
-          }
-          if (data['drop_address'] != null && bookingMap['drop_address'] == null) {
-            bookingMap['drop_address'] = data['drop_address'];
-          }
-          if (data['estimated_fare'] != null && bookingMap['estimated_fare'] == null) {
-            bookingMap['estimated_fare'] = data['estimated_fare'];
-          }
 
           int? parseInt(dynamic val) {
             if (val == null) return null;
@@ -177,6 +168,58 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             return double.tryParse(val.toString());
           }
 
+          String? parseString(dynamic val) {
+            if (val == null) return null;
+            return val.toString();
+          }
+
+          if (bookingMap['pickup_address'] == null && data['pickup_address'] != null) {
+            bookingMap['pickup_address'] = data['pickup_address'];
+          }
+          if (bookingMap['drop_address'] == null && data['drop_address'] != null) {
+            bookingMap['drop_address'] = data['drop_address'];
+          }
+          if (bookingMap['estimated_fare'] == null && data['estimated_fare'] != null) {
+            bookingMap['estimated_fare'] = data['estimated_fare'];
+          }
+          if (bookingMap['pickup_lat'] == null && data['pickup_lat'] != null) {
+            bookingMap['pickup_lat'] = data['pickup_lat'];
+          }
+          if (bookingMap['pickup_lng'] == null && data['pickup_lng'] != null) {
+            bookingMap['pickup_lng'] = data['pickup_lng'];
+          }
+          if (bookingMap['drop_lat'] == null && data['drop_lat'] != null) {
+            bookingMap['drop_lat'] = data['drop_lat'];
+          }
+          if (bookingMap['drop_lng'] == null && data['drop_lng'] != null) {
+            bookingMap['drop_lng'] = data['drop_lng'];
+          }
+          if (bookingMap['estimated_distance_km'] == null && data['estimated_distance_km'] != null) {
+            bookingMap['estimated_distance_km'] = data['estimated_distance_km'];
+          }
+          if (bookingMap['estimated_duration_mins'] == null && data['estimated_duration_mins'] != null) {
+            bookingMap['estimated_duration_mins'] = data['estimated_duration_mins'];
+          }
+          if (bookingMap['booking_code'] == null && data['booking_code'] != null) {
+            bookingMap['booking_code'] = data['booking_code'];
+          }
+          if (bookingMap['service_mode'] == null && data['service_mode'] != null) {
+            bookingMap['service_mode'] = data['service_mode'];
+          }
+
+          if (bookingMap['pickup_address'] != null) bookingMap['pickup_address'] = parseString(bookingMap['pickup_address']);
+          if (bookingMap['drop_address'] != null) bookingMap['drop_address'] = parseString(bookingMap['drop_address']);
+          if (bookingMap['booking_code'] != null) bookingMap['booking_code'] = parseString(bookingMap['booking_code']);
+          if (bookingMap['service_mode'] != null) bookingMap['service_mode'] = parseString(bookingMap['service_mode']);
+
+          if (bookingMap['pickup_lat'] != null) bookingMap['pickup_lat'] = parseDouble(bookingMap['pickup_lat']);
+          if (bookingMap['pickup_lng'] != null) bookingMap['pickup_lng'] = parseDouble(bookingMap['pickup_lng']);
+          if (bookingMap['drop_lat'] != null) bookingMap['drop_lat'] = parseDouble(bookingMap['drop_lat']);
+          if (bookingMap['drop_lng'] != null) bookingMap['drop_lng'] = parseDouble(bookingMap['drop_lng']);
+          if (bookingMap['estimated_fare'] != null) bookingMap['estimated_fare'] = parseDouble(bookingMap['estimated_fare']);
+          if (bookingMap['estimated_distance_km'] != null) bookingMap['estimated_distance_km'] = parseDouble(bookingMap['estimated_distance_km']);
+          if (bookingMap['estimated_duration_mins'] != null) bookingMap['estimated_duration_mins'] = parseInt(bookingMap['estimated_duration_mins']);
+
           final int? trueBookingId = parseInt(bookingMap['booking_id']) ??
               parseInt(bookingMap['id']) ??
               parseInt(data['booking_id']) ??
@@ -187,11 +230,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             bookingMap['booking_id'] = trueBookingId;
           }
 
-          if (bookingMap['pickup_lat'] != null) bookingMap['pickup_lat'] = parseDouble(bookingMap['pickup_lat']);
-          if (bookingMap['pickup_lng'] != null) bookingMap['pickup_lng'] = parseDouble(bookingMap['pickup_lng']);
-          if (bookingMap['drop_lat'] != null) bookingMap['drop_lat'] = parseDouble(bookingMap['drop_lat']);
-          if (bookingMap['drop_lng'] != null) bookingMap['drop_lng'] = parseDouble(bookingMap['drop_lng']);
-          if (bookingMap['estimated_fare'] != null) bookingMap['estimated_fare'] = parseDouble(bookingMap['estimated_fare']);
+          final int? reqId = parseInt(data['request_id']) ?? parseInt(bookingMap['request_id']);
+          if (reqId != null) {
+            bookingMap['request_id'] = reqId;
+          }
+          if (bookingMap['estimated_distance_km'] != null) bookingMap['estimated_distance_km'] = parseDouble(bookingMap['estimated_distance_km']);
+          if (bookingMap['estimated_duration_mins'] != null) bookingMap['estimated_duration_mins'] = parseInt(bookingMap['estimated_duration_mins']);
 
           final model = RideRequestModel.fromJson(bookingMap);
           final entity = model.toEntity();
@@ -1256,9 +1300,77 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 ],
               ),
               
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  if (ride.estimatedDistanceKm != null && ride.estimatedDistanceKm! > 0) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.straighten, size: 14, color: isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${ride.estimatedDistanceKm!.toStringAsFixed(1)} km',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  if (ride.estimatedDurationMins != null && ride.estimatedDurationMins! > 0) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.access_time_rounded, size: 14, color: isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${ride.estimatedDurationMins} mins',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  if (ride.bookingCode != null && ride.bookingCode!.isNotEmpty) ...[
+                    Expanded(
+                      child: Text(
+                        ride.bookingCode!,
+                        textAlign: TextAlign.end,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 12),
               const Divider(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Line 2: From Location
               Row(

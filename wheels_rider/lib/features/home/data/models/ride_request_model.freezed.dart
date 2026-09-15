@@ -34,6 +34,14 @@ mixin _$RideRequestModel {
   double? get dropLat;
   @JsonKey(name: 'drop_lng')
   double? get dropLng;
+  @JsonKey(name: 'estimated_distance_km')
+  double? get estimatedDistanceKm;
+  @JsonKey(name: 'estimated_duration_mins')
+  int? get estimatedDurationMins;
+  @JsonKey(name: 'booking_code')
+  String? get bookingCode;
+  @JsonKey(name: 'service_mode')
+  String? get serviceMode;
 
   /// Create a copy of RideRequestModel
   /// with the given fields replaced by the non-null parameter values.
@@ -67,7 +75,15 @@ mixin _$RideRequestModel {
             (identical(other.pickupLng, pickupLng) ||
                 other.pickupLng == pickupLng) &&
             (identical(other.dropLat, dropLat) || other.dropLat == dropLat) &&
-            (identical(other.dropLng, dropLng) || other.dropLng == dropLng));
+            (identical(other.dropLng, dropLng) || other.dropLng == dropLng) &&
+            (identical(other.estimatedDistanceKm, estimatedDistanceKm) ||
+                other.estimatedDistanceKm == estimatedDistanceKm) &&
+            (identical(other.estimatedDurationMins, estimatedDurationMins) ||
+                other.estimatedDurationMins == estimatedDurationMins) &&
+            (identical(other.bookingCode, bookingCode) ||
+                other.bookingCode == bookingCode) &&
+            (identical(other.serviceMode, serviceMode) ||
+                other.serviceMode == serviceMode));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -83,11 +99,15 @@ mixin _$RideRequestModel {
       pickupLat,
       pickupLng,
       dropLat,
-      dropLng);
+      dropLng,
+      estimatedDistanceKm,
+      estimatedDurationMins,
+      bookingCode,
+      serviceMode);
 
   @override
   String toString() {
-    return 'RideRequestModel(id: $id, bookingId: $bookingId, requestId: $requestId, pickupAddress: $pickupAddress, dropAddress: $dropAddress, estimatedFare: $estimatedFare, pickupLat: $pickupLat, pickupLng: $pickupLng, dropLat: $dropLat, dropLng: $dropLng)';
+    return 'RideRequestModel(id: $id, bookingId: $bookingId, requestId: $requestId, pickupAddress: $pickupAddress, dropAddress: $dropAddress, estimatedFare: $estimatedFare, pickupLat: $pickupLat, pickupLng: $pickupLng, dropLat: $dropLat, dropLng: $dropLng, estimatedDistanceKm: $estimatedDistanceKm, estimatedDurationMins: $estimatedDurationMins, bookingCode: $bookingCode, serviceMode: $serviceMode)';
   }
 }
 
@@ -107,7 +127,11 @@ abstract mixin class $RideRequestModelCopyWith<$Res> {
       @JsonKey(name: 'pickup_lat') double? pickupLat,
       @JsonKey(name: 'pickup_lng') double? pickupLng,
       @JsonKey(name: 'drop_lat') double? dropLat,
-      @JsonKey(name: 'drop_lng') double? dropLng});
+      @JsonKey(name: 'drop_lng') double? dropLng,
+      @JsonKey(name: 'estimated_distance_km') double? estimatedDistanceKm,
+      @JsonKey(name: 'estimated_duration_mins') int? estimatedDurationMins,
+      @JsonKey(name: 'booking_code') String? bookingCode,
+      @JsonKey(name: 'service_mode') String? serviceMode});
 }
 
 /// @nodoc
@@ -133,6 +157,10 @@ class _$RideRequestModelCopyWithImpl<$Res>
     Object? pickupLng = freezed,
     Object? dropLat = freezed,
     Object? dropLng = freezed,
+    Object? estimatedDistanceKm = freezed,
+    Object? estimatedDurationMins = freezed,
+    Object? bookingCode = freezed,
+    Object? serviceMode = freezed,
   }) {
     return _then(_self.copyWith(
       id: freezed == id
@@ -175,6 +203,22 @@ class _$RideRequestModelCopyWithImpl<$Res>
           ? _self.dropLng
           : dropLng // ignore: cast_nullable_to_non_nullable
               as double?,
+      estimatedDistanceKm: freezed == estimatedDistanceKm
+          ? _self.estimatedDistanceKm
+          : estimatedDistanceKm // ignore: cast_nullable_to_non_nullable
+              as double?,
+      estimatedDurationMins: freezed == estimatedDurationMins
+          ? _self.estimatedDurationMins
+          : estimatedDurationMins // ignore: cast_nullable_to_non_nullable
+              as int?,
+      bookingCode: freezed == bookingCode
+          ? _self.bookingCode
+          : bookingCode // ignore: cast_nullable_to_non_nullable
+              as String?,
+      serviceMode: freezed == serviceMode
+          ? _self.serviceMode
+          : serviceMode // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -282,7 +326,12 @@ extension RideRequestModelPatterns on RideRequestModel {
             @JsonKey(name: 'pickup_lat') double? pickupLat,
             @JsonKey(name: 'pickup_lng') double? pickupLng,
             @JsonKey(name: 'drop_lat') double? dropLat,
-            @JsonKey(name: 'drop_lng') double? dropLng)?
+            @JsonKey(name: 'drop_lng') double? dropLng,
+            @JsonKey(name: 'estimated_distance_km') double? estimatedDistanceKm,
+            @JsonKey(name: 'estimated_duration_mins')
+            int? estimatedDurationMins,
+            @JsonKey(name: 'booking_code') String? bookingCode,
+            @JsonKey(name: 'service_mode') String? serviceMode)?
         $default, {
     required TResult orElse(),
   }) {
@@ -299,7 +348,11 @@ extension RideRequestModelPatterns on RideRequestModel {
             _that.pickupLat,
             _that.pickupLng,
             _that.dropLat,
-            _that.dropLng);
+            _that.dropLng,
+            _that.estimatedDistanceKm,
+            _that.estimatedDurationMins,
+            _that.bookingCode,
+            _that.serviceMode);
       case _:
         return orElse();
     }
@@ -330,7 +383,12 @@ extension RideRequestModelPatterns on RideRequestModel {
             @JsonKey(name: 'pickup_lat') double? pickupLat,
             @JsonKey(name: 'pickup_lng') double? pickupLng,
             @JsonKey(name: 'drop_lat') double? dropLat,
-            @JsonKey(name: 'drop_lng') double? dropLng)
+            @JsonKey(name: 'drop_lng') double? dropLng,
+            @JsonKey(name: 'estimated_distance_km') double? estimatedDistanceKm,
+            @JsonKey(name: 'estimated_duration_mins')
+            int? estimatedDurationMins,
+            @JsonKey(name: 'booking_code') String? bookingCode,
+            @JsonKey(name: 'service_mode') String? serviceMode)
         $default,
   ) {
     final _that = this;
@@ -346,7 +404,11 @@ extension RideRequestModelPatterns on RideRequestModel {
             _that.pickupLat,
             _that.pickupLng,
             _that.dropLat,
-            _that.dropLng);
+            _that.dropLng,
+            _that.estimatedDistanceKm,
+            _that.estimatedDurationMins,
+            _that.bookingCode,
+            _that.serviceMode);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -376,7 +438,12 @@ extension RideRequestModelPatterns on RideRequestModel {
             @JsonKey(name: 'pickup_lat') double? pickupLat,
             @JsonKey(name: 'pickup_lng') double? pickupLng,
             @JsonKey(name: 'drop_lat') double? dropLat,
-            @JsonKey(name: 'drop_lng') double? dropLng)?
+            @JsonKey(name: 'drop_lng') double? dropLng,
+            @JsonKey(name: 'estimated_distance_km') double? estimatedDistanceKm,
+            @JsonKey(name: 'estimated_duration_mins')
+            int? estimatedDurationMins,
+            @JsonKey(name: 'booking_code') String? bookingCode,
+            @JsonKey(name: 'service_mode') String? serviceMode)?
         $default,
   ) {
     final _that = this;
@@ -392,7 +459,11 @@ extension RideRequestModelPatterns on RideRequestModel {
             _that.pickupLat,
             _that.pickupLng,
             _that.dropLat,
-            _that.dropLng);
+            _that.dropLng,
+            _that.estimatedDistanceKm,
+            _that.estimatedDurationMins,
+            _that.bookingCode,
+            _that.serviceMode);
       case _:
         return null;
     }
@@ -412,7 +483,11 @@ class _RideRequestModel extends RideRequestModel {
       @JsonKey(name: 'pickup_lat') this.pickupLat,
       @JsonKey(name: 'pickup_lng') this.pickupLng,
       @JsonKey(name: 'drop_lat') this.dropLat,
-      @JsonKey(name: 'drop_lng') this.dropLng})
+      @JsonKey(name: 'drop_lng') this.dropLng,
+      @JsonKey(name: 'estimated_distance_km') this.estimatedDistanceKm,
+      @JsonKey(name: 'estimated_duration_mins') this.estimatedDurationMins,
+      @JsonKey(name: 'booking_code') this.bookingCode,
+      @JsonKey(name: 'service_mode') this.serviceMode})
       : super._();
   factory _RideRequestModel.fromJson(Map<String, dynamic> json) =>
       _$RideRequestModelFromJson(json);
@@ -447,6 +522,18 @@ class _RideRequestModel extends RideRequestModel {
   @override
   @JsonKey(name: 'drop_lng')
   final double? dropLng;
+  @override
+  @JsonKey(name: 'estimated_distance_km')
+  final double? estimatedDistanceKm;
+  @override
+  @JsonKey(name: 'estimated_duration_mins')
+  final int? estimatedDurationMins;
+  @override
+  @JsonKey(name: 'booking_code')
+  final String? bookingCode;
+  @override
+  @JsonKey(name: 'service_mode')
+  final String? serviceMode;
 
   /// Create a copy of RideRequestModel
   /// with the given fields replaced by the non-null parameter values.
@@ -484,7 +571,15 @@ class _RideRequestModel extends RideRequestModel {
             (identical(other.pickupLng, pickupLng) ||
                 other.pickupLng == pickupLng) &&
             (identical(other.dropLat, dropLat) || other.dropLat == dropLat) &&
-            (identical(other.dropLng, dropLng) || other.dropLng == dropLng));
+            (identical(other.dropLng, dropLng) || other.dropLng == dropLng) &&
+            (identical(other.estimatedDistanceKm, estimatedDistanceKm) ||
+                other.estimatedDistanceKm == estimatedDistanceKm) &&
+            (identical(other.estimatedDurationMins, estimatedDurationMins) ||
+                other.estimatedDurationMins == estimatedDurationMins) &&
+            (identical(other.bookingCode, bookingCode) ||
+                other.bookingCode == bookingCode) &&
+            (identical(other.serviceMode, serviceMode) ||
+                other.serviceMode == serviceMode));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -500,11 +595,15 @@ class _RideRequestModel extends RideRequestModel {
       pickupLat,
       pickupLng,
       dropLat,
-      dropLng);
+      dropLng,
+      estimatedDistanceKm,
+      estimatedDurationMins,
+      bookingCode,
+      serviceMode);
 
   @override
   String toString() {
-    return 'RideRequestModel(id: $id, bookingId: $bookingId, requestId: $requestId, pickupAddress: $pickupAddress, dropAddress: $dropAddress, estimatedFare: $estimatedFare, pickupLat: $pickupLat, pickupLng: $pickupLng, dropLat: $dropLat, dropLng: $dropLng)';
+    return 'RideRequestModel(id: $id, bookingId: $bookingId, requestId: $requestId, pickupAddress: $pickupAddress, dropAddress: $dropAddress, estimatedFare: $estimatedFare, pickupLat: $pickupLat, pickupLng: $pickupLng, dropLat: $dropLat, dropLng: $dropLng, estimatedDistanceKm: $estimatedDistanceKm, estimatedDurationMins: $estimatedDurationMins, bookingCode: $bookingCode, serviceMode: $serviceMode)';
   }
 }
 
@@ -526,7 +625,11 @@ abstract mixin class _$RideRequestModelCopyWith<$Res>
       @JsonKey(name: 'pickup_lat') double? pickupLat,
       @JsonKey(name: 'pickup_lng') double? pickupLng,
       @JsonKey(name: 'drop_lat') double? dropLat,
-      @JsonKey(name: 'drop_lng') double? dropLng});
+      @JsonKey(name: 'drop_lng') double? dropLng,
+      @JsonKey(name: 'estimated_distance_km') double? estimatedDistanceKm,
+      @JsonKey(name: 'estimated_duration_mins') int? estimatedDurationMins,
+      @JsonKey(name: 'booking_code') String? bookingCode,
+      @JsonKey(name: 'service_mode') String? serviceMode});
 }
 
 /// @nodoc
@@ -552,6 +655,10 @@ class __$RideRequestModelCopyWithImpl<$Res>
     Object? pickupLng = freezed,
     Object? dropLat = freezed,
     Object? dropLng = freezed,
+    Object? estimatedDistanceKm = freezed,
+    Object? estimatedDurationMins = freezed,
+    Object? bookingCode = freezed,
+    Object? serviceMode = freezed,
   }) {
     return _then(_RideRequestModel(
       id: freezed == id
@@ -594,6 +701,22 @@ class __$RideRequestModelCopyWithImpl<$Res>
           ? _self.dropLng
           : dropLng // ignore: cast_nullable_to_non_nullable
               as double?,
+      estimatedDistanceKm: freezed == estimatedDistanceKm
+          ? _self.estimatedDistanceKm
+          : estimatedDistanceKm // ignore: cast_nullable_to_non_nullable
+              as double?,
+      estimatedDurationMins: freezed == estimatedDurationMins
+          ? _self.estimatedDurationMins
+          : estimatedDurationMins // ignore: cast_nullable_to_non_nullable
+              as int?,
+      bookingCode: freezed == bookingCode
+          ? _self.bookingCode
+          : bookingCode // ignore: cast_nullable_to_non_nullable
+              as String?,
+      serviceMode: freezed == serviceMode
+          ? _self.serviceMode
+          : serviceMode // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }

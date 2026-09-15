@@ -81,15 +81,6 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
             } else {
               bookingMap = Map<String, dynamic>.from(data);
             }
-            if (data['pickup_address'] != null && bookingMap['pickup_address'] == null) {
-              bookingMap['pickup_address'] = data['pickup_address'];
-            }
-            if (data['drop_address'] != null && bookingMap['drop_address'] == null) {
-              bookingMap['drop_address'] = data['drop_address'];
-            }
-            if (data['estimated_fare'] != null && bookingMap['estimated_fare'] == null) {
-              bookingMap['estimated_fare'] = data['estimated_fare'];
-            }
 
             int? parseInt(dynamic val) {
               if (val == null) return null;
@@ -105,6 +96,58 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
               return double.tryParse(val.toString());
             }
 
+            String? parseString(dynamic val) {
+              if (val == null) return null;
+              return val.toString();
+            }
+
+            if (bookingMap['pickup_address'] == null && data['pickup_address'] != null) {
+              bookingMap['pickup_address'] = data['pickup_address'];
+            }
+            if (bookingMap['drop_address'] == null && data['drop_address'] != null) {
+              bookingMap['drop_address'] = data['drop_address'];
+            }
+            if (bookingMap['estimated_fare'] == null && data['estimated_fare'] != null) {
+              bookingMap['estimated_fare'] = data['estimated_fare'];
+            }
+            if (bookingMap['pickup_lat'] == null && data['pickup_lat'] != null) {
+              bookingMap['pickup_lat'] = data['pickup_lat'];
+            }
+            if (bookingMap['pickup_lng'] == null && data['pickup_lng'] != null) {
+              bookingMap['pickup_lng'] = data['pickup_lng'];
+            }
+            if (bookingMap['drop_lat'] == null && data['drop_lat'] != null) {
+              bookingMap['drop_lat'] = data['drop_lat'];
+            }
+            if (bookingMap['drop_lng'] == null && data['drop_lng'] != null) {
+              bookingMap['drop_lng'] = data['drop_lng'];
+            }
+            if (bookingMap['estimated_distance_km'] == null && data['estimated_distance_km'] != null) {
+              bookingMap['estimated_distance_km'] = data['estimated_distance_km'];
+            }
+            if (bookingMap['estimated_duration_mins'] == null && data['estimated_duration_mins'] != null) {
+              bookingMap['estimated_duration_mins'] = data['estimated_duration_mins'];
+            }
+            if (bookingMap['booking_code'] == null && data['booking_code'] != null) {
+              bookingMap['booking_code'] = data['booking_code'];
+            }
+            if (bookingMap['service_mode'] == null && data['service_mode'] != null) {
+              bookingMap['service_mode'] = data['service_mode'];
+            }
+
+            if (bookingMap['pickup_address'] != null) bookingMap['pickup_address'] = parseString(bookingMap['pickup_address']);
+            if (bookingMap['drop_address'] != null) bookingMap['drop_address'] = parseString(bookingMap['drop_address']);
+            if (bookingMap['booking_code'] != null) bookingMap['booking_code'] = parseString(bookingMap['booking_code']);
+            if (bookingMap['service_mode'] != null) bookingMap['service_mode'] = parseString(bookingMap['service_mode']);
+
+            if (bookingMap['pickup_lat'] != null) bookingMap['pickup_lat'] = parseDouble(bookingMap['pickup_lat']);
+            if (bookingMap['pickup_lng'] != null) bookingMap['pickup_lng'] = parseDouble(bookingMap['pickup_lng']);
+            if (bookingMap['drop_lat'] != null) bookingMap['drop_lat'] = parseDouble(bookingMap['drop_lat']);
+            if (bookingMap['drop_lng'] != null) bookingMap['drop_lng'] = parseDouble(bookingMap['drop_lng']);
+            if (bookingMap['estimated_fare'] != null) bookingMap['estimated_fare'] = parseDouble(bookingMap['estimated_fare']);
+            if (bookingMap['estimated_distance_km'] != null) bookingMap['estimated_distance_km'] = parseDouble(bookingMap['estimated_distance_km']);
+            if (bookingMap['estimated_duration_mins'] != null) bookingMap['estimated_duration_mins'] = parseInt(bookingMap['estimated_duration_mins']);
+
             final int? trueBookingId = parseInt(bookingMap['booking_id']) ??
                 parseInt(bookingMap['id']) ??
                 parseInt(data['booking_id']) ??
@@ -119,12 +162,6 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
             if (reqId != null) {
               bookingMap['request_id'] = reqId;
             }
-
-            if (bookingMap['pickup_lat'] != null) bookingMap['pickup_lat'] = parseDouble(bookingMap['pickup_lat']);
-            if (bookingMap['pickup_lng'] != null) bookingMap['pickup_lng'] = parseDouble(bookingMap['pickup_lng']);
-            if (bookingMap['drop_lat'] != null) bookingMap['drop_lat'] = parseDouble(bookingMap['drop_lat']);
-            if (bookingMap['drop_lng'] != null) bookingMap['drop_lng'] = parseDouble(bookingMap['drop_lng']);
-            if (bookingMap['estimated_fare'] != null) bookingMap['estimated_fare'] = parseDouble(bookingMap['estimated_fare']);
 
             _rideRequestController.add(RideRequestModel.fromJson(bookingMap));
           } catch (e) {

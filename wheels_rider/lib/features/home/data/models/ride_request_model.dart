@@ -19,6 +19,10 @@ abstract class RideRequestModel with _$RideRequestModel {
     @JsonKey(name: 'pickup_lng') double? pickupLng,
     @JsonKey(name: 'drop_lat') double? dropLat,
     @JsonKey(name: 'drop_lng') double? dropLng,
+    @JsonKey(name: 'estimated_distance_km') double? estimatedDistanceKm,
+    @JsonKey(name: 'estimated_duration_mins') int? estimatedDurationMins,
+    @JsonKey(name: 'booking_code') String? bookingCode,
+    @JsonKey(name: 'service_mode') String? serviceMode,
   }) = _RideRequestModel;
 
   factory RideRequestModel.fromJson(Map<String, dynamic> json) => _$RideRequestModelFromJson(json);
@@ -34,6 +38,10 @@ abstract class RideRequestModel with _$RideRequestModel {
       pickupLng: pickupLng ?? 0.0,
       dropLat: dropLat ?? 0.0,
       dropLng: dropLng ?? 0.0,
+      estimatedDistanceKm: estimatedDistanceKm,
+      estimatedDurationMins: estimatedDurationMins,
+      bookingCode: bookingCode,
+      serviceMode: serviceMode,
     );
   }
 }
