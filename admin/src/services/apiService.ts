@@ -173,11 +173,15 @@ export async function apiFetch<T>(
 
   try {
     const url = path.startsWith("http") ? path : `${BASE_URL}${path}`;
-    const headers = {
+    const headers: Record<string, string> = {
       "Content-Type": "application/json",
       ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-      ...options.headers,
+      ...(options.headers as Record<string, string>),
     };
+
+    if (options.body instanceof FormData) {
+      delete headers["Content-Type"];
+    }
 
     const res = await fetch(url, {
       ...options,
@@ -228,14 +232,14 @@ const apiService = {
   post: <T>(p: string, d?: unknown, t: string | null = null, o?: RequestInit) =>
     apiFetch<T>(
       p,
-      { ...o, method: "POST", body: d ? JSON.stringify(d) : undefined },
+      { ...o, method: "POST", body: d instanceof FormData ? d : d ? JSON.stringify(d) : undefined },
       t,
     ),
 
   put: <T>(p: string, d?: unknown, t: string | null = null, o?: RequestInit) =>
     apiFetch<T>(
       p,
-      { ...o, method: "PUT", body: d ? JSON.stringify(d) : undefined },
+      { ...o, method: "PUT", body: d instanceof FormData ? d : d ? JSON.stringify(d) : undefined },
       t,
     ),
 
@@ -247,7 +251,7 @@ const apiService = {
   ) =>
     apiFetch<T>(
       p,
-      { ...o, method: "PATCH", body: d ? JSON.stringify(d) : undefined },
+      { ...o, method: "PATCH", body: d instanceof FormData ? d : d ? JSON.stringify(d) : undefined },
       t,
     ),
 

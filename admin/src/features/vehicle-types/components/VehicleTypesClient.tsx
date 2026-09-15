@@ -59,6 +59,19 @@ export function VehicleTypesClient() {
   };
 
   const columns = [
+    {
+      key: "icon_url" as const,
+      label: "Icon",
+      render: (value: string) => (
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-muted/50 p-1 overflow-hidden">
+          {value ? (
+            <img src={value} alt="Vehicle Icon" className="h-full w-full object-contain" />
+          ) : (
+            <span className="text-xs text-muted-foreground">N/A</span>
+          )}
+        </div>
+      ),
+    },
     { key: "code" as const, label: "Code" },
     { key: "name" as const, label: "Name" },
     {

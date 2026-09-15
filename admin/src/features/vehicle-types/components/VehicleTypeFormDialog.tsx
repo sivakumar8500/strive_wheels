@@ -2,33 +2,22 @@
 
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import FormDialogHeader from "@/components/shared/FormDialogHeader";
+import FormDialogFooter from "@/components/shared/FormDialogFooter";
 import TextInput from "@/components/forms/TextInput";
 import NumberInput from "@/components/forms/NumberInput";
 import ToggleSwitch from "@/components/forms/ToggleSwitch";
 import TextArea from "@/components/forms/TextArea";
 import { VehicleType, CreateVehicleTypeDto } from "../types";
 import { useEffect } from "react";
+import { vehicleTypeSchema, VehicleTypeFormData } from "../validations/vehicle-type-schema";
+import ImageUploadInput from "@/components/forms/ImageUploadInput";
 
-const schema = z.object({
-  code: z.string().min(1, "Code is required"),
-  name: z.string().min(1, "Name is required"),
-  description: z.string().min(1, "Description is required"),
-  icon_url: z.string().url("Must be a valid URL"),
-  max_passengers: z.number().min(1, "Must be at least 1"),
-  max_weight_kg: z.number().min(1, "Must be at least 1"),
-  is_active: z.boolean(),
-});
-
-type FormData = z.infer<typeof schema>;
 
 interface Props {
   open: boolean;
@@ -45,8 +34,8 @@ export function VehicleTypeFormDialog({
   onSubmit,
   isSubmitting = false,
 }: Props) {
-  const methods = useForm<FormData>({
-    resolver: zodResolver(schema),
+  const methods = useForm<VehicleTypeFormData>({
+    resolver: zodResolver(vehicleTypeSchema),
     defaultValues: {
       code: "",
       name: "",
@@ -86,19 +75,21 @@ export function VehicleTypeFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>
-            {initialData ? "Edit Vehicle Type" : "Add Vehicle Type"}
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent showCloseButton={false} className="sm:max-w-[500px]">
+        <FormDialogHeader
+          title={initialData ? "Edit Vehicle Type" : "Add Vehicle Type"}
+        />
 
         <FormProvider {...methods}>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <TextInput name="code" label="Code (e.g. CAB)" placeholder="CAB" />
             <TextInput name="name" label="Name" placeholder="Sedan / Hatchback" />
             <TextArea name="description" label="Description" />
-            <TextInput name="icon_url" label="Icon URL" placeholder="https://..." />
+            <ImageUploadInput
+              name="icon_url"
+              label="Icon Image"
+              folder="vehicle-types"
+            />
             
             <div className="grid grid-cols-2 gap-4">
               <NumberInput name="max_passengers" label="Max Passengers" />
@@ -107,19 +98,10 @@ export function VehicleTypeFormDialog({
 
             <ToggleSwitch name="is_active" label="Is Active" />
 
-            <DialogFooter className="pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : "Save"}
-              </Button>
-            </DialogFooter>
+            <FormDialogFooter
+              onCancel={() => onOpenChange(false)}
+              isPending={isSubmitting}
+            />
           </form>
         </FormProvider>
       </DialogContent>

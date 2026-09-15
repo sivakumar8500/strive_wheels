@@ -102,4 +102,31 @@ export function UserTable({ data }: { data: User[] }) {
     />
   );
 }
+
+### Form Image Uploads
+
+For handling image uploads inside forms, use the generic `ImageUploadInput` component (`src/components/forms/ImageUploadInput.tsx`). It automatically integrates with React Hook Form, handles drag-and-drop, and seamlessly uses the `tempUploadService` to push the file to the backend before form submission.
+
+```tsx
+import { FormProvider, useForm } from "react-hook-form";
+import ImageUploadInput from "@/components/forms/ImageUploadInput";
+
+export function ProfileForm() {
+  const methods = useForm();
+
+  const onSubmit = (data) => console.log(data);
+
+  return (
+    <FormProvider {...methods}>
+      <form onSubmit={methods.handleSubmit(onSubmit)}>
+        <ImageUploadInput
+          name="profile_image_url"
+          label="Profile Picture"
+          folder="users" // Optional: specify the backend folder
+        />
+        {/* other fields */}
+      </form>
+    </FormProvider>
+  );
+}
 ```
