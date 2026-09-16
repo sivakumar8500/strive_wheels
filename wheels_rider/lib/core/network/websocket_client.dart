@@ -78,6 +78,7 @@ class WebSocketClient {
         debugPrint('=====================================================');
         debugPrint('🟢 [Rider WS Connected] URL: $uri');
         debugPrint('=====================================================');
+        _flushPendingQueue();
         _startPingHeartbeat();
 
         _subscription?.cancel();
@@ -153,13 +154,29 @@ class WebSocketClient {
     }
   }
 
+  final List<String> _pendingQueue = [];
+
+  void _flushPendingQueue() {
+    if (!_isConnected || _channel == null) return;
+    while (_pendingQueue.isNotEmpty) {
+      final msg = _pendingQueue.removeAt(0);
+      try {
+        _channel!.sink.add(msg);
+        debugPrint('[WebSocket] Flushed pending rider message: $msg');
+      } catch (e) {
+        debugPrint('[WebSocket] Error flushing pending rider message: $e');
+      }
+    }
+  }
+
   void sendMessage(Map<String, dynamic> message) {
+    final payloadStr = jsonEncode(message);
     if (_isConnected && _channel != null) {
-      final payloadStr = jsonEncode(message);
       _channel!.sink.add(payloadStr);
       debugPrint('[WebSocket] Sent Event: "${message['event']}" -> $message');
     } else {
-      debugPrint('[WebSocket] Cannot send message "${message['event']}". Socket is not connected.');
+      debugPrint('[WebSocket] Socket not connected. Queuing event: "${message['event']}"');
+      _pendingQueue.add(payloadStr);
     }
   }
 

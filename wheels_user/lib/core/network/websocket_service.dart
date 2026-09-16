@@ -70,6 +70,7 @@ class WebSocketService {
         _reconnectAttempts = 0;
         debugPrint('[WebSocket] Connection established successfully via $url');
 
+        _flushPendingQueue();
         _startPingHeartbeat();
 
         _channel!.stream.listen(
@@ -107,6 +108,21 @@ class WebSocketService {
     _handleDisconnect();
   }
 
+  final List<String> _pendingQueue = [];
+
+  void _flushPendingQueue() {
+    if (!_isConnected || _channel == null) return;
+    while (_pendingQueue.isNotEmpty) {
+      final msg = _pendingQueue.removeAt(0);
+      try {
+        _channel!.sink.add(msg);
+        debugPrint('[WebSocket] Flushed pending message: $msg');
+      } catch (e) {
+        debugPrint('[WebSocket] Error flushing pending message: $e');
+      }
+    }
+  }
+
   void _handleIncomingData(dynamic data) {
     try {
       final decoded = jsonDecode(data.toString()) as Map<String, dynamic>;
@@ -117,14 +133,15 @@ class WebSocketService {
     }
   }
 
-  /// Send event to WebSocket server
+  /// Send event to WebSocket server (or queue if connection in progress)
   void send(String event, Map<String, dynamic> data) {
+    final payload = jsonEncode({'event': event, 'data': data});
     if (_isConnected && _channel != null) {
-      final payload = jsonEncode({'event': event, 'data': data});
       _channel!.sink.add(payload);
       debugPrint('[WebSocket] Sent event: $event payload: $payload');
     } else {
-      debugPrint('[WebSocket] Cannot send, not connected.');
+      debugPrint('[WebSocket] Not connected yet. Queuing event: $event payload: $payload');
+      _pendingQueue.add(payload);
     }
   }
 

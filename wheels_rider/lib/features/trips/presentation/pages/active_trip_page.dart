@@ -747,6 +747,9 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
   }
 
   Future<void> _handleStartTrip(String otp) async {
+    if (_tripStatus == TripStatus.inProgress) {
+      return;
+    }
     if (otp.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter valid 4-digit OTP from customer')),

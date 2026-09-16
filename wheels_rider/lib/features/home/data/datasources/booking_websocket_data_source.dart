@@ -183,7 +183,9 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
           break;
         case 'error':
           final errorMessage = data['message'] as String? ?? 'Unknown WebSocket Error';
-          _errorController.add(errorMessage);
+          if (!errorMessage.contains('TRIP_STARTED') && !errorMessage.contains('Cannot start trip')) {
+            _errorController.add(errorMessage);
+          }
           break;
       }
     });

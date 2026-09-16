@@ -288,6 +288,26 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               duration: const Duration(seconds: 4),
             ),
           );
+        } else if (event == 'booking.cancelled' ||
+            event == 'booking.customer_cancelled' ||
+            event == 'ride.cancelled') {
+          final reason = (data['reason'] ?? msg['reason'] ?? 'Trip was cancelled by customer').toString();
+          _clearActiveRideState();
+          setState(() {
+            _hasActiveRideRequest = false;
+            _isRideRequestMinimized = false;
+            _currentRideRequest = null;
+            _isTripStarted = false;
+            _isDropRequestPending = false;
+            _navigationPolylinePoints.clear();
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(reason),
+              backgroundColor: const Color(0xFFEF4444),
+              duration: const Duration(seconds: 4),
+            ),
+          );
         }
       }
     });
