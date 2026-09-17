@@ -325,13 +325,6 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
     });
   }
 
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _wsSubscription?.cancel();
-    super.dispose();
-  }
-
   void _saveActiveBookingState() {
     if (sl.isRegistered<ActiveBookingService>()) {
       sl<ActiveBookingService>().setActiveBooking(
