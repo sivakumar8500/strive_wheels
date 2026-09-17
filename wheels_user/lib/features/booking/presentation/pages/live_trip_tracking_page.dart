@@ -245,7 +245,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
           });
         }
       }
-      if (_phase != TripPhase.inTransit) {
         _checkActiveBookingStatusHttp();
       }
     });
@@ -253,11 +252,8 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
 
   Future<void> _checkActiveBookingStatusHttp() async {
     try {
-      final activeBooking = sl.isRegistered<ActiveBookingService>()
-          ? sl<ActiveBookingService>().activeBooking
-          : null;
-      final bookingId = activeBooking?.bookingId;
-      if (bookingId == null || bookingId.isEmpty) return;
+      final bookingId = _effectiveBookingId;
+      if (bookingId.isEmpty) return;
 
       final cleanId = bookingId.replaceAll(RegExp(r'[^0-9]'), '');
       final bIdPath = cleanId.isNotEmpty ? cleanId : bookingId;
@@ -266,7 +262,21 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
       final data = res.data is Map ? res.data['data'] ?? res.data : {};
       final status = (data['status'] ?? data['booking']?['status'])?.toString().toUpperCase() ?? '';
 
-      debugPrint('[LiveTripTrackingPage] Active booking status sync on resume/check: $status');
+      debugPrint('[LiveTripTrackingPage] Active booking status sync on check: $status');
+
+      final isDropReq = data['is_drop_requested'] == true;
+      final dropReqBy = (data['drop_requested_by'] ?? data['requested_by'])?.toString().toUpperCase() ?? '';
+      final isDropAcc = data['is_drop_accepted'] == true;
+
+      if (isDropAcc) {
+        _onRiderApprovedDrop();
+        return;
+      }
+
+      if (isDropReq && dropReqBy != 'CUSTOMER' && !_isRiderDropModalShowing && mounted) {
+        final reason = (data['drop_request_reason'] ?? data['reason'] ?? 'Early drop requested by driver').toString();
+        _showRiderDropRequestModal(reason: reason);
+      }
 
       if (status == 'TRIP_STARTED' || status == 'TRIP_IN_PROGRESS' || status == 'IN_TRANSIT' || status == 'STARTED') {
         if (mounted && _phase != TripPhase.inTransit) {

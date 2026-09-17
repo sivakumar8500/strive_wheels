@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/network/api_endpoints.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -55,6 +57,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   int? _driverId;
   String _userToken = '';
   Timer? _locationTimer;
+  Timer? _riderHttpCheckTimer;
   RideRequestEntity? _currentRideRequest;
   StreamSubscription<Map<String, dynamic>>? _wsDropSubscription;
   bool _isCustomerDropModalShowing = false;
@@ -100,6 +103,73 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _startLocationTracking();
     _restoreActiveRideState();
     _setupDropRequestWebSocketListener();
+    _startActiveRideHttpPolling();
+  }
+
+  void _startActiveRideHttpPolling() {
+    _riderHttpCheckTimer?.cancel();
+    _riderHttpCheckTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _checkActiveRideStatusHttp();
+    });
+  }
+
+  void _stopActiveRideHttpPolling() {
+    _riderHttpCheckTimer?.cancel();
+    _riderHttpCheckTimer = null;
+  }
+
+  Future<void> _checkActiveRideStatusHttp() async {
+    if (!mounted || _currentRideRequest == null) return;
+    final bookingId = _currentRideRequest!.id;
+    if (bookingId == 0) return;
+
+    try {
+      final dio = sl<Dio>();
+      final response = await dio.get('${ApiEndpoints.baseUrl}/bookings/$bookingId');
+      if (!mounted) return;
+      if (response.statusCode == 200 && response.data != null) {
+        final Map<String, dynamic> data = response.data is Map<String, dynamic>
+            ? response.data
+            : Map<String, dynamic>.from(response.data as Map);
+        final bookingData = data['booking'] is Map
+            ? Map<String, dynamic>.from(data['booking'] as Map)
+            : data;
+
+        final status = (bookingData['status'] ?? data['status'])?.toString().toUpperCase() ?? '';
+        final isDropRequested = (bookingData['is_drop_requested'] == true || data['is_drop_requested'] == true);
+        final isDropAccepted = (bookingData['is_drop_accepted'] == true || data['is_drop_accepted'] == true);
+        final requestedBy = (bookingData['requested_by'] ?? data['requested_by'] ?? bookingData['requestedBy'] ?? data['requestedBy'])?.toString().toUpperCase() ?? '';
+
+        if (status == 'CANCELLED' || status == 'CUSTOMER_CANCELLED') {
+          _stopActiveRideHttpPolling();
+          _clearActiveRideState();
+          setState(() {
+            _hasActiveRideRequest = false;
+            _isRideRequestMinimized = false;
+            _currentRideRequest = null;
+            _isTripStarted = false;
+            _isDropRequestPending = false;
+            _navigationPolylinePoints.clear();
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Trip was cancelled by customer'),
+              backgroundColor: Color(0xFFEF4444),
+              duration: Duration(seconds: 4),
+            ),
+          );
+        } else if (isDropAccepted || status == 'COMPLETED') {
+          _stopActiveRideHttpPolling();
+          setState(() => _isDropRequestPending = false);
+          _navigateToPaymentScreen(bookingId: bookingId);
+        } else if (isDropRequested && requestedBy != 'RIDER' && !_isCustomerDropModalShowing) {
+          final reason = (bookingData['reason'] ?? data['reason'] ?? 'Early drop requested by customer').toString();
+          _showCustomerDropRequestModal(reason: reason, bookingId: bookingId);
+        }
+      }
+    } catch (e) {
+      // Ignore background HTTP check errors silently
+    }
   }
 
   void _setupDropRequestWebSocketListener() async {
@@ -489,6 +559,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   void dispose() {
     _wsDropSubscription?.cancel();
     _stopLocationTracking();
+    _stopActiveRideHttpPolling();
     _dropReasonController.dispose();
     _homeBloc.close();
     _profileBloc.close();

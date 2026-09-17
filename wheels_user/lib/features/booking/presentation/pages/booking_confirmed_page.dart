@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import 'package:dio/dio.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/network/api_constants.dart';
 import '../../../../core/network/customer_ws_controller.dart';
 import '../../../../core/services/active_booking_service.dart';
 import '../../../home/presentation/pages/home_page.dart';
@@ -61,6 +63,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
   bool _isRideCompleted = false;
   bool _isDriverArrived = false;
   StreamSubscription? _wsSubscription;
+  Timer? _httpCheckTimer;
 
   @override
   void initState() {
@@ -72,6 +75,98 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
       }
     });
     _listenForRideCompletion();
+    _startHttpPolling();
+  }
+
+  @override
+  void dispose() {
+    _httpCheckTimer?.cancel();
+    _wsSubscription?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  void _startHttpPolling() {
+    _httpCheckTimer?.cancel();
+    _httpCheckTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _checkBookingStatusHttp();
+    });
+  }
+
+  Future<void> _checkBookingStatusHttp() async {
+    if (!mounted) return;
+    try {
+      final cleanId = widget.bookingId.replaceAll(RegExp(r'[^0-9]'), '');
+      if (cleanId.isEmpty) return;
+
+      final dio = sl.isRegistered<Dio>() ? sl<Dio>() : Dio();
+      final res = await dio.get('${ApiConstants.baseUrl}/api/v1/bookings/$cleanId');
+      final data = res.data is Map ? res.data['data'] ?? res.data : {};
+      final status = (data['status'] ?? data['booking']?['status'])?.toString().toUpperCase() ?? '';
+
+      debugPrint('[BookingConfirmedPage] HTTP poll status: $status');
+
+      if (status == 'DRIVER_ARRIVED' || status == 'RIDER_ARRIVED' || status == 'ARRIVED') {
+        if (!_isDriverArrived && mounted) {
+          setState(() {
+            _isDriverArrived = true;
+          });
+          if (sl.isRegistered<ActiveBookingService>()) {
+            sl<ActiveBookingService>().updateBookingStatus('DRIVER_ARRIVED');
+          }
+        }
+      } else if (status == 'TRIP_STARTED' || status == 'TRIP_IN_PROGRESS' || status == 'IN_TRANSIT' || status == 'STARTED') {
+        _httpCheckTimer?.cancel();
+        if (sl.isRegistered<ActiveBookingService>()) {
+          sl<ActiveBookingService>().updateBookingStatus('TRIP_STARTED');
+        }
+        if (mounted) {
+          final rider = data['rider'] as Map<String, dynamic>?;
+          final vehicle = data['vehicle'] as Map<String, dynamic>?;
+          final dName = rider?['full_name']?.toString() ?? widget.driverName;
+          final dRating = (rider?['rating'] is num) ? (rider!['rating'] as num).toDouble() : widget.driverRating;
+          final vMake = vehicle?['make']?.toString() ?? '';
+          final vModel = vehicle?['model']?.toString() ?? widget.vehicleModel;
+          final lPlate = vehicle?['license_plate']?.toString() ?? widget.licensePlate;
+          final vInfo = (vMake.isNotEmpty && vModel.isNotEmpty && !vModel.contains(vMake))
+              ? '$vMake $vModel • $lPlate'
+              : (vModel.contains(lPlate) ? vModel : '$vModel • $lPlate');
+
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => LiveTripTrackingPage(
+                bookingId: widget.bookingId,
+                driverName: dName,
+                driverRating: dRating,
+                vehicleInfo: vInfo,
+                pickupAddress: widget.pickupAddress,
+                dropAddress: widget.dropAddress,
+                pickupLatLng: widget.pickupLatLng,
+                dropLatLng: widget.dropLatLng,
+                startOtp: widget.startOtp,
+                initialStatus: 'TRIP_STARTED',
+              ),
+            ),
+          );
+        }
+      } else if (status == 'CANCELLED' || status == 'RIDER_CANCELLED' || status == 'CUSTOMER_CANCELLED' || status == 'CANCEL_SUCCESS') {
+        _httpCheckTimer?.cancel();
+        if (sl.isRegistered<ActiveBookingService>()) {
+          sl<ActiveBookingService>().clearActiveBooking();
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Trip cancelled'),
+              backgroundColor: Color(0xFFEF4444),
+            ),
+          );
+          Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
+        }
+      }
+    } catch (e) {
+      debugPrint('[BookingConfirmedPage] HTTP status poll error: $e');
+    }
   }
 
   @override
@@ -80,6 +175,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
       if (sl.isRegistered<CustomerWSController>()) {
         sl<CustomerWSController>().reconnectIfNeeded();
       }
+      _checkBookingStatusHttp();
     }
   }
 
