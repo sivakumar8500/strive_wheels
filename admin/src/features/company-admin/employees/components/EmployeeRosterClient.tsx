@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useEmployees, useDeleteEmployee } from "../hooks/use-employees";
 import { CorporateEmployee } from "../types";
 import { EmployeeDialog } from "./EmployeeDialog";
@@ -9,16 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { DataTable, type ColumnDef } from "@/components/common/Table/DataTable";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Smartphone } from "lucide-react";
-import PageHeaderwithAddButton from "@/components/shared/PageHeader";
+import { Plus, Search, Pencil, Trash2, Smartphone } from "lucide-react";
+import PageHeader from "@/components/shared/PageHeader";
 
 export function EmployeeRosterClient() {
   const { data: employees, isLoading } = useEmployees();
@@ -108,50 +100,37 @@ export function EmployeeRosterClient() {
         </Badge>
       ),
     },
-    {
-      key: "id",
-      label: "",
-      width: "80px",
-      render: (_, employee) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => handleEdit(employee)}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit Settings
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onClick={() => handleDelete(employee.id)}
-              className="text-red-600 focus:text-red-600"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Revoke Access
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
-    },
   ];
+
+  const actions = useMemo(
+    () => [
+      {
+        icon: <Pencil className="h-4 w-4" />,
+        onClick: (employee: CorporateEmployee) => handleEdit(employee),
+        className: "text-blue-600 hover:text-blue-700",
+      },
+      {
+        icon: <Trash2 className="h-4 w-4" />,
+        onClick: (employee: CorporateEmployee) => handleDelete(employee.id),
+        className: "text-red-600 hover:text-red-700",
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <PageHeaderwithAddButton
-          title="Employee Roster"
-          description="Manage employees who are authorized to book corporate rides."
-        />
-        <Button onClick={handleCreate} className="shrink-0">
-          <Plus className="mr-2 h-4 w-4" />
-          Whitelist Employee
-        </Button>
-      </div>
+      <PageHeader
+        title="Employee Roster"
+        description="Manage employees who are authorized to book corporate rides."
+        actionMenu={
+          <Button onClick={handleCreate} className="shrink-0">
+            <Plus className="mr-2 h-4 w-4" />
+            Whitelist Employee
+          </Button>
+        }
+      />
 
       <div className="flex items-center">
         <div className="relative flex-1 max-w-sm">
@@ -168,6 +147,7 @@ export function EmployeeRosterClient() {
       <DataTable
         columns={columns}
         data={filteredEmployees || []}
+        actions={actions.length > 0 ? actions : undefined}
         isLoading={isLoading}
         emptyMessage="No employees found."
       />

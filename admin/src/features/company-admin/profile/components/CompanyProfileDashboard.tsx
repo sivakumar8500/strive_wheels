@@ -1,7 +1,7 @@
 "use client";
 
 import { useCompanyProfile } from "../hooks/use-company-profile";
-import PageHeaderwithAddButton from "@/components/shared/PageHeader";
+import PageHeader from "@/components/shared/PageHeader";
 import { Loader2, Building2, MapPin, Phone, Mail, Wallet, Users, Route, Receipt } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +32,7 @@ export function CompanyProfileDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <PageHeaderwithAddButton
+        <PageHeader
           title="Corporate Dashboard"
           description="Manage your corporate account, view credit balance, and track company-wide commute usage."
         />

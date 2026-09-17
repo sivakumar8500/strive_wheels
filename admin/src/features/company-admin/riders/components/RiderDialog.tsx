@@ -1,16 +1,11 @@
-import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useEffect } from "react";
+import { useForm, FormProvider } from "react-hook-form";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import FormDialogHeader from "@/components/shared/FormDialogHeader";
+import FormDialogFooter from "@/components/shared/FormDialogFooter";
+import TextInput from "@/components/forms/TextInput";
+import SelectInput from "@/components/forms/SelectInput";
+import DateInput from "@/components/forms/DateInput";
 import { CompanyRider, AssignRiderRequest } from "../types";
 import { useAssignCompanyRider, useUpdateCompanyRider } from "../hooks/use-riders";
 
@@ -23,13 +18,15 @@ interface RiderDialogProps {
 export function RiderDialog({ open, onOpenChange, rider }: RiderDialogProps) {
   const isEditing = !!rider;
   
-  const [formData, setFormData] = useState<AssignRiderRequest>({
-    driver_name: "",
-    phone: "",
-    route_assigned: "",
-    start_date: new Date().toISOString().split("T")[0],
-    end_date: "",
-    status: "ACTIVE",
+  const form = useForm<AssignRiderRequest>({
+    defaultValues: {
+      driver_name: "",
+      phone: "",
+      route_assigned: "",
+      start_date: new Date().toISOString().split("T")[0],
+      end_date: "",
+      status: "ACTIVE",
+    },
   });
 
   const { mutate: assignRider, isPending: isAssigning } = useAssignCompanyRider();
@@ -38,7 +35,7 @@ export function RiderDialog({ open, onOpenChange, rider }: RiderDialogProps) {
   useEffect(() => {
     if (open) {
       if (rider) {
-        setFormData({
+        form.reset({
           driver_name: rider.driver_name,
           phone: rider.phone,
           route_assigned: rider.route_assigned,
@@ -47,7 +44,7 @@ export function RiderDialog({ open, onOpenChange, rider }: RiderDialogProps) {
           status: rider.status,
         });
       } else {
-        setFormData({
+        form.reset({
           driver_name: "",
           phone: "",
           route_assigned: "",
@@ -58,13 +55,12 @@ export function RiderDialog({ open, onOpenChange, rider }: RiderDialogProps) {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, rider?.id]); // Avoid object dependency to prevent lint warnings/cascading effects
+  }, [open, rider?.id, form]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (values: AssignRiderRequest) => {
     if (isEditing && rider) {
       updateRider(
-        { id: rider.id, data: formData },
+        { id: rider.id, data: values },
         {
           onSuccess: () => {
             onOpenChange(false);
@@ -72,7 +68,7 @@ export function RiderDialog({ open, onOpenChange, rider }: RiderDialogProps) {
         }
       );
     } else {
-      assignRider(formData, {
+      assignRider(values, {
         onSuccess: () => {
           onOpenChange(false);
         },
@@ -85,99 +81,71 @@ export function RiderDialog({ open, onOpenChange, rider }: RiderDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Assignment" : "Assign Dedicated Rider"}</DialogTitle>
-          <DialogDescription>
-            {isEditing
+        <FormDialogHeader
+          title={isEditing ? "Edit Assignment" : "Assign Dedicated Rider"}
+          description={
+            isEditing
               ? "Update the dedicated route contract details."
-              : "Assign a new dedicated driver to a specific corporate route."}
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            
-            <div className="grid gap-2">
-              <Label htmlFor="driver_name">Driver Name <span className="text-red-500">*</span></Label>
-              <Input
-                id="driver_name"
-                value={formData.driver_name}
-                onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
+              : "Assign a new dedicated driver to a specific corporate route."
+          }
+          onClose={() => onOpenChange(false)}
+        />
+        <FormProvider {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)}>
+            <div className="grid gap-4 py-4">
+              
+              <TextInput
+                name="driver_name"
+                label="Driver Name *"
                 placeholder="Rajesh Kumar"
                 required
               />
-            </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="phone">Phone Number <span className="text-red-500">*</span></Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              <TextInput
+                name="phone"
+                label="Phone Number *"
                 placeholder="+919876543210"
                 required
               />
-            </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="route_assigned">Route Description <span className="text-red-500">*</span></Label>
-              <Input
-                id="route_assigned"
-                value={formData.route_assigned}
-                onChange={(e) => setFormData({ ...formData, route_assigned: e.target.value })}
+              <TextInput
+                name="route_assigned"
+                label="Route Description *"
                 placeholder="e.g. Noida Sector 62 to Office"
                 required
               />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <DateInput
+                  name="start_date"
+                  label="Contract Start"
+                />
+                <DateInput
+                  name="end_date"
+                  label="Contract End"
+                />
+              </div>
+
+              <SelectInput
+                name="status"
+                label="Status"
+                options={[
+                  { label: "Active", value: "ACTIVE" },
+                  { label: "Expired", value: "EXPIRED" },
+                  { label: "Terminated", value: "TERMINATED" },
+                ]}
+              />
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="start_date">Contract Start</Label>
-                <Input
-                  id="start_date"
-                  type="date"
-                  value={formData.start_date}
-                  onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="end_date">Contract End</Label>
-                <Input
-                  id="end_date"
-                  type="date"
-                  value={formData.end_date}
-                  onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value: "ACTIVE" | "EXPIRED" | "TERMINATED") => setFormData({ ...formData, status: value })}
-              >
-                <SelectTrigger id="status">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
-                  <SelectItem value="EXPIRED">Expired</SelectItem>
-                  <SelectItem value="TERMINATED">Terminated</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : isEditing ? "Save Changes" : "Assign Rider"}
-            </Button>
-          </DialogFooter>
-        </form>
+            <FormDialogFooter
+              isEdit={isEditing}
+              isPending={isPending}
+              onClose={() => onOpenChange(false)}
+              createText="Assign Rider"
+              editText="Save Changes"
+            />
+          </form>
+        </FormProvider>
       </DialogContent>
     </Dialog>
   );

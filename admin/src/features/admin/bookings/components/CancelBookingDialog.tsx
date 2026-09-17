@@ -6,13 +6,11 @@ import * as z from "zod";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogFooter,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import TextArea from "@/components/forms/TextArea";
+import FormDialogHeader from "@/components/shared/FormDialogHeader";
 
 const schema = z.object({
   cancellation_reason: z.string().min(5, "Reason must be at least 5 characters long"),
@@ -52,12 +50,11 @@ export function CancelBookingDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Force Cancel Booking</DialogTitle>
-          <DialogDescription>
-            You are about to force cancel booking <strong>{bookingCode}</strong>. Please provide a reason for this cancellation. This action cannot be undone.
-          </DialogDescription>
-        </DialogHeader>
+        <FormDialogHeader
+          title="Force Cancel Booking"
+          description={`You are about to force cancel booking **${bookingCode}**. Please provide a reason for this cancellation. This action cannot be undone.`}
+          onClose={() => onOpenChange(false)}
+        />
 
         <FormProvider {...methods}>
           <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">

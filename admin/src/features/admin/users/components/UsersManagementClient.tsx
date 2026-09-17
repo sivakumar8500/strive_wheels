@@ -12,7 +12,7 @@ import { Plus } from "lucide-react";
 import { useHasHydrated } from "@/hooks/use-hydrated";
 import { SuspenseLoader } from "@/components/ui/suspense-loader";
 import { SuspenseError } from "@/components/ui/suspense-error";
-import PageHeaderwithAddButton from "@/components/shared/PageHeader";
+import PageHeader from "@/components/shared/PageHeader";
 
 export function UsersManagementClient() {
   const isMounted = useHasHydrated();
@@ -77,9 +77,8 @@ export function UsersManagementClient() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Header */}
-      <PageHeaderwithAddButton
+    <div className="space-y-6">
+      <PageHeader
         title="Users Management"
         description="Manage and monitor all users in your system"
         icon={<Plus className="h-4 w-4" />}

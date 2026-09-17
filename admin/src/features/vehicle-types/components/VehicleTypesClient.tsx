@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { DataTable } from "@/components/common/Table";
 import { Badge } from "@/components/ui/badge";
-import { Plus } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import {
   useVehicleTypes,
   useCreateVehicleType,
@@ -65,7 +65,10 @@ export function VehicleTypesClient() {
       render: (value: string) => (
         <div className="flex h-10 w-10 items-center justify-center rounded-lg border bg-muted/50 p-1 overflow-hidden">
           {value ? (
-            <img src={value} alt="Vehicle Icon" className="h-full w-full object-contain" />
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={value} alt="Vehicle Icon" className="h-full w-full object-contain" />
+            </>
           ) : (
             <span className="text-xs text-muted-foreground">N/A</span>
           )}
@@ -91,18 +94,19 @@ export function VehicleTypesClient() {
 
   const actions = [
     {
-      label: "Edit",
+      icon: <Pencil className="h-4 w-4" />,
       onClick: handleEdit,
+      className: "text-blue-600 hover:text-blue-700",
     },
     {
-      label: "Deactivate",
+      icon: <Trash2 className="h-4 w-4" />,
       onClick: confirmDelete,
-      isDestructive: true,
+      className: "text-red-600 hover:text-red-700",
     },
   ];
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <PageHeader
         title="Vehicle Types"
         description="Manage the vehicle categories available on the platform."

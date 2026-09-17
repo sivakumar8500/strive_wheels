@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import {
   useCoupons,
@@ -8,20 +8,14 @@ import {
   useUpdateCoupon,
   useDeleteCoupon,
 } from "../hooks/use-coupons";
-import PageHeaderwithAddButton from "@/components/shared/PageHeader";
+import PageHeader from "@/components/shared/PageHeader";
 import { CouponDialog } from "./CouponDialog";
 import { Coupon, CreateCouponRequest, UpdateCouponRequest } from "../types";
 import { Button } from "@/components/ui/button";
 import { DataTable, type ColumnDef } from "@/components/common/Table/DataTable";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import DeleteDialog from "@/components/shared/DeleteDialog";
-import { Loader2, Plus, MoreHorizontal, Pencil, Trash2, Tag, CalendarIcon, TicketPlusIcon } from "lucide-react";
+import { Loader2, Pencil, Trash2, Tag, CalendarIcon, TicketPlusIcon } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 export function CouponsClient() {
@@ -146,37 +140,23 @@ export function CouponsClient() {
         )
       ),
     },
-    {
-      key: "id",
-      label: "",
-      width: "80px",
-      render: (_, coupon) => (
-        <div className="flex justify-end w-full">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleOpenEdit(coupon)}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => confirmDelete(coupon.id)}
-                className="text-red-600 focus:text-red-600 focus:bg-red-50"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      ),
-    },
   ];
+
+  const actions = useMemo(
+    () => [
+      {
+        icon: <Pencil className="h-4 w-4" />,
+        onClick: (coupon: Coupon) => handleOpenEdit(coupon),
+        className: "text-blue-600 hover:text-blue-700",
+      },
+      {
+        icon: <Trash2 className="h-4 w-4" />,
+        onClick: (coupon: Coupon) => confirmDelete(coupon.id),
+        className: "text-red-600 hover:text-red-700",
+      },
+    ],
+    []
+  );
 
   if (isLoading) {
     return (
@@ -199,7 +179,7 @@ export function CouponsClient() {
 
   return (
     <div className="space-y-6">
-      <PageHeaderwithAddButton
+      <PageHeader
         title="Coupon & Promotional Campaigns"
         description="Create and manage discount codes, define validity periods, and monitor usage limits."
         onAddButtonClick={handleOpenCreate}
@@ -210,6 +190,7 @@ export function CouponsClient() {
       <DataTable
         columns={columns}
         data={coupons || []}
+        actions={actions.length > 0 ? actions : undefined}
         isLoading={false}
         emptyMessage="No promotional campaigns found."
       />

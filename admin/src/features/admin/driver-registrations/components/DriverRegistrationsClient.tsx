@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+
 import { useDriverApplications } from "../hooks/use-drivers";
 import { useRouter } from "next/navigation";
-import PageHeaderwithAddButton from "@/components/shared/PageHeader";
+import PageHeader from "@/components/shared/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/common/Table/DataTable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -91,7 +91,7 @@ export function DriverRegistrationsClient() {
 
   return (
     <div className="space-y-6">
-      <PageHeaderwithAddButton
+      <PageHeader
         title="Driver Onboarding & KYC"
         description="Review driver applications, verify documents, and approve accounts."
       />
@@ -99,7 +99,7 @@ export function DriverRegistrationsClient() {
       <DataTable
         columns={columns}
         data={drivers || []}
-        actions={(row) => [
+        actions={() => [
           {
             label: "View KYC",
             icon: <Eye className="w-4 h-4 mr-2" />,

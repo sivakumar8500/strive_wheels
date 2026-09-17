@@ -3,14 +3,12 @@ import { useForm } from "react-hook-form";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import FormDialogHeader from "@/components/shared/FormDialogHeader";
 import FormDialogFooter from "@/components/shared/FormDialogFooter";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FormProvider } from "react-hook-form";
+import TextInput from "@/components/forms/TextInput";
+import SelectInput from "@/components/forms/SelectInput";
+import NumberInput from "@/components/forms/NumberInput";
+import ToggleSwitch from "@/components/forms/ToggleSwitch";
 import { Coupon, CreateCouponRequest } from "../types";
-import { Loader2 } from "lucide-react";
-
 interface CouponDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -85,146 +83,72 @@ export function CouponDialog({
           title={coupon ? "Edit Coupon" : "Create Coupon"}
           onClose={() => onOpenChange(false)}
         />
-        <Form {...form}>
+        <FormProvider {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
+              <TextInput
                 name="code"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Coupon Code</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. WELCOME50" {...field} className="uppercase" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label="Coupon Code"
+                placeholder="e.g. WELCOME50"
+                className="uppercase"
+                autoComplete="off"
               />
-              <FormField
-                control={form.control}
+              <SelectInput
                 name="discount_type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Discount Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="PERCENTAGE">Percentage (%)</SelectItem>
-                        <SelectItem value="FLAT">Flat Amount ($)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label="Discount Type"
+                placeholder="Select type"
+                options={[
+                  { label: "Percentage (%)", value: "PERCENTAGE" },
+                  { label: "Flat Amount ($)", value: "FLAT" },
+                ]}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
+              <NumberInput
                 name="discount_value"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Value</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label="Value"
               />
-              <FormField
-                control={form.control}
+              <NumberInput
                 name="max_discount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Max Disc. ($)</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} value={field.value ?? ""} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label="Max Disc. ($)"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
+              <TextInput
                 name="valid_from"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Start Date & Time</FormLabel>
-                    <FormControl>
-                      <Input type="datetime-local" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label="Start Date & Time"
+                type="datetime-local"
               />
-              <FormField
-                control={form.control}
+              <TextInput
                 name="valid_until"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>End Date & Time</FormLabel>
-                    <FormControl>
-                      <Input type="datetime-local" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label="End Date & Time"
+                type="datetime-local"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
+              <NumberInput
                 name="usage_limit"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Total Usage Limit</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} value={field.value ?? ""} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label="Total Usage Limit"
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="is_active"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">Campaign Status</FormLabel>
-                    <p className="text-sm text-muted-foreground">
-                      Should this coupon be active and redeemable?
-                    </p>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+            <div className="rounded-lg border p-4 mt-2">
+              <ToggleSwitch
+                name="is_active"
+                label="Campaign Status"
+                description="Should this coupon be active and redeemable?"
+              />
+            </div>
             <FormDialogFooter
               isEdit={!!coupon}
               isPending={isSubmitting}
               onClose={() => onOpenChange(false)}
             />
           </form>
-        </Form>
+        </FormProvider>
       </DialogContent>
     </Dialog>
   );

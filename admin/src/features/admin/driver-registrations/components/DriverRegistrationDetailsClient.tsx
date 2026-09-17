@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useVerifyDocument, useReviewApplication, useDriverDetails } from "../hooks/use-drivers";
-import { Check, X, Loader2, ArrowLeft, Car, MapPin, Building2, Phone, Mail, Calendar, Hash, User } from "lucide-react";
+import { Check, X, Loader2, ArrowLeft, Car, MapPin, Building2, Phone, Calendar, Hash, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useRouter } from "next/navigation";
@@ -13,6 +13,16 @@ import { format } from "date-fns";
 interface Props {
   driverId: number;
 }
+
+const InfoItem = ({ icon: Icon, label, value }: { icon: any, label: string, value: string | number | undefined }) => (
+  <div className="flex items-start gap-3 text-sm">
+    <div className="mt-0.5 bg-slate-100 p-1.5 rounded-md text-slate-500"><Icon className="w-4 h-4" /></div>
+    <div className="flex flex-col">
+      <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</span>
+      <span className="font-semibold text-slate-900">{value || "N/A"}</span>
+    </div>
+  </div>
+);
 
 export function DriverRegistrationDetailsClient({ driverId }: Props) {
   const router = useRouter();
@@ -138,16 +148,6 @@ export function DriverRegistrationDetailsClient({ driverId }: Props) {
   }
 
   const allDocsApproved = allKycDocs.every(doc => doc.verification_status === "APPROVED");
-
-  const InfoItem = ({ icon: Icon, label, value }: { icon: any, label: string, value: string | number | undefined }) => (
-    <div className="flex items-start gap-3 text-sm">
-      <div className="mt-0.5 bg-slate-100 p-1.5 rounded-md text-slate-500"><Icon className="w-4 h-4" /></div>
-      <div className="flex flex-col">
-        <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</span>
-        <span className="font-semibold text-slate-900">{value || "N/A"}</span>
-      </div>
-    </div>
-  );
 
   return (
     <div className="space-y-6 pb-20">

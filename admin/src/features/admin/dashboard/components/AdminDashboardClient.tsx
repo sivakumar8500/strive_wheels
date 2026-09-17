@@ -29,6 +29,57 @@ export function AdminDashboardClient() {
 
   const { stats, revenueData, bookingData } = data;
 
+  const statsData = [
+    {
+      label: "Total Users",
+      value: stats.total_users.toLocaleString(),
+      icon: Users,
+      color: "blue",
+    },
+    {
+      label: "Total Customers",
+      value: stats.total_customers.toLocaleString(),
+      icon: Users,
+      color: "green",
+    },
+    {
+      label: "Total Riders",
+      value: stats.total_riders.toLocaleString(),
+      icon: Car,
+      color: "orange",
+    },
+    {
+      label: "Pending KYC",
+      value: stats.pending_driver_registrations.toLocaleString(),
+      icon: FileText,
+      color: "purple",
+    },
+    {
+      label: "Active Drivers Online",
+      value: stats.active_drivers_online.toLocaleString(),
+      icon: Map,
+      color: "teal",
+    },
+    {
+      label: "Active Trips",
+      value: stats.active_trips_in_progress.toLocaleString(),
+      icon: Clock,
+      color: "indigo",
+    },
+    {
+      label: "Completed Trips Today",
+      value: stats.completed_trips_today.toLocaleString(),
+      icon: CheckCircle,
+      color: "green",
+    },
+    {
+      label: "Today's Revenue",
+      value: `₹${stats.today_revenue.toLocaleString()}`,
+      icon: IndianRupee,
+      color: "orange",
+    },
+  ]
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -37,54 +88,15 @@ export function AdminDashboardClient() {
       />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Total Users"
-          value={stats.total_users.toLocaleString()}
-          icon={Users}
-          color="blue"
-        />
-        <StatCard
-          label="Total Customers"
-          value={stats.total_customers.toLocaleString()}
-          icon={Users}
-          color="green"
-        />
-        <StatCard
-          label="Total Riders"
-          value={stats.total_riders.toLocaleString()}
-          icon={Car}
-          color="orange"
-        />
-        <StatCard
-          label="Pending KYC"
-          value={stats.pending_driver_registrations.toLocaleString()}
-          icon={FileText}
-          color="purple"
-        />
-        <StatCard
-          label="Active Drivers Online"
-          value={stats.active_drivers_online.toLocaleString()}
-          icon={Map}
-          color="teal"
-        />
-        <StatCard
-          label="Active Trips"
-          value={stats.active_trips_in_progress.toLocaleString()}
-          icon={Clock}
-          color="indigo"
-        />
-        <StatCard
-          label="Completed Trips Today"
-          value={stats.completed_trips_today.toLocaleString()}
-          icon={CheckCircle}
-          color="green"
-        />
-        <StatCard
-          label="Today's Revenue"
-          value={`₹${stats.today_revenue.toLocaleString()}`}
-          icon={IndianRupee}
-          color="orange"
-        />
+        {statsData.map((stat, index) => (
+          <StatCard
+            key={index}
+            label={stat.label}
+            value={stat.value}
+            icon={stat.icon}
+            color={stat.color as any}
+          />
+        ))}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">

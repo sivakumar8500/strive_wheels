@@ -3,13 +3,12 @@ import { useForm } from "react-hook-form";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import FormDialogHeader from "@/components/shared/FormDialogHeader";
 import FormDialogFooter from "@/components/shared/FormDialogFooter";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FormProvider } from "react-hook-form";
+import TextInput from "@/components/forms/TextInput";
+import SelectInput from "@/components/forms/SelectInput";
+import NumberInput from "@/components/forms/NumberInput";
+import ToggleSwitch from "@/components/forms/ToggleSwitch";
 import { PopularLocation, CreatePopularLocationRequest } from "../types";
-import { Loader2 } from "lucide-react";
 
 interface PopularLocationDialogProps {
   open: boolean;
@@ -76,108 +75,51 @@ export function PopularLocationDialog({
           title={location ? "Edit Popular Location" : "Add Popular Location"}
           onClose={() => onOpenChange(false)}
         />
-        <Form {...form}>
+        <FormProvider {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
+            <TextInput
               name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Location Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. Central Station" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Location Name"
+              placeholder="e.g. Central Station"
             />
-            <FormField
-              control={form.control}
+            <TextInput
               name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Address / Description</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. Station Rd, City Center" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Address / Description"
+              placeholder="e.g. Station Rd, City Center"
             />
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
+              <NumberInput
                 name="latitude"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Latitude</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="any" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label="Latitude"
+                step="any"
               />
-              <FormField
-                control={form.control}
+              <NumberInput
                 name="longitude"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Longitude</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="any" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label="Longitude"
+                step="any"
               />
             </div>
-            <FormField
-              control={form.control}
+            <SelectInput
               name="category"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Category</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="AIRPORT">Airport</SelectItem>
-                      <SelectItem value="RAILWAY">Railway Station</SelectItem>
-                      <SelectItem value="TECH_PARK">Tech Park</SelectItem>
-                      <SelectItem value="TRANSIT">Transit</SelectItem>
-                      <SelectItem value="OFFICE">Office</SelectItem>
-                      <SelectItem value="LEISURE">Leisure</SelectItem>
-                      <SelectItem value="HOSPITAL">Hospital</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Category"
+              placeholder="Select a category"
+              options={[
+                { label: "Airport", value: "AIRPORT" },
+                { label: "Railway Station", value: "RAILWAY" },
+                { label: "Tech Park", value: "TECH_PARK" },
+                { label: "Transit", value: "TRANSIT" },
+                { label: "Office", value: "OFFICE" },
+                { label: "Leisure", value: "LEISURE" },
+                { label: "Hospital", value: "HOSPITAL" },
+              ]}
             />
-            <FormField
-              control={form.control}
-              name="is_active"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">Active Status</FormLabel>
-                    <p className="text-sm text-muted-foreground">
-                      Should this location be visible to users?
-                    </p>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+            <div className="rounded-lg border p-4 mt-2">
+              <ToggleSwitch
+                name="is_active"
+                label="Active Status"
+                description="Should this location be visible to users?"
+              />
+            </div>
             <FormDialogFooter
               isEdit={!!location}
               isPending={isSubmitting}
@@ -186,7 +128,7 @@ export function PopularLocationDialog({
               editText="Save Changes"
             />
           </form>
-        </Form>
+        </FormProvider>
       </DialogContent>
     </Dialog>
   );

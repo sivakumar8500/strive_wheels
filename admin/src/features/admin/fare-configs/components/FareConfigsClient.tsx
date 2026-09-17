@@ -3,14 +3,14 @@
 import { useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { useFareConfigs, useBulkUpdateFareConfigs } from "../hooks/use-fare-configs";
-import PageHeaderwithAddButton from "@/components/shared/PageHeader";
+import PageHeader from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { FormProvider } from "react-hook-form";
+import NumberInput from "@/components/forms/NumberInput";
+import SelectInput from "@/components/forms/SelectInput";
 import { Button } from "@/components/ui/button";
 import { Loader2, Save, RefreshCcw } from "lucide-react";
 import { BulkUpdateFareConfigRequest } from "../types";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 
 export function FareConfigsClient() {
@@ -113,12 +113,12 @@ export function FareConfigsClient() {
 
   return (
     <div className="space-y-6">
-      <PageHeaderwithAddButton
+      <PageHeader
         title="Fare Configurations & Pricing"
         description="Manage dynamic pricing, global surge multipliers, and base fares across vehicle types."
       />
 
-      <Form {...form}>
+      <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           <Card>
             <CardHeader>
@@ -128,44 +128,21 @@ export function FareConfigsClient() {
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6 md:grid-cols-3">
-              <FormField
-                control={form.control}
+              <NumberInput
                 name="global_surge_multiplier"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Global Surge Multiplier (x)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.1" min="1" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label="Global Surge Multiplier (x)"
+                step="0.1"
+                min={1}
               />
-              <FormField
-                control={form.control}
+              <NumberInput
                 name="global_base_fare"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Global Base Fare (₹) - Optional</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.5" {...field} value={field.value || ""} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label="Global Base Fare (₹) - Optional"
+                step="0.5"
               />
-              <FormField
-                control={form.control}
+              <NumberInput
                 name="global_per_km_rate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Global Per KM Rate (₹) - Optional</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.5" {...field} value={field.value || ""} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label="Global Per KM Rate (₹) - Optional"
+                step="0.5"
               />
             </CardContent>
           </Card>
@@ -190,21 +167,11 @@ export function FareConfigsClient() {
                     <div>
                       <h5 className="font-medium mb-4 text-primary">Basic Fares & Rates</h5>
                       <div className="grid gap-4 md:grid-cols-4">
-                        <FormField control={form.control} name={`configs.${index}.base_fare`} render={({ field }) => (
-                          <FormItem><FormLabel>Base Fare (₹)</FormLabel><FormControl><Input type="number" step="0.5" {...field} value={field.value || ""} /></FormControl></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`configs.${index}.min_fare`} render={({ field }) => (
-                          <FormItem><FormLabel>Min Fare (₹)</FormLabel><FormControl><Input type="number" step="0.5" {...field} value={field.value || ""} /></FormControl></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`configs.${index}.per_km_rate`} render={({ field }) => (
-                          <FormItem><FormLabel>Per KM (₹)</FormLabel><FormControl><Input type="number" step="0.5" {...field} value={field.value || ""} /></FormControl></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`configs.${index}.per_min_rate`} render={({ field }) => (
-                          <FormItem><FormLabel>Per Min (₹)</FormLabel><FormControl><Input type="number" step="0.5" {...field} value={field.value || ""} /></FormControl></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`configs.${index}.waiting_per_min_rate`} render={({ field }) => (
-                          <FormItem><FormLabel>Waiting Per Min (₹)</FormLabel><FormControl><Input type="number" step="0.5" {...field} value={field.value || ""} /></FormControl></FormItem>
-                        )} />
+                        <NumberInput name={`configs.${index}.base_fare`} label="Base Fare (₹)" step="0.5" />
+                        <NumberInput name={`configs.${index}.min_fare`} label="Min Fare (₹)" step="0.5" />
+                        <NumberInput name={`configs.${index}.per_km_rate`} label="Per KM (₹)" step="0.5" />
+                        <NumberInput name={`configs.${index}.per_min_rate`} label="Per Min (₹)" step="0.5" />
+                        <NumberInput name={`configs.${index}.waiting_per_min_rate`} label="Waiting Per Min (₹)" step="0.5" />
                       </div>
                     </div>
 
@@ -212,18 +179,10 @@ export function FareConfigsClient() {
                     <div>
                       <h5 className="font-medium mb-4 text-primary">Multipliers & Fees</h5>
                       <div className="grid gap-4 md:grid-cols-4">
-                        <FormField control={form.control} name={`configs.${index}.cancellation_fee`} render={({ field }) => (
-                          <FormItem><FormLabel>Cancel Fee (₹)</FormLabel><FormControl><Input type="number" step="0.5" {...field} value={field.value || ""} /></FormControl></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`configs.${index}.night_charge_multiplier`} render={({ field }) => (
-                          <FormItem><FormLabel>Night Multiplier (x)</FormLabel><FormControl><Input type="number" step="0.1" {...field} value={field.value || ""} /></FormControl></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`configs.${index}.surge_multiplier`} render={({ field }) => (
-                          <FormItem><FormLabel>Surge Multiplier (x)</FormLabel><FormControl><Input type="number" step="0.1" {...field} value={field.value || ""} /></FormControl></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`configs.${index}.platform_commission_pct`} render={({ field }) => (
-                          <FormItem><FormLabel>Platform Comm. (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} value={field.value || ""} /></FormControl></FormItem>
-                        )} />
+                        <NumberInput name={`configs.${index}.cancellation_fee`} label="Cancel Fee (₹)" step="0.5" />
+                        <NumberInput name={`configs.${index}.night_charge_multiplier`} label="Night Multiplier (x)" step="0.1" />
+                        <NumberInput name={`configs.${index}.surge_multiplier`} label="Surge Multiplier (x)" step="0.1" />
+                        <NumberInput name={`configs.${index}.platform_commission_pct`} label="Platform Comm. (%)" step="0.1" />
                       </div>
                     </div>
 
@@ -231,15 +190,9 @@ export function FareConfigsClient() {
                     <div>
                       <h5 className="font-medium mb-4 text-primary">AC / Non-AC KM Rates</h5>
                       <div className="grid gap-4 md:grid-cols-4">
-                        <FormField control={form.control} name={`configs.${index}.ac_per_km`} render={({ field }) => (
-                          <FormItem><FormLabel>AC Per KM (₹)</FormLabel><FormControl><Input type="number" step="0.5" {...field} value={field.value || ""} /></FormControl></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`configs.${index}.non_ac_per_km`} render={({ field }) => (
-                          <FormItem><FormLabel>Non-AC Per KM (₹)</FormLabel><FormControl><Input type="number" step="0.5" {...field} value={field.value || ""} /></FormControl></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`configs.${index}.short_distance_ac_per_km`} render={({ field }) => (
-                          <FormItem><FormLabel>Short Dist. AC (₹)</FormLabel><FormControl><Input type="number" step="0.5" {...field} value={field.value || ""} /></FormControl></FormItem>
-                        )} />
+                        <NumberInput name={`configs.${index}.ac_per_km`} label="AC Per KM (₹)" step="0.5" />
+                        <NumberInput name={`configs.${index}.non_ac_per_km`} label="Non-AC Per KM (₹)" step="0.5" />
+                        <NumberInput name={`configs.${index}.short_distance_ac_per_km`} label="Short Dist. AC (₹)" step="0.5" />
                       </div>
                     </div>
 
@@ -247,35 +200,19 @@ export function FareConfigsClient() {
                     <div>
                       <h5 className="font-medium mb-4 text-primary">Outstation & Special Settings</h5>
                       <div className="grid gap-4 md:grid-cols-5">
-                        <FormField control={form.control} name={`configs.${index}.outstation_ac_per_km`} render={({ field }) => (
-                          <FormItem><FormLabel>Outstation AC (₹/km)</FormLabel><FormControl><Input type="number" step="0.5" {...field} value={field.value || ""} /></FormControl></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`configs.${index}.outstation_non_ac_per_km`} render={({ field }) => (
-                          <FormItem><FormLabel>Outstation Non-AC</FormLabel><FormControl><Input type="number" step="0.5" {...field} value={field.value || ""} /></FormControl></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`configs.${index}.outstation_min_km_per_day`} render={({ field }) => (
-                          <FormItem><FormLabel>Min KM / Day</FormLabel><FormControl><Input type="number" step="1" {...field} value={field.value || ""} /></FormControl></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`configs.${index}.outstation_min_hours_per_day`} render={({ field }) => (
-                          <FormItem><FormLabel>Min Hours / Day</FormLabel><FormControl><Input type="number" step="1" {...field} value={field.value || ""} /></FormControl></FormItem>
-                        )} />
-                        <FormField control={form.control} name={`configs.${index}.vehicle_age_tier`} render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Age Tier</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || "ANY"}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select tier" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="ANY">Any</SelectItem>
-                                <SelectItem value="NEW">New</SelectItem>
-                                <SelectItem value="OLD">Old</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </FormItem>
-                        )} />
+                        <NumberInput name={`configs.${index}.outstation_ac_per_km`} label="Outstation AC (₹/km)" step="0.5" />
+                        <NumberInput name={`configs.${index}.outstation_non_ac_per_km`} label="Outstation Non-AC" step="0.5" />
+                        <NumberInput name={`configs.${index}.outstation_min_km_per_day`} label="Min KM / Day" step="1" />
+                        <NumberInput name={`configs.${index}.outstation_min_hours_per_day`} label="Min Hours / Day" step="1" />
+                        <SelectInput
+                          name={`configs.${index}.vehicle_age_tier`}
+                          label="Age Tier"
+                          options={[
+                            { label: "Any", value: "ANY" },
+                            { label: "New", value: "NEW" },
+                            { label: "Old", value: "OLD" },
+                          ]}
+                        />
                       </div>
                     </div>
                   </AccordionContent>
@@ -295,7 +232,7 @@ export function FareConfigsClient() {
             </Button>
           </div>
         </form>
-      </Form>
+      </FormProvider>
     </div>
   );
 }

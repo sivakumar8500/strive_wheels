@@ -3,12 +3,13 @@
 import { useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { useWeatherFares, useBulkUpdateWeatherFares } from "../hooks/use-weather-fares";
-import PageHeaderwithAddButton from "@/components/shared/PageHeader";
+import PageHeader from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { FormProvider } from "react-hook-form";
+import NumberInput from "@/components/forms/NumberInput";
+import TextInput from "@/components/forms/TextInput";
+import ToggleSwitch from "@/components/forms/ToggleSwitch";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Loader2, Save, RefreshCcw, CloudRain } from "lucide-react";
 import { BulkUpdateWeatherRequest } from "../types";
 
@@ -72,12 +73,12 @@ export function WeatherFaresClient() {
 
   return (
     <div className="space-y-6">
-      <PageHeaderwithAddButton
+      <PageHeader
         title="Weather Dynamic Multipliers"
         description="Configure surge pricing multipliers based on live weather conditions."
       />
 
-      <Form {...form}>
+      <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {fields.map((field, index) => (
@@ -88,48 +89,22 @@ export function WeatherFaresClient() {
                       <CloudRain className="w-5 h-5 mr-2 text-blue-500" />
                       {field.weather_code}
                     </CardTitle>
-                    <FormField
-                      control={form.control}
+                    <ToggleSwitch
                       name={`items.${index}.is_active`}
-                      render={({ field }) => (
-                        <FormItem className="flex items-center space-x-2 space-y-0">
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
+                      className="m-0"
                     />
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
+                  <NumberInput
                     name={`items.${index}.multiplier`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Surge Multiplier (x)</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.05" min="1" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    label="Surge Multiplier (x)"
+                    step="0.05"
+                    min={1}
                   />
-                  <FormField
-                    control={form.control}
+                  <TextInput
                     name={`items.${index}.description`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    label="Description"
                   />
                 </CardContent>
               </Card>
@@ -147,7 +122,7 @@ export function WeatherFaresClient() {
             </Button>
           </div>
         </form>
-      </Form>
+      </FormProvider>
     </div>
   );
 }

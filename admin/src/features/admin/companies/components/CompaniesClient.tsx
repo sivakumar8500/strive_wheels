@@ -6,7 +6,7 @@ import {
   useCreateCompany,
   useUpdateCompany,
 } from "../hooks/use-companies";
-import PageHeaderwithAddButton from "@/components/shared/PageHeader";
+import PageHeader from "@/components/shared/PageHeader";
 import { CompanyDialog } from "./CompanyDialog";
 import { Company, CreateCompanyRequest, UpdateCompanyRequest } from "../types";
 import { Button } from "@/components/ui/button";
@@ -160,16 +160,16 @@ export function CompaniesClient() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <PageHeaderwithAddButton
-          title="Corporate B2B Companies"
-          description="Manage corporate accounts, track postpaid/prepaid billing, and review credit limits."
-        />
-        <Button onClick={handleOpenCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Onboard Company
-        </Button>
-      </div>
+      <PageHeader
+        title="Corporate B2B Companies"
+        description="Manage corporate accounts, track postpaid/prepaid billing, and review credit limits."
+        actionMenu={
+          <Button onClick={handleOpenCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            Onboard Company
+          </Button>
+        }
+      />
 
       <DataTable
         columns={columns}

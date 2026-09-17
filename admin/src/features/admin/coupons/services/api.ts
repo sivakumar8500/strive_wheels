@@ -5,11 +5,6 @@ import {
   CreateCouponRequest,
   UpdateCouponRequest,
 } from "../types";
-import { MOCK_COUPONS } from "../data/mockData";
-
-
-const localMockData: Coupon[] = JSON.parse(JSON.stringify(MOCK_COUPONS));
-
 export async function getCoupons(): Promise<Coupon[]> {
   const response = await apiService.get<{
     success: boolean;

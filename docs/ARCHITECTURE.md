@@ -62,6 +62,25 @@ Global UI components are organized into the following categories:
 
 ## Usage Examples
 
+### Client Page Layout Structure
+
+All client page components (e.g., `*Client.tsx`) must adhere to a strict, standardized layout:
+
+1. **Main Wrapper**: Return a single `<div className="space-y-6">` wrapping all content.
+2. **PageHeader**: Use the `<PageHeader />` component directly inside the wrapper. Do NOT wrap `<PageHeader />` in any custom `flex` or `justify-between` divs—it handles its own layout and responsive spacing.
+3. **DataTable**: Pass the `actions` prop array (using `useMemo` with icons from `lucide-react`) directly into `<DataTable />` to render row actions like Edit/Delete. Do NOT define inline `DropdownMenu` components inside the `columns` definition for row actions.
+4. **Dialogs**: Place all dialog components (`CreateDialog`, `EditDialog`, `DeleteDialog`) at the absolute bottom of the container wrapper.
+5. **States**: Use consistent loading (`<Loader2 className="animate-spin" />` in a centered `h-[400px]` div) and error states.
+
+### Forms and Dialogs Standards
+
+All forms and CRUD dialogs must follow these standardized rules to ensure UI consistency and reduce boilerplate:
+
+1. **No Raw FormFields**: Do NOT use raw `shadcn/ui` form wrapper components (`<Form>`, `<FormField>`, `<FormControl>`, `<FormItem>`, `<FormLabel>`, `<Input>`) directly for simple inputs.
+2. **Form Wrappers**: Use the high-level reusable components from `src/components/forms/` (e.g., `TextInput`, `NumberInput`, `SelectInput`, `ToggleSwitch`, `DateInput`, `TextArea`). These components internally handle label rendering, validation messages, and `Controller` logic.
+3. **FormProvider**: Wrap forms with `<FormProvider {...methods}>` from `react-hook-form` rather than the generic `<Form>` component.
+4. **Dialog Layouts**: Dialogs must use `<FormDialogHeader>` and `<FormDialogFooter>` from `src/components/shared/` instead of the raw `<DialogHeader>` and `<DialogFooter>`. These shared components guarantee consistent spacing, titles, close buttons, and loading states.
+
 ### DataTable
 
 The generic `DataTable` component (`src/components/common/Table/DataTable`) handles rendering data, pagination, and row actions.

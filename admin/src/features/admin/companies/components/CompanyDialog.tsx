@@ -1,12 +1,13 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { FormProvider } from "react-hook-form";
+import FormDialogHeader from "@/components/shared/FormDialogHeader";
+import FormDialogFooter from "@/components/shared/FormDialogFooter";
+import TextInput from "@/components/forms/TextInput";
+import SelectInput from "@/components/forms/SelectInput";
+import NumberInput from "@/components/forms/NumberInput";
 import { Company, CreateCompanyRequest, UpdateCompanyRequest } from "../types";
-import { Loader2 } from "lucide-react";
 
 interface CompanyDialogProps {
   open: boolean;
@@ -77,45 +78,26 @@ export function CompanyDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{company ? "Edit Corporate Account" : "Onboard Corporate Account"}</DialogTitle>
-          <DialogDescription>
-            {company
-              ? "Modify the details of this B2B corporate client."
-              : "Register a new B2B client in the system."}
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
+        <FormDialogHeader
+          title={company ? "Edit Corporate Account" : "Onboard Corporate Account"}
+          description={company ? "Modify the details of this B2B corporate client." : "Register a new B2B client in the system."}
+          onClose={() => onOpenChange(false)}
+        />
+        <FormProvider {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             
             <div className="space-y-4 rounded-lg border p-4">
               <h3 className="text-sm font-medium">Company Information</h3>
               <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
+                <TextInput
                   name="company_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Company Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. Acme Corp" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  label="Company Name"
+                  placeholder="e.g. Acme Corp"
                 />
-                <FormField
-                  control={form.control}
+                <TextInput
                   name="registration_number"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Registration Number</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. TAX1234" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  label="Registration Number"
+                  placeholder="e.g. TAX1234"
                 />
               </div>
             </div>
@@ -123,137 +105,71 @@ export function CompanyDialog({
             <div className="space-y-4 rounded-lg border p-4">
               <h3 className="text-sm font-medium">Contact Person</h3>
               <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
+                <TextInput
                   name="contact_person"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Full Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. Jane Doe" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  label="Full Name"
+                  placeholder="e.g. Jane Doe"
                 />
-                <FormField
-                  control={form.control}
+                <TextInput
                   name="contact_phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. +1234567890" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  label="Phone Number"
+                  placeholder="e.g. +1234567890"
                 />
               </div>
-              <FormField
-                control={form.control}
+              <TextInput
                 name="contact_email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email Address</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="jane@acme.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label="Email Address"
+                placeholder="jane@acme.com"
+                type="email"
               />
-              <FormField
-                control={form.control}
+              <TextInput
                 name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Billing Address</FormLabel>
-                    <FormControl>
-                      <Input placeholder="123 Office Park, City" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                label="Billing Address"
+                placeholder="123 Office Park, City"
               />
             </div>
 
             <div className="space-y-4 rounded-lg border p-4 bg-slate-50">
               <h3 className="text-sm font-medium">Financial & Status Setup</h3>
               <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
+                <SelectInput
                   name="billing_type"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Billing Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select billing type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="PREPAID">Prepaid Wallet</SelectItem>
-                          <SelectItem value="POSTPAID">Postpaid Invoice</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  label="Billing Type"
+                  placeholder="Select billing type"
+                  options={[
+                    { label: "Prepaid Wallet", value: "PREPAID" },
+                    { label: "Postpaid Invoice", value: "POSTPAID" },
+                  ]}
                 />
-                <FormField
-                  control={form.control}
+                <NumberInput
                   name="credit_limit"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Credit Limit ($)</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  label="Credit Limit ($)"
                 />
               </div>
 
               {company && (
-                <FormField
-                  control={form.control}
+                <SelectInput
                   name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Account Status</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="ACTIVE">Active</SelectItem>
-                          <SelectItem value="SUSPENDED">Suspended</SelectItem>
-                          <SelectItem value="INACTIVE">Inactive</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  label="Account Status"
+                  placeholder="Select status"
+                  options={[
+                    { label: "Active", value: "ACTIVE" },
+                    { label: "Suspended", value: "SUSPENDED" },
+                    { label: "Inactive", value: "INACTIVE" },
+                  ]}
                 />
               )}
             </div>
 
-            <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {company ? "Save Changes" : "Onboard Company"}
-              </Button>
-            </DialogFooter>
+            <FormDialogFooter
+              isEdit={!!company}
+              isPending={isSubmitting}
+              onClose={() => onOpenChange(false)}
+              createText="Onboard Company"
+              editText="Save Changes"
+            />
           </form>
-        </Form>
+        </FormProvider>
       </DialogContent>
     </Dialog>
   );

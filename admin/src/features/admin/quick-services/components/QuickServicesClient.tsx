@@ -8,14 +8,14 @@ import {
   useDeleteQuickService,
   useReorderQuickServices,
 } from "../hooks/use-quick-services";
-import PageHeaderwithAddButton from "@/components/shared/PageHeader";
+import PageHeader from "@/components/shared/PageHeader";
 import { QuickServiceDialog } from "./QuickServiceDialog";
 import { QuickService, CreateQuickServiceRequest, UpdateQuickServiceRequest } from "../types";
 import { Button } from "@/components/ui/button";
 import { DataTable, type ColumnDef } from "@/components/common/Table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import DeleteDialog from "@/components/shared/DeleteDialog";
-import { Loader2, Plus, Pencil, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { Loader2, Pencil, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 
 export function QuickServicesClient() {
   const { data: services, isLoading, isError, refetch } = useQuickServices();
@@ -192,7 +192,7 @@ export function QuickServicesClient() {
 
   return (
     <div className="space-y-6">
-        <PageHeaderwithAddButton
+        <PageHeader
           title="Dynamic Quick Service Tiles"
           description="Manage the main action tiles displayed on the customer app home screen."
           onAddButtonClick={handleOpenCreate}

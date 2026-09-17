@@ -1,16 +1,11 @@
-import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useEffect } from "react";
+import { useForm, FormProvider } from "react-hook-form";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import FormDialogHeader from "@/components/shared/FormDialogHeader";
+import FormDialogFooter from "@/components/shared/FormDialogFooter";
+import TextInput from "@/components/forms/TextInput";
+import NumberInput from "@/components/forms/NumberInput";
+import SelectInput from "@/components/forms/SelectInput";
 import { CorporateEmployee, CreateEmployeeRequest } from "../types";
 import { useCreateEmployee, useUpdateEmployee } from "../hooks/use-employees";
 
@@ -23,12 +18,14 @@ interface EmployeeDialogProps {
 export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogProps) {
   const isEditing = !!employee;
   
-  const [formData, setFormData] = useState<CreateEmployeeRequest>({
-    employee_code: "",
-    name: "",
-    phone: "",
-    spending_limit: 0,
-    status: "ACTIVE",
+  const form = useForm<CreateEmployeeRequest>({
+    defaultValues: {
+      employee_code: "",
+      name: "",
+      phone: "",
+      spending_limit: 0,
+      status: "ACTIVE",
+    },
   });
 
   const { mutate: createEmployee, isPending: isCreating } = useCreateEmployee();
@@ -36,7 +33,7 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
 
   useEffect(() => {
     if (employee && open) {
-      setFormData({
+      form.reset({
         employee_code: employee.employee_code || "",
         name: employee.name,
         phone: employee.phone,
@@ -44,7 +41,7 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
         status: employee.status,
       });
     } else if (open && !employee) {
-      setFormData({
+      form.reset({
         employee_code: "",
         name: "",
         phone: "",
@@ -52,13 +49,12 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
         status: "ACTIVE",
       });
     }
-  }, [employee, open]);
+  }, [employee, open, form]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (values: CreateEmployeeRequest) => {
     if (isEditing && employee) {
       updateEmployee(
-        { id: employee.id, data: formData },
+        { id: employee.id, data: values },
         {
           onSuccess: () => {
             onOpenChange(false);
@@ -66,7 +62,7 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
         }
       );
     } else {
-      createEmployee(formData, {
+      createEmployee(values, {
         onSuccess: () => {
           onOpenChange(false);
         },
@@ -79,92 +75,69 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Employee" : "Whitelist Employee"}</DialogTitle>
-          <DialogDescription>
-            {isEditing
+        <FormDialogHeader
+          title={isEditing ? "Edit Employee" : "Whitelist Employee"}
+          description={
+            isEditing
               ? "Update corporate commute privileges for this employee."
-              : "Add an employee to your corporate roster. They will be able to book rides using their registered phone number."}
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="employee_code">Employee Code (Optional)</Label>
-              <Input
-                id="employee_code"
-                value={formData.employee_code}
-                onChange={(e) => setFormData({ ...formData, employee_code: e.target.value })}
+              : "Add an employee to your corporate roster. They will be able to book rides using their registered phone number."
+          }
+          onClose={() => onOpenChange(false)}
+        />
+        <FormProvider {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)}>
+            <div className="grid gap-4 py-4">
+              <TextInput
+                name="employee_code"
+                label="Employee Code (Optional)"
                 placeholder="e.g. EMP-1042"
               />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="name">Full Name <span className="text-red-500">*</span></Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              
+              <TextInput
+                name="name"
+                label="Full Name *"
                 placeholder="Jane Doe"
                 required
               />
-            </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="phone">Phone Number <span className="text-red-500">*</span></Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              <TextInput
+                name="phone"
+                label="Phone Number *"
                 placeholder="+1234567890"
                 required
-                disabled={isEditing} // Phone number shouldn't typically change without re-verification
+                disabled={isEditing}
               />
               {!isEditing && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground -mt-2">
                   The employee must use this number to log into the Strive App.
                 </p>
               )}
-            </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="spending_limit">Monthly Spending Limit ($) <span className="text-red-500">*</span></Label>
-              <Input
-                id="spending_limit"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.spending_limit}
-                onChange={(e) => setFormData({ ...formData, spending_limit: Number(e.target.value) })}
+              <NumberInput
+                name="spending_limit"
+                label="Monthly Spending Limit ($) *"
                 required
               />
-            </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value: "ACTIVE" | "INACTIVE") => setFormData({ ...formData, status: value })}
-              >
-                <SelectTrigger id="status">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ACTIVE">Active (Can Book)</SelectItem>
-                  <SelectItem value="INACTIVE">Inactive (Suspended)</SelectItem>
-                </SelectContent>
-              </Select>
+              <SelectInput
+                name="status"
+                label="Status"
+                options={[
+                  { label: "Active (Can Book)", value: "ACTIVE" },
+                  { label: "Inactive (Suspended)", value: "INACTIVE" },
+                ]}
+              />
             </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : isEditing ? "Save Changes" : "Add Employee"}
-            </Button>
-          </DialogFooter>
-        </form>
+            
+            <FormDialogFooter
+              isEdit={isEditing}
+              isPending={isPending}
+              onClose={() => onOpenChange(false)}
+              createText="Add Employee"
+              editText="Save Changes"
+            />
+          </form>
+        </FormProvider>
       </DialogContent>
     </Dialog>
   );

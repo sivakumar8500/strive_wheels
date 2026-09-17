@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React, { useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { ImageOff } from "lucide-react";
@@ -84,29 +85,31 @@ export default function ImageUploadInput({
                 className="h-full w-full object-cover"
                 onError={() => setImageError(true)}
               />
-            ) : (
-              <div className="flex flex-col items-center gap-2 text-slate-400">
-                <ImageOff className="h-8 w-8 text-slate-300" />
-                <span className="text-xs font-medium">Image failed to load</span>
-              </div>
+        ) : (
+        <div className="flex flex-col items-center gap-2 text-slate-400">
+          <ImageOff className="h-8 w-8 text-slate-300" />
+          <span className="text-xs font-medium">Image failed to load</span>
+        </div>
             )}
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
-              <button
-                type="button"
-                onClick={() => setValue(name, "", { shouldValidate: true })}
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors cursor-pointer"
-              >
-                Remove Image
-              </button>
-            </div>
-          </div>
-        )}
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
+          <button
+            type="button"
+            onClick={() => setValue(name, "", { shouldValidate: true })}
+            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors cursor-pointer"
+          >
+            Remove Image
+          </button>
+        </div>
       </div>
-      {displayError && (
-        <span className="text-destructive animate-in fade-in slide-in-from-top-1 text-xs font-medium">
-          {displayError}
-        </span>
-      )}
+        )}
     </div>
+      {
+    displayError && (
+      <span className="text-destructive animate-in fade-in slide-in-from-top-1 text-xs font-medium">
+        {displayError}
+      </span>
+    )
+  }
+    </div >
   );
 }

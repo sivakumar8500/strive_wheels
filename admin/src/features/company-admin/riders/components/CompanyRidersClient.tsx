@@ -1,23 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useCompanyRiders, useDeleteCompanyRider } from "../hooks/use-riders";
 import { CompanyRider } from "../types";
 import { RiderDialog } from "./RiderDialog";
-import PageHeaderwithAddButton from "@/components/shared/PageHeader";
+import PageHeader from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type ColumnDef } from "@/components/common/Table/DataTable";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Calendar, MapPin } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Calendar, MapPin } from "lucide-react";
 import { format, isBefore, parseISO } from "date-fns";
 
 export function CompanyRidersClient() {
@@ -98,50 +90,37 @@ export function CompanyRidersClient() {
       label: "Status",
       render: (_, rider) => getStatusBadge(rider.status, rider.end_date),
     },
-    {
-      key: "id",
-      label: "",
-      width: "80px",
-      render: (_, rider) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => handleEdit(rider)}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit Assignment
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onClick={() => handleDelete(rider.id)}
-              className="text-red-600 focus:text-red-600"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Terminate
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
-    },
   ];
+
+  const actions = useMemo(
+    () => [
+      {
+        icon: <Pencil className="h-4 w-4" />,
+        onClick: (rider: CompanyRider) => handleEdit(rider),
+        className: "text-blue-600 hover:text-blue-700",
+      },
+      {
+        icon: <Trash2 className="h-4 w-4" />,
+        onClick: (rider: CompanyRider) => handleDelete(rider.id),
+        className: "text-red-600 hover:text-red-700",
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <PageHeaderwithAddButton
-          title="Company Riders"
-          description="Manage dedicated drivers and cabs assigned to specific corporate routes."
-        />
-        <Button onClick={handleCreate} className="shrink-0">
-          <Plus className="mr-2 h-4 w-4" />
-          Assign Rider
-        </Button>
-      </div>
+      <PageHeader
+        title="Company Riders"
+        description="Manage dedicated drivers and cabs assigned to specific corporate routes."
+        actionMenu={
+          <Button onClick={handleCreate} className="shrink-0">
+            <Plus className="mr-2 h-4 w-4" />
+            Assign Rider
+          </Button>
+        }
+      />
 
       <div className="flex items-center">
         <div className="relative flex-1 max-w-sm">
@@ -158,6 +137,7 @@ export function CompanyRidersClient() {
       <DataTable
         columns={columns}
         data={filteredRiders || []}
+        actions={actions.length > 0 ? actions : undefined}
         isLoading={isLoading}
         emptyMessage="No assigned riders found."
       />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import {
   useAdminUsers,
@@ -14,14 +14,8 @@ import { AdminUser, CreateAdminUserRequest, UpdateAdminUserRequest } from "../ty
 import { Button } from "@/components/ui/button";
 import { DataTable, type ColumnDef } from "@/components/common/Table/DataTable";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import DeleteDialog from "@/components/shared/DeleteDialog";
-import { Loader2, Plus, MoreHorizontal, Pencil, Trash2, Shield, UserCog, Building } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Shield, UserCog, Building } from "lucide-react";
 
 export function UsersClient() {
   const { data: users, isLoading, isError, refetch } = useAdminUsers();
@@ -141,37 +135,23 @@ export function UsersClient() {
         </span>
       ),
     },
-    {
-      key: "id",
-      label: "",
-      width: "80px",
-      render: (_, user) => (
-        <div className="flex justify-end w-full">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleOpenEdit(user)}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit Access
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => confirmDelete(user.id)}
-                className="text-red-600 focus:text-red-600 focus:bg-red-50"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Revoke User
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      ),
-    },
   ];
+
+  const actions = useMemo(
+    () => [
+      {
+        icon: <Pencil className="h-4 w-4" />,
+        onClick: (user: AdminUser) => handleOpenEdit(user),
+        className: "text-blue-600 hover:text-blue-700",
+      },
+      {
+        icon: <Trash2 className="h-4 w-4" />,
+        onClick: (user: AdminUser) => confirmDelete(user.id),
+        className: "text-red-600 hover:text-red-700",
+      },
+    ],
+    []
+  );
 
   if (isLoading) {
     return (
@@ -194,19 +174,18 @@ export function UsersClient() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 w-full">
-        <PageHeader
-          title="Super Admin User Provisioning"
-          description="Manage administrative accounts, assign roles (Super Admin, Admin, Company Admin), and control system access."
-          buttonText="Provision User"
-          icon={<Plus className="mr-2 h-4 w-4" />}
-          onAddButtonClick={handleOpenCreate}
-        />
-      </div>
+      <PageHeader
+        title="Super Admin User Provisioning"
+        description="Manage administrative accounts, assign roles (Super Admin, Admin, Company Admin), and control system access."
+        buttonText="Provision User"
+        icon={<Plus className="mr-2 h-4 w-4" />}
+        onAddButtonClick={handleOpenCreate}
+      />
 
       <DataTable
         columns={columns}
         data={users || []}
+        actions={actions.length > 0 ? actions : undefined}
         isLoading={false}
         emptyMessage="No admin users found."
       />

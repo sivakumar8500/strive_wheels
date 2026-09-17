@@ -42,7 +42,7 @@ export const MOCK_ADMIN_USERS: AdminUser[] = [
   },
 ];
 
-export const getMockUsers = async (params?: any): Promise<UsersResponse> => ({
+export const getMockUsers = async (): Promise<UsersResponse> => ({
   data: MOCK_ADMIN_USERS,
   total: MOCK_ADMIN_USERS.length,
   page: 1,

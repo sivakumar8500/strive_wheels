@@ -7,7 +7,7 @@ import {
   useUpdatePopularLocation,
   useDeletePopularLocation,
 } from "../hooks/use-popular-locations";
-import PageHeaderwithAddButton from "@/components/shared/PageHeader";
+import PageHeader from "@/components/shared/PageHeader";
 import { PopularLocationDialog } from "./PopularLocationDialog";
 import { PopularLocation, CreatePopularLocationRequest, UpdatePopularLocationRequest } from "../types";
 import { Button } from "@/components/ui/button";
@@ -148,16 +148,16 @@ export function PopularLocationsClient() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <PageHeaderwithAddButton
-          title="Popular Destination Locations"
-          description="Manage quick-select destinations for users to easily select during ride booking."
-        />
-        <Button onClick={handleOpenCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add New Location
-        </Button>
-      </div>
+      <PageHeader
+        title="Popular Destination Locations"
+        description="Manage quick-select destinations for users to easily select during ride booking."
+        actionMenu={
+          <Button onClick={handleOpenCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add New Location
+          </Button>
+        }
+      />
 
       <DataTable
         columns={columns}

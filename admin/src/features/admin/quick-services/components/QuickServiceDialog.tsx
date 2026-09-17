@@ -1,13 +1,12 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { FormProvider } from "react-hook-form";
+import FormDialogHeader from "@/components/shared/FormDialogHeader";
+import FormDialogFooter from "@/components/shared/FormDialogFooter";
+import TextInput from "@/components/forms/TextInput";
+import ToggleSwitch from "@/components/forms/ToggleSwitch";
 import { QuickService, CreateQuickServiceRequest } from "../types";
-import { Loader2 } from "lucide-react";
-
 interface QuickServiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -59,86 +58,44 @@ export function QuickServiceDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>{service ? "Edit Quick Service" : "Add Quick Service"}</DialogTitle>
-          <DialogDescription>
-            {service
-              ? "Modify the details of this quick service tile."
-              : "Create a new quick service tile for the customer app home screen."}
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
+        <FormDialogHeader
+          title={service ? "Edit Quick Service" : "Add Quick Service"}
+          description={service ? "Modify the details of this quick service tile." : "Create a new quick service tile for the customer app home screen."}
+          onClose={() => onOpenChange(false)}
+        />
+        <FormProvider {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
+            <TextInput
               name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Title</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. Ride, Package, Intercity" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Title"
+              placeholder="e.g. Ride, Package, Intercity"
             />
-            <FormField
-              control={form.control}
+            <TextInput
               name="icon_url"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Icon URL</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://example.com/icon.png" {...field} value={field.value || ""} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Icon URL"
+              placeholder="https://example.com/icon.png"
             />
-            <FormField
-              control={form.control}
+            <TextInput
               name="service_code"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Service Code</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. BIKE, RIDE" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Service Code"
+              placeholder="e.g. BIKE, RIDE"
             />
-            <FormField
-              control={form.control}
-              name="is_active"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">Active Status</FormLabel>
-                    <p className="text-sm text-muted-foreground">
-                      Should this tile be visible to users?
-                    </p>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
+            <div className="rounded-lg border p-4 mt-2">
+              <ToggleSwitch
+                name="is_active"
+                label="Active Status"
+                description="Should this tile be visible to users?"
+              />
+            </div>
+            <FormDialogFooter
+              isEdit={!!service}
+              isPending={isSubmitting}
+              onClose={() => onOpenChange(false)}
+              createText="Create Service"
+              editText="Save Changes"
             />
-            <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {service ? "Save Changes" : "Create Service"}
-              </Button>
-            </DialogFooter>
           </form>
-        </Form>
+        </FormProvider>
       </DialogContent>
     </Dialog>
   );

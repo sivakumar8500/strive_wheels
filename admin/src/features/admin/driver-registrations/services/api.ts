@@ -2,11 +2,7 @@ import apiService from "@/services/apiService";
 import DRIVER_REGISTRATION_ENDPOINTS from "./endpoints";
 import { DriverRegistrationSummary, DriverRegistrationDetail } from "../types";
 
-export async function getDriverRegistrations(
-  status?: string,
-  skip = 0,
-  limit = 50
-): Promise<DriverRegistrationSummary[]> {
+export async function getDriverRegistrations(): Promise<DriverRegistrationSummary[]> {
 
   const response = await apiService.get<{
     success: boolean;
