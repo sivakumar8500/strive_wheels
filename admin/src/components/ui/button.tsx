@@ -10,7 +10,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-[radial-gradient(circle_at_top_left,#0199CA,#1E3A8A)] text-white hover:opacity-95  transition-all duration-200 active:scale-[0.98] rounded-xl font-semibold",
+          "bg-[radial-gradient(circle_at_top_left,#0038A8,#002266)] text-white hover:opacity-95  transition-all duration-200 active:scale-[0.98] rounded-xl font-semibold",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
         secondary:
@@ -21,7 +21,7 @@ const buttonVariants = cva(
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20",
         link: "text-primary underline-offset-4 hover:underline",
         gradient:
-          "bg-[radial-gradient(circle_at_top_left,#0199CA,#1E3A8A)] text-white hover:opacity-95 shadow-[0_4px_18px_rgba(1,153,202,0.45)] transition-all duration-200 active:scale-[0.98] rounded-xl font-semibold",
+          "bg-[radial-gradient(circle_at_top_left,#0038A8,#002266)] text-white hover:opacity-95 shadow-[0_4px_18px_rgba(0,56,168,0.45)] transition-all duration-200 active:scale-[0.98] rounded-xl font-semibold",
         icon: " bg-transparent hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
       },
       size: {

@@ -23,6 +23,13 @@ export function Pagination({
   const startItem = (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
+  const getVisiblePages = (current: number, total: number) => {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    if (current <= 4) return [1, 2, 3, 4, 5, "...", total];
+    if (current >= total - 3) return [1, "...", total - 4, total - 3, total - 2, total - 1, total];
+    return [1, "...", current - 1, current, current + 1, "...", total];
+  };
+
   return (
     <div className="flex flex-col items-center justify-between gap-4 bg-[#F8FAFC] px-8 py-5 sm:flex-row">
       <div className="flex items-center gap-6">
@@ -67,21 +74,30 @@ export function Pagination({
         </Button>
 
         <div className="flex items-center gap-1.5">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <Button
-              key={page}
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange(page)}
-              className={`h-9 min-w-[36px] rounded-xl border-none px-2 font-black shadow-none transition-all ${
-                page === currentPage
-                  ? "bg-primary shadow-primary/20 scale-105 text-white shadow-md"
-                  : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
-              }`}
-            >
-              {page}
-            </Button>
-          ))}
+          {getVisiblePages(currentPage, totalPages).map((page, index) => {
+            if (page === "...") {
+              return (
+                <span key={`ellipsis-${index}`} className="px-2 text-slate-400 font-bold tracking-widest">
+                  ...
+                </span>
+              );
+            }
+            return (
+              <Button
+                key={page}
+                variant="outline"
+                size="sm"
+                onClick={() => onPageChange(page as number)}
+                className={`h-9 min-w-[36px] rounded-xl border-none px-2 font-black shadow-none transition-all ${
+                  page === currentPage
+                    ? "bg-primary shadow-primary/20 scale-105 text-white shadow-md"
+                    : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                }`}
+              >
+                {page}
+              </Button>
+            );
+          })}
         </div>
 
         <Button

@@ -213,6 +213,7 @@ export function BookingsManagementClient() {
         currentPage={Math.floor((query.skip || 0) / (query.limit || 10)) + 1}
         onItemsPerPageChange={handleItemsPerPageChange}
         onPageChange={handlePageChange}
+        maxHeight="calc(90vh - 230px)"
       />
 
       <CancelBookingDialog

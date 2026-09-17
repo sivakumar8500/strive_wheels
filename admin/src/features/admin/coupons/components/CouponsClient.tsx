@@ -15,7 +15,8 @@ import { Button } from "@/components/ui/button";
 import { DataTable, type ColumnDef } from "@/components/common/Table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import DeleteDialog from "@/components/shared/DeleteDialog";
-import { Loader2, Pencil, Trash2, Tag, CalendarIcon, TicketPlusIcon } from "lucide-react";
+import { Loader2, Tag, CalendarIcon, TicketPlusIcon } from "lucide-react";
+import { EditIcon, DeleteIcon } from "@/icons";
 import { Progress } from "@/components/ui/progress";
 
 export function CouponsClient() {
@@ -80,8 +81,8 @@ export function CouponsClient() {
           <div>
             <p className="font-bold text-lg uppercase tracking-wider">{coupon.code}</p>
             <p className="text-sm font-medium text-emerald-600">
-              {coupon.discount_type === "PERCENTAGE" 
-                ? `${coupon.discount_value}% OFF` 
+              {coupon.discount_type === "PERCENTAGE"
+                ? `${coupon.discount_value}% OFF`
                 : `$${coupon.discount_value} FLAT`}
             </p>
           </div>
@@ -145,12 +146,12 @@ export function CouponsClient() {
   const actions = useMemo(
     () => [
       {
-        icon: <Pencil className="h-4 w-4" />,
+        icon: <EditIcon className="h-4 w-4" />,
         onClick: (coupon: Coupon) => handleOpenEdit(coupon),
         className: "text-blue-600 hover:text-blue-700",
       },
       {
-        icon: <Trash2 className="h-4 w-4" />,
+        icon: <DeleteIcon className="h-4 w-4" />,
         onClick: (coupon: Coupon) => confirmDelete(coupon.id),
         className: "text-red-600 hover:text-red-700",
       },
@@ -188,6 +189,7 @@ export function CouponsClient() {
       />
 
       <DataTable
+        maxHeight="calc(90vh - 230px)"
         columns={columns}
         data={coupons || []}
         actions={actions.length > 0 ? actions : undefined}

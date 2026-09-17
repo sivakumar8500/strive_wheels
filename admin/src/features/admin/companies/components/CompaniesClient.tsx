@@ -12,7 +12,8 @@ import { Company, CreateCompanyRequest, UpdateCompanyRequest } from "../types";
 import { Button } from "@/components/ui/button";
 import { DataTable, type ColumnDef } from "@/components/common/Table/DataTable";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Building2, ExternalLink, Pencil } from "lucide-react";
+import { Loader2, Plus, Building2, ExternalLink } from "lucide-react";
+import { EditIcon } from "@/icons";
 import Link from "next/link";
 
 export function CompaniesClient() {
@@ -132,7 +133,7 @@ export function CompaniesClient() {
             </Link>
           </Button>
           <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(company)}>
-            <Pencil className="h-4 w-4" />
+            <EditIcon className="h-4 w-4" />
           </Button>
         </div>
       ),
@@ -172,6 +173,7 @@ export function CompaniesClient() {
       />
 
       <DataTable
+        maxHeight="calc(90vh - 200px)"
         columns={columns}
         data={companies || []}
         isLoading={false}

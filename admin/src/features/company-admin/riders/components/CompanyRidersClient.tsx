@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type ColumnDef } from "@/components/common/Table/DataTable";
-import { Plus, Search, Pencil, Trash2, Calendar, MapPin } from "lucide-react";
+import { Plus, Search, Calendar, MapPin } from "lucide-react";
+import { EditIcon, DeleteIcon } from "@/icons";
 import { format, isBefore, parseISO } from "date-fns";
 
 export function CompanyRidersClient() {
   const { data: riders, isLoading } = useCompanyRiders();
   const { mutate: deleteRider } = useDeleteCompanyRider();
-  
+
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedRider, setSelectedRider] = useState<CompanyRider | null>(null);
@@ -95,12 +96,12 @@ export function CompanyRidersClient() {
   const actions = useMemo(
     () => [
       {
-        icon: <Pencil className="h-4 w-4" />,
+        icon: <EditIcon className="h-4 w-4" />,
         onClick: (rider: CompanyRider) => handleEdit(rider),
         className: "text-blue-600 hover:text-blue-700",
       },
       {
-        icon: <Trash2 className="h-4 w-4" />,
+        icon: <DeleteIcon className="h-4 w-4" />,
         onClick: (rider: CompanyRider) => handleDelete(rider.id),
         className: "text-red-600 hover:text-red-700",
       },
@@ -135,6 +136,7 @@ export function CompanyRidersClient() {
       </div>
 
       <DataTable
+        maxHeight="calc(90vh - 230px)"
         columns={columns}
         data={filteredRiders || []}
         actions={actions.length > 0 ? actions : undefined}

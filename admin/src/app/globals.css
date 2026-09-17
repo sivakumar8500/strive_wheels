@@ -67,7 +67,7 @@
 
 @layer base {
   :root {
-    /* Brand Colors: 0199CA (Primary), 1E3A8A (Dark), 64748B (Text), F1F5F9 (Muted) */
+    /* Brand Colors: 0038A8 (Primary), 002266 (Dark), 64748B (Text), F1F5F9 (Muted) */
     --background: 200 82% 98%;
     /* Based on EBF7FC */
     --foreground: 222 47% 11%;
@@ -75,24 +75,24 @@
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 194 99% 40%;
-    /* 0199CA */
+    --primary: 220 100% 33%;
+    /* 0038A8 */
     --primary-foreground: 0 0% 100%;
-    --secondary: 198 88% 90%;
-    /* D0EFFA */
-    --secondary-foreground: 194 99% 40%;
+    --secondary: 220 100% 90%;
+    /* Light Primary */
+    --secondary-foreground: 220 100% 33%;
     --muted: 210 40% 96%;
     /* F1F5F9 */
     --muted-foreground: 215 16% 47%;
     /* 64748B */
-    --accent: 198 88% 90%;
-    /* D0EFFA */
-    --accent-foreground: 194 99% 40%;
+    --accent: 220 100% 90%;
+    /* Light Primary */
+    --accent-foreground: 220 100% 33%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 210 40% 92%;
     --input: 210 40% 92%;
-    --ring: 194 99% 40%;
+    --ring: 220 100% 33%;
     --radius: 0.75rem;
   }
 
@@ -104,7 +104,7 @@
     --card-foreground: 0 0% 98%;
     --popover: 226 64% 10%;
     --popover-foreground: 0 0% 98%;
-    --primary: 194 99% 50%;
+    --primary: 220 100% 60%;
     --primary-foreground: 222 47% 11%;
     --secondary: 226 64% 15%;
     --secondary-foreground: 0 0% 98%;
@@ -116,7 +116,7 @@
     --destructive-foreground: 0 0% 98%;
     --border: 226 64% 15%;
     --input: 226 64% 15%;
-    --ring: 194 99% 50%;
+    --ring: 220 100% 60%;
   }
 }
 
@@ -168,11 +168,11 @@
 
 @layer utilities {
   .bg-brand-gradient {
-    background: linear-gradient(135deg, #0199ca 0%, #1e3a8a 100%);
+    background: linear-gradient(135deg, #0038A8 0%, #002266 100%);
   }
 
   .text-brand-gradient {
-    background: linear-gradient(135deg, #0199ca 0%, #1e3a8a 100%);
+    background: linear-gradient(135deg, #0038A8 0%, #002266 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;

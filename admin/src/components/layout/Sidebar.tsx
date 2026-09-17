@@ -246,27 +246,27 @@ export function Sidebar() {
                 className={cn(
                   "group flex items-center gap-2 rounded-md px-0.5 py-2 transition-all duration-200",
                   isActive
-                    ? "bg-[#EBF7FC] text-[#0199CA]"
-                    : "text-muted-foreground hover:bg-[#EBF7FC] hover:text-[#0D76D3]",
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
-                {isActive && !isSidebarCollapsed && (
-                  <div className="bg-[#0199CA] h-5 w-1 rounded-r-sm ml-[-1px]" />
+                {isActive && (
+                  <div className="bg-primary h-5 w-1 rounded-r-sm ml-[-1px]" />
                 )}
 
                 {IconComponent && (
                   <IconComponent
                     className={cn(
-                      "w-8 h-8 shrink-0 rounded-sm p-2 transition-colors hover:text-[#0D76D3]",
+                      "w-8 h-8 shrink-0 rounded-sm p-2 transition-colors hover:text-foreground",
                       isActive
-                        ? "text-[#0D76D3] bg-[#D0EFFA]"
-                        : "hover:text-[#0D76D3]",
+                        ? "text-primary bg-primary/10"
+                        : "hover:text-primary",
                     )}
                   />
                 )}
                 {!isSidebarCollapsed && (
                   <span
-                    className={`${isActive ? "text-[#0D76D3]" : "hover:text-[#0D76D3]"} flex-1 pt-0.5 text-sm leading-none font-medium hover:text-[#0D76D3]`}
+                    className={`${isActive ? "text-primary" : "hover:text-primary"} flex-1 pt-0.5 text-sm leading-none font-medium hover:text-primary`}
                   >
                     {item.name}
                   </span>
@@ -304,13 +304,13 @@ export function Sidebar() {
                 className={cn(
                   "group flex items-center gap-3 rounded-md p-2 transition-all duration-200 mb-3",
                   isHelpActive
-                    ? "bg-[#EBF7FC] text-[#0199CA]"
-                    : "text-muted-foreground hover:bg-[#EBF7FC] hover:text-[#0D76D3]",
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   isSidebarCollapsed && "justify-center",
                 )}
               >
                 {isHelpActive && !isSidebarCollapsed && (
-                  <div className="bg-[#0D76D3] h-4 w-1 rounded-full" />
+                  <div className="bg-primary h-4 w-1 rounded-full" />
                 )}
                 <HelpCircle
                   className={cn(

@@ -15,7 +15,8 @@ import { Button } from "@/components/ui/button";
 import { DataTable, type ColumnDef } from "@/components/common/Table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import DeleteDialog from "@/components/shared/DeleteDialog";
-import { Loader2, Pencil, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { Loader2, ArrowUp, ArrowDown } from "lucide-react";
+import { EditIcon, DeleteIcon } from "@/icons";
 
 export function QuickServicesClient() {
   const { data: services, isLoading, isError, refetch } = useQuickServices();
@@ -124,7 +125,7 @@ export function QuickServicesClient() {
       render: (_: any, service: QuickService) => (
         <div className="h-10 w-10 rounded-md bg-slate-100 flex items-center justify-center p-1">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={service.icon_url || ""} alt={service.title} className="max-h-full max-w-full object-contain" />
+          {service.icon_url && <img src={service.icon_url} alt={service.title} className="max-h-full max-w-full object-contain" />}
         </div>
       ),
     },
@@ -158,12 +159,12 @@ export function QuickServicesClient() {
   const actions = useMemo(
     () => [
       {
-        icon: <Pencil className="h-4 w-4" />,
+        icon: <EditIcon className="h-4 w-4" />,
         onClick: (service: QuickService) => handleOpenEdit(service),
         className: "text-blue-600 hover:text-blue-700",
       },
       {
-        icon: <Trash2 className="h-4 w-4" />,
+        icon: <DeleteIcon className="h-4 w-4" />,
         onClick: (service: QuickService) => confirmDelete(service.id),
         className: "text-red-600 hover:text-red-700",
       },
@@ -192,14 +193,15 @@ export function QuickServicesClient() {
 
   return (
     <div className="space-y-6">
-        <PageHeader
-          title="Dynamic Quick Service Tiles"
-          description="Manage the main action tiles displayed on the customer app home screen."
-          onAddButtonClick={handleOpenCreate}
-          buttonText="Add New Service"
-        />
+      <PageHeader
+        title="Dynamic Quick Service Tiles"
+        description="Manage the main action tiles displayed on the customer app home screen."
+        onAddButtonClick={handleOpenCreate}
+        buttonText="Add New Service"
+      />
 
       <DataTable
+        maxHeight="calc(90vh - 210px)"
         columns={columns}
         data={services || []}
         actions={actions.length > 0 ? actions : undefined}

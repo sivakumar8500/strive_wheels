@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { DataTable } from "@/components/common/Table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
+import { EditIcon, DeleteIcon } from "@/icons";
 import {
   useVehicleTypes,
   useCreateVehicleType,
@@ -25,7 +26,7 @@ export function VehicleTypesClient() {
   const [editingItem, setEditingItem] = useState<VehicleType | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<VehicleType | null>(null);
-  
+
   const confirmDelete = (row: VehicleType) => {
     setItemToDelete(row);
     setDeleteDialogOpen(true);
@@ -94,12 +95,12 @@ export function VehicleTypesClient() {
 
   const actions = [
     {
-      icon: <Pencil className="h-4 w-4" />,
+      icon: <EditIcon className="h-4 w-4" />,
       onClick: handleEdit,
       className: "text-blue-600 hover:text-blue-700",
     },
     {
-      icon: <Trash2 className="h-4 w-4" />,
+      icon: <DeleteIcon className="h-4 w-4" />,
       onClick: confirmDelete,
       className: "text-red-600 hover:text-red-700",
     },
@@ -116,6 +117,7 @@ export function VehicleTypesClient() {
       />
 
       <DataTable
+        maxHeight="calc(90vh - 210px)"
         columns={columns}
         data={vehicleTypes || []}
         actions={actions}

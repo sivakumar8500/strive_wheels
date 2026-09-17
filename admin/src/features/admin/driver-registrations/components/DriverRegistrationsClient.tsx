@@ -59,8 +59,8 @@ export function DriverRegistrationsClient() {
             driver.status === "APPROVED"
               ? "default"
               : driver.status === "REJECTED"
-              ? "destructive"
-              : "secondary"
+                ? "destructive"
+                : "secondary"
           }
         >
           {driver.status}
@@ -97,6 +97,7 @@ export function DriverRegistrationsClient() {
       />
 
       <DataTable
+        maxHeight="calc(90vh - 230px)"
         columns={columns}
         data={drivers || []}
         actions={() => [

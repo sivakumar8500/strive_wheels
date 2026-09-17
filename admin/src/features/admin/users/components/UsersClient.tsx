@@ -15,7 +15,8 @@ import { Button } from "@/components/ui/button";
 import { DataTable, type ColumnDef } from "@/components/common/Table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import DeleteDialog from "@/components/shared/DeleteDialog";
-import { Loader2, Plus, Pencil, Trash2, Shield, UserCog, Building } from "lucide-react";
+import { Loader2, Plus, Shield, UserCog, Building } from "lucide-react";
+import { EditIcon, DeleteIcon } from "@/icons";
 
 export function UsersClient() {
   const { data: users, isLoading, isError, refetch } = useAdminUsers();
@@ -140,12 +141,12 @@ export function UsersClient() {
   const actions = useMemo(
     () => [
       {
-        icon: <Pencil className="h-4 w-4" />,
+        icon: <EditIcon className="h-4 w-4" />,
         onClick: (user: AdminUser) => handleOpenEdit(user),
         className: "text-blue-600 hover:text-blue-700",
       },
       {
-        icon: <Trash2 className="h-4 w-4" />,
+        icon: <DeleteIcon className="h-4 w-4" />,
         onClick: (user: AdminUser) => confirmDelete(user.id),
         className: "text-red-600 hover:text-red-700",
       },
@@ -183,6 +184,7 @@ export function UsersClient() {
       />
 
       <DataTable
+        maxHeight="calc(90vh - 230px)"
         columns={columns}
         data={users || []}
         actions={actions.length > 0 ? actions : undefined}

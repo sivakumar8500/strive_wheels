@@ -108,6 +108,7 @@ export function UsersTable({
 
   return (
     <DataTable<User>
+      maxHeight="calc(90vh - 230px)"
       columns={columns}
       data={users}
       actions={actions.length > 0 ? actions : undefined}

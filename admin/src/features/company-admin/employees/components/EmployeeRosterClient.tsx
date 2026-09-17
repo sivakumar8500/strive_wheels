@@ -9,13 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { DataTable, type ColumnDef } from "@/components/common/Table/DataTable";
-import { Plus, Search, Pencil, Trash2, Smartphone } from "lucide-react";
+import { Plus, Search, Smartphone } from "lucide-react";
+import { EditIcon, DeleteIcon } from "@/icons";
 import PageHeader from "@/components/shared/PageHeader";
 
 export function EmployeeRosterClient() {
   const { data: employees, isLoading } = useEmployees();
   const { mutate: deleteEmployee } = useDeleteEmployee();
-  
+
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<CorporateEmployee | null>(null);
@@ -76,16 +77,16 @@ export function EmployeeRosterClient() {
       render: (_, employee) => {
         const spendPercentage = (employee.amount_spent / employee.spending_limit) * 100;
         const isOverBudget = employee.amount_spent >= employee.spending_limit;
-        
+
         return (
           <div className="w-[200px] space-y-2">
             <div className="flex justify-between text-xs">
               <span className="font-medium">${employee.amount_spent.toLocaleString()}</span>
               <span className="text-muted-foreground">/ ${employee.spending_limit.toLocaleString()}</span>
             </div>
-            <Progress 
-              value={Math.min(spendPercentage, 100)} 
-              className={`h-2 ${isOverBudget ? "[&>div]:bg-red-600" : spendPercentage > 80 ? "[&>div]:bg-orange-500" : "[&>div]:bg-emerald-500"}`} 
+            <Progress
+              value={Math.min(spendPercentage, 100)}
+              className={`h-2 ${isOverBudget ? "[&>div]:bg-red-600" : spendPercentage > 80 ? "[&>div]:bg-orange-500" : "[&>div]:bg-emerald-500"}`}
             />
           </div>
         );
@@ -105,12 +106,12 @@ export function EmployeeRosterClient() {
   const actions = useMemo(
     () => [
       {
-        icon: <Pencil className="h-4 w-4" />,
+        icon: <EditIcon className="h-4 w-4" />,
         onClick: (employee: CorporateEmployee) => handleEdit(employee),
         className: "text-blue-600 hover:text-blue-700",
       },
       {
-        icon: <Trash2 className="h-4 w-4" />,
+        icon: <DeleteIcon className="h-4 w-4" />,
         onClick: (employee: CorporateEmployee) => handleDelete(employee.id),
         className: "text-red-600 hover:text-red-700",
       },
@@ -145,6 +146,7 @@ export function EmployeeRosterClient() {
       </div>
 
       <DataTable
+        maxHeight="calc(90vh - 230px)"
         columns={columns}
         data={filteredEmployees || []}
         actions={actions.length > 0 ? actions : undefined}
