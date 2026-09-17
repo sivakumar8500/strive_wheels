@@ -12,7 +12,7 @@ export const DRIVER_REGISTRATION_DETAILS_QUERY_KEY = ["driverRegistrationDetails
 export function useDriverApplications(status?: string, skip = 0, limit = 50) {
   return useQuery({
     queryKey: [...DRIVER_REGISTRATIONS_QUERY_KEY, status, skip, limit],
-    queryFn: () => getDriverRegistrations(status, skip, limit),
+    queryFn: () => getDriverRegistrations(),
   });
 }
 

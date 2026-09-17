@@ -23,3 +23,7 @@ The `ADMIN` (or `SUPER_ADMIN`) role has the highest level of clearance within th
 ### 4. Advanced Services
 - **Quick Services (`/admin/quick-services`)**: Manage specialized or rapid-access service offerings.
 - **Popular Locations (`/admin/popular-locations`)**: Define geofenced hotspots to guide driver supply and manage demand.
+
+## UI & Technical Standards
+- **Standardized Layouts**: All admin pages utilize the unified `PageHeader` component with descriptive headers and structured action menus. Data tables consistently use the `actions` prop for row-level operations.
+- **Form Management**: All data entry and CRUD operations strictly use `react-hook-form` combined with centralized inputs (`components/forms/`) and unified dialog headers/footers for a consistent user experience.

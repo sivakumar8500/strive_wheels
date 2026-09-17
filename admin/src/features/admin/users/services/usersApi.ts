@@ -17,7 +17,7 @@ export const usersApi = {
     if (USE_MOCK_DATA) {
       // Simulate API delay
       await new Promise((resolve) => setTimeout(resolve, 500));
-      return getMockUsers(params);
+      return getMockUsers();
     }
 
     const queryParams = new URLSearchParams();

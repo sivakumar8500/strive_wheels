@@ -15,6 +15,23 @@ This file is used to store logs and summaries of changes before every commit.
 ### Date: 2026-09-17
 - **Author**: dsriharikrishna19 (Gemini Agent)
 - **Files Modified**: 
+  - `admin/src/features/admin/dashboard/components/AdminDashboardClient.tsx`
+  - `admin/src/features/company-admin/employees/components/EmployeeDialog.tsx`
+  - `admin/src/features/company-admin/riders/components/RiderDialog.tsx`
+  - `admin/src/features/admin/bookings/components/CancelBookingDialog.tsx`
+  - `admin/src/features/admin/driver-registrations/components/DriverRegistrationDetailsClient.tsx`
+  - `admin/src/features/admin/coupons/components/CouponsClient.tsx`
+  - `admin/src/features/admin/quick-services/components/QuickServicesClient.tsx`
+  - `admin/src/components/shared/FormDialogHeader.tsx`
+  - `docs/ARCHITECTURE.md`
+  - `docs/roles/admin_role.md`
+- **Summary**: Standardized UI across all admin and company admin client pages by enforcing the `PageHeader` component and extracting repeating table action menus into standardized useMemo `actions` props. Migrated all CRUD dialogs (Employees, Riders, Bookings, etc.) to use `react-hook-form` with `FormProvider` and centralized custom inputs from `components/forms/`. Enhanced `FormDialogHeader` with a `description` prop for better UX. Resolved static-component lint errors by moving inner components (e.g., `InfoItem`) outside the render cycle. Cleared all ESLint warnings (unused vars, exhaustive-deps, Next.js image tags) ensuring a stable, zero-warning production build.
+
+---
+
+### Date: 2026-09-17
+- **Author**: dsriharikrishna19 (Gemini Agent)
+- **Files Modified**: 
   - `admin/src/features/admin/traffic-fares/services/api.ts`
   - `admin/src/features/admin/traffic-fares/data/mockData.ts` (Deleted)
   - `admin/src/features/admin/weather-fares/services/api.ts`

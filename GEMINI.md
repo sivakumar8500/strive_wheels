@@ -1,5 +1,26 @@
 # Gemini Agent Change Log
 
+## Date: 2026-09-17
+**User:** Git User: dsriharikrishna19
+**Module:** UI Standardization & Linting
+
+### Files Modified:
+- `admin/src/features/admin/dashboard/components/AdminDashboardClient.tsx`
+- `admin/src/features/company-admin/employees/components/EmployeeDialog.tsx`
+- `admin/src/features/company-admin/riders/components/RiderDialog.tsx`
+- `admin/src/features/admin/bookings/components/CancelBookingDialog.tsx`
+- `admin/src/features/admin/driver-registrations/components/DriverRegistrationDetailsClient.tsx`
+- `admin/src/features/admin/coupons/components/CouponsClient.tsx`
+- `admin/src/features/admin/quick-services/components/QuickServicesClient.tsx`
+- `admin/src/components/shared/FormDialogHeader.tsx`
+- `docs/ARCHITECTURE.md`
+- `docs/roles/admin_role.md`
+
+### Description:
+Standardized UI across all admin and company admin client pages by enforcing the `PageHeader` component and extracting repeating table action menus into standardized useMemo `actions` props. Migrated all CRUD dialogs (Employees, Riders, Bookings, etc.) to use `react-hook-form` with `FormProvider` and centralized custom inputs from `components/forms/`. Enhanced `FormDialogHeader` with a `description` prop for better UX. Resolved static-component lint errors by moving inner components (e.g., `InfoItem`) outside the render cycle. Cleared all ESLint warnings (unused vars, exhaustive-deps, Next.js image tags) ensuring a stable, zero-warning production build.
+
+---
+
 ## Date: 2026-09-15
 **User:** Git User: dsriharikrishna19
 **Module:** Authentication & RBAC
