@@ -14,7 +14,7 @@ export interface CreateVehicleTypeDto {
   code: string;
   name: string;
   description: string;
-  icon_url: string;
+  icon_url?: string;
   max_passengers: number;
   max_weight_kg: number;
   is_active: boolean;

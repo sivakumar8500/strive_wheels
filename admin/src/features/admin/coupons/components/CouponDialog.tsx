@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import FormDialogHeader from "@/components/shared/FormDialogHeader";
+import FormDialogFooter from "@/components/shared/FormDialogFooter";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,10 +31,9 @@ export function CouponDialog({
       code: "",
       discount_type: "PERCENTAGE",
       discount_value: 0,
-      max_discount_amount: 0,
-      min_ride_amount: 0,
-      start_date: new Date().toISOString().slice(0, 16),
-      end_date: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().slice(0, 16),
+      max_discount: 0,
+      valid_from: new Date().toISOString().slice(0, 16),
+      valid_until: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().slice(0, 16),
       usage_limit: 100,
       is_active: true,
     },
@@ -45,11 +46,10 @@ export function CouponDialog({
           code: coupon.code,
           discount_type: coupon.discount_type,
           discount_value: coupon.discount_value,
-          max_discount_amount: coupon.max_discount_amount,
-          min_ride_amount: coupon.min_ride_amount,
-          start_date: coupon.start_date.slice(0, 16), // datetime-local format
-          end_date: coupon.end_date.slice(0, 16),
-          usage_limit: coupon.usage_limit,
+          max_discount: coupon.max_discount || 0,
+          valid_from: coupon.valid_from.slice(0, 16), // datetime-local format
+          valid_until: coupon.valid_until.slice(0, 16),
+          usage_limit: coupon.usage_limit || 0,
           is_active: coupon.is_active,
         });
       } else {
@@ -57,10 +57,9 @@ export function CouponDialog({
           code: "",
           discount_type: "PERCENTAGE",
           discount_value: 0,
-          max_discount_amount: 0,
-          min_ride_amount: 0,
-          start_date: new Date().toISOString().slice(0, 16),
-          end_date: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().slice(0, 16),
+          max_discount: 0,
+          valid_from: new Date().toISOString().slice(0, 16),
+          valid_until: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().slice(0, 16),
           usage_limit: 100,
           is_active: true,
         });
@@ -72,25 +71,20 @@ export function CouponDialog({
     onSubmit({
       ...values,
       discount_value: Number(values.discount_value),
-      max_discount_amount: Number(values.max_discount_amount),
-      min_ride_amount: Number(values.min_ride_amount),
-      usage_limit: Number(values.usage_limit),
-      start_date: new Date(values.start_date).toISOString(),
-      end_date: new Date(values.end_date).toISOString(),
+      max_discount: Number(values.max_discount) || null,
+      usage_limit: Number(values.usage_limit) || null,
+      valid_from: new Date(values.valid_from).toISOString(),
+      valid_until: new Date(values.valid_until).toISOString(),
     });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[525px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{coupon ? "Edit Coupon" : "Create Coupon"}</DialogTitle>
-          <DialogDescription>
-            {coupon
-              ? "Modify the promotional campaign details."
-              : "Create a new discount code for customers."}
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-[525px] max-h-[90vh] overflow-y-auto" showCloseButton={false}>
+        <FormDialogHeader
+          title={coupon ? "Edit Coupon" : "Create Coupon"}
+          onClose={() => onOpenChange(false)}
+        />
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -130,7 +124,7 @@ export function CouponDialog({
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="discount_value"
@@ -146,25 +140,12 @@ export function CouponDialog({
               />
               <FormField
                 control={form.control}
-                name="max_discount_amount"
+                name="max_discount"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Max Disc. ($)</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="min_ride_amount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Min Ride ($)</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
+                      <Input type="number" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -175,7 +156,7 @@ export function CouponDialog({
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="start_date"
+                name="valid_from"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Start Date & Time</FormLabel>
@@ -188,7 +169,7 @@ export function CouponDialog({
               />
               <FormField
                 control={form.control}
-                name="end_date"
+                name="valid_until"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>End Date & Time</FormLabel>
@@ -209,7 +190,7 @@ export function CouponDialog({
                   <FormItem>
                     <FormLabel>Total Usage Limit</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} />
+                      <Input type="number" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -237,15 +218,11 @@ export function CouponDialog({
                 </FormItem>
               )}
             />
-            <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {coupon ? "Save Changes" : "Create Coupon"}
-              </Button>
-            </DialogFooter>
+            <FormDialogFooter
+              isEdit={!!coupon}
+              isPending={isSubmitting}
+              onClose={() => onOpenChange(false)}
+            />
           </form>
         </Form>
       </DialogContent>

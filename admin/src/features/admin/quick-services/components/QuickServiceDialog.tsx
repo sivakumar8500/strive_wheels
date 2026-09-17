@@ -27,7 +27,7 @@ export function QuickServiceDialog({
     defaultValues: {
       title: "",
       icon_url: "",
-      target_screen: "",
+      service_code: "",
       is_active: true,
     },
   });
@@ -37,15 +37,15 @@ export function QuickServiceDialog({
       if (service) {
         form.reset({
           title: service.title,
-          icon_url: service.icon_url,
-          target_screen: service.target_screen,
+          icon_url: service.icon_url || "",
+          service_code: service.service_code,
           is_active: service.is_active,
         });
       } else {
         form.reset({
           title: "",
           icon_url: "",
-          target_screen: "",
+          service_code: "",
           is_active: true,
         });
       }
@@ -89,7 +89,7 @@ export function QuickServiceDialog({
                 <FormItem>
                   <FormLabel>Icon URL</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://example.com/icon.png" {...field} />
+                    <Input placeholder="https://example.com/icon.png" {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -97,12 +97,12 @@ export function QuickServiceDialog({
             />
             <FormField
               control={form.control}
-              name="target_screen"
+              name="service_code"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Target Screen</FormLabel>
+                  <FormLabel>Service Code</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. RIDE_BOOKING" {...field} />
+                    <Input placeholder="e.g. BIKE, RIDE" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

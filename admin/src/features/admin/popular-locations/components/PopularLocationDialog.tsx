@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import FormDialogHeader from "@/components/shared/FormDialogHeader";
+import FormDialogFooter from "@/components/shared/FormDialogFooter";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,7 +32,7 @@ export function PopularLocationDialog({
       address: "",
       latitude: 0,
       longitude: 0,
-      category: "TRANSIT",
+      category: "AIRPORT",
       is_active: true,
     },
   });
@@ -52,7 +54,7 @@ export function PopularLocationDialog({
           address: "",
           latitude: 0,
           longitude: 0,
-          category: "TRANSIT",
+          category: "AIRPORT",
           is_active: true,
         });
       }
@@ -69,15 +71,11 @@ export function PopularLocationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>{location ? "Edit Popular Location" : "Add Popular Location"}</DialogTitle>
-          <DialogDescription>
-            {location
-              ? "Modify the details of this destination."
-              : "Create a new popular destination shortcut for customers."}
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent showCloseButton={false} className="sm:max-w-[425px]">
+        <FormDialogHeader
+          title={location ? "Edit Popular Location" : "Add Popular Location"}
+          onClose={() => onOpenChange(false)}
+        />
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <FormField
@@ -147,6 +145,9 @@ export function PopularLocationDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="AIRPORT">Airport</SelectItem>
+                      <SelectItem value="RAILWAY">Railway Station</SelectItem>
+                      <SelectItem value="TECH_PARK">Tech Park</SelectItem>
                       <SelectItem value="TRANSIT">Transit</SelectItem>
                       <SelectItem value="OFFICE">Office</SelectItem>
                       <SelectItem value="LEISURE">Leisure</SelectItem>
@@ -177,15 +178,13 @@ export function PopularLocationDialog({
                 </FormItem>
               )}
             />
-            <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {location ? "Save Changes" : "Create Location"}
-              </Button>
-            </DialogFooter>
+            <FormDialogFooter
+              isEdit={!!location}
+              isPending={isSubmitting}
+              onClose={() => onOpenChange(false)}
+              createText="Create Location"
+              editText="Save Changes"
+            />
           </form>
         </Form>
       </DialogContent>

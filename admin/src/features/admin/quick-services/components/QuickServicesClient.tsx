@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   useQuickServices,
   useCreateQuickService,
@@ -14,23 +14,8 @@ import { QuickService, CreateQuickServiceRequest, UpdateQuickServiceRequest } fr
 import { Button } from "@/components/ui/button";
 import { DataTable, type ColumnDef } from "@/components/common/Table/DataTable";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Loader2, Plus, MoreHorizontal, Pencil, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import DeleteDialog from "@/components/shared/DeleteDialog";
+import { Loader2, Plus, Pencil, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 
 export function QuickServicesClient() {
   const { data: services, isLoading, isError, refetch } = useQuickServices();
@@ -88,29 +73,26 @@ export function QuickServicesClient() {
     const newIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
     if (newIndex < 0 || newIndex >= services.length) return;
 
-    // We swap the sort_order of the two items
+    // We swap the display_order of the two items
     const items = [...services];
-    const itemA = items[currentIndex];
-    const itemB = items[newIndex];
+    const itemA = { ...items[currentIndex] };
+    const itemB = { ...items[newIndex] };
 
-    const tempSortOrder = itemA.sort_order;
-    itemA.sort_order = itemB.sort_order;
-    itemB.sort_order = tempSortOrder;
+    const tempDisplayOrder = itemA.display_order;
+    itemA.display_order = itemB.display_order;
+    itemB.display_order = tempDisplayOrder;
 
     reorderMutation.mutate({
-      items: [
-        { id: itemA.id, sort_order: itemA.sort_order },
-        { id: itemB.id, sort_order: itemB.sort_order },
-      ],
+      items: [itemA, itemB],
     });
   };
 
   const columns: ColumnDef<QuickService>[] = [
     {
-      key: "sort_order",
+      key: "display_order" as const,
       label: "Order",
       width: "100px",
-      render: (_, service) => {
+      render: (_: any, service: QuickService) => {
         const index = services?.findIndex((s) => s.id === service.id) ?? -1;
         return (
           <div className="flex items-center space-x-1">
@@ -139,31 +121,31 @@ export function QuickServicesClient() {
     {
       key: "icon_url",
       label: "Icon",
-      render: (_, service) => (
+      render: (_: any, service: QuickService) => (
         <div className="h-10 w-10 rounded-md bg-slate-100 flex items-center justify-center p-1">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={service.icon_url} alt={service.title} className="max-h-full max-w-full object-contain" />
+          <img src={service.icon_url || ""} alt={service.title} className="max-h-full max-w-full object-contain" />
         </div>
       ),
     },
     {
       key: "title",
       label: "Title",
-      render: (_, service) => <span className="font-medium">{service.title}</span>,
+      render: (_: any, service: QuickService) => <span className="font-medium">{service.title}</span>,
     },
     {
-      key: "target_screen",
-      label: "Target Screen",
-      render: (_, service) => (
+      key: "service_code" as const,
+      label: "Service Code",
+      render: (_: any, service: QuickService) => (
         <code className="text-xs bg-slate-100 px-2 py-1 rounded">
-          {service.target_screen}
+          {service.service_code}
         </code>
       ),
     },
     {
       key: "is_active",
       label: "Status",
-      render: (_, service) => (
+      render: (_: any, service: QuickService) => (
         service.is_active ? (
           <Badge variant="default" className="bg-green-500 hover:bg-green-600">Active</Badge>
         ) : (
@@ -171,37 +153,23 @@ export function QuickServicesClient() {
         )
       ),
     },
-    {
-      key: "id",
-      label: "",
-      width: "80px",
-      render: (_, service) => (
-        <div className="flex justify-end w-full">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleOpenEdit(service)}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => confirmDelete(service.id)}
-                className="text-red-600 focus:text-red-600 focus:bg-red-50"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      ),
-    },
   ];
+
+  const actions = useMemo(
+    () => [
+      {
+        icon: <Pencil className="h-4 w-4" />,
+        onClick: (service: QuickService) => handleOpenEdit(service),
+        className: "text-blue-600 hover:text-blue-700",
+      },
+      {
+        icon: <Trash2 className="h-4 w-4" />,
+        onClick: (service: QuickService) => confirmDelete(service.id),
+        className: "text-red-600 hover:text-red-700",
+      },
+    ],
+    []
+  );
 
   if (isLoading) {
     return (
@@ -224,20 +192,17 @@ export function QuickServicesClient() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <PageHeaderwithAddButton
           title="Dynamic Quick Service Tiles"
           description="Manage the main action tiles displayed on the customer app home screen."
+          onAddButtonClick={handleOpenCreate}
+          buttonText="Add New Service"
         />
-        <Button onClick={handleOpenCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add New Service
-        </Button>
-      </div>
 
       <DataTable
         columns={columns}
         data={services || []}
+        actions={actions.length > 0 ? actions : undefined}
         isLoading={false}
         emptyMessage="No quick services found."
       />
@@ -250,26 +215,12 @@ export function QuickServicesClient() {
         isSubmitting={createMutation.isPending || updateMutation.isPending}
       />
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the quick service tile from the customer app.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700"
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDelete}
+        entityLabel="quick service"
+      />
     </div>
   );
 }

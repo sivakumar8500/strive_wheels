@@ -2,61 +2,58 @@
 
 import { useState } from "react";
 import { useDriverApplications } from "../hooks/use-drivers";
-import { DriverRegistration } from "../types";
-import { KycReviewDialog } from "./KycReviewDialog";
+import { useRouter } from "next/navigation";
 import PageHeaderwithAddButton from "@/components/shared/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/common/Table/DataTable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Eye, RefreshCcw } from "lucide-react";
 import { format } from "date-fns";
+import { DriverRegistrationSummary } from "../types";
 
 export function DriverRegistrationsClient() {
-  const [selectedDriver, setSelectedDriver] = useState<DriverRegistration | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const router = useRouter();
 
   const { data: drivers, isLoading, isError, refetch } = useDriverApplications();
 
-  const handleViewDetails = (driver: DriverRegistration) => {
-    setSelectedDriver(driver);
-    setIsDialogOpen(true);
+  const handleViewDetails = (driver: DriverRegistrationSummary) => {
+    router.push(`/admin/driver-registrations/${driver.registration_id}`);
   };
 
-  const columns: ColumnDef<DriverRegistration>[] = [
+  const columns: ColumnDef<DriverRegistrationSummary>[] = [
     {
-      key: "id",
+      key: "registration_id",
       label: "ID",
-      render: (_, driver) => <span className="font-medium">#{driver.id}</span>,
+      render: (_: any, driver: DriverRegistrationSummary) => <span className="font-medium">#{driver.registration_id}</span>,
     },
     {
-      key: "personal_info",
+      key: "driver_name",
       label: "Applicant",
-      render: (_, driver) => (
+      render: (_: any, driver: DriverRegistrationSummary) => (
         <div className="flex flex-col">
-          <span>{driver.personal_info.first_name} {driver.personal_info.last_name}</span>
-          <span className="text-xs text-muted-foreground">{driver.personal_info.mobile_number}</span>
+          <span>{driver.driver_name}</span>
+          <span className="text-xs text-muted-foreground">{driver.phone}</span>
         </div>
       ),
     },
     {
-      key: "vehicle_details",
+      key: "vehicle",
       label: "Vehicle",
-      render: (_, driver) => (
+      render: (_: any, driver: DriverRegistrationSummary) => (
         <div className="flex flex-col">
-          <span>{driver.vehicle_details.make} {driver.vehicle_details.model}</span>
-          <span className="text-xs text-muted-foreground">{driver.vehicle_details.plate_number}</span>
+          <span>{driver.vehicle}</span>
         </div>
       ),
     },
     {
       key: "submitted_at",
       label: "Submitted At",
-      render: (_, driver) => format(new Date(driver.submitted_at), "PPp"),
+      render: (_: any, driver: DriverRegistrationSummary) => driver.submitted_at ? format(new Date(driver.submitted_at), "PPp") : "N/A",
     },
     {
       key: "status",
       label: "Status",
-      render: (_, driver) => (
+      render: (_: any, driver: DriverRegistrationSummary) => (
         <Badge
           variant={
             driver.status === "APPROVED"
@@ -68,23 +65,6 @@ export function DriverRegistrationsClient() {
         >
           {driver.status}
         </Badge>
-      ),
-    },
-    {
-      key: "id",
-      label: "",
-      width: "120px",
-      render: (_, driver) => (
-        <div className="flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleViewDetails(driver)}
-          >
-            <Eye className="w-4 h-4 mr-2" />
-            View KYC
-          </Button>
-        </div>
       ),
     },
   ];
@@ -119,18 +99,18 @@ export function DriverRegistrationsClient() {
       <DataTable
         columns={columns}
         data={drivers || []}
+        actions={(row) => [
+          {
+            label: "View KYC",
+            icon: <Eye className="w-4 h-4 mr-2" />,
+            onClick: (r) => handleViewDetails(r),
+            className: "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors border border-slate-200 bg-white shadow-sm hover:bg-slate-100 hover:text-slate-900 h-8 px-3"
+          }
+        ]}
         isLoading={false}
         emptyMessage="No applications found."
       />
 
-      <KycReviewDialog
-        driver={selectedDriver}
-        isOpen={isDialogOpen}
-        onClose={() => {
-          setIsDialogOpen(false);
-          setSelectedDriver(null);
-        }}
-      />
     </div>
   );
 }

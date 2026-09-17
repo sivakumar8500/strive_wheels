@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   usePopularLocations,
   useCreatePopularLocation,
@@ -13,23 +13,8 @@ import { PopularLocation, CreatePopularLocationRequest, UpdatePopularLocationReq
 import { Button } from "@/components/ui/button";
 import { DataTable, type ColumnDef } from "@/components/common/Table/DataTable";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Loader2, Plus, MoreHorizontal, Pencil, Trash2, MapPin } from "lucide-react";
+import DeleteDialog from "@/components/shared/DeleteDialog";
+import { Loader2, Plus, Pencil, Trash2, MapPin } from "lucide-react";
 
 export function PopularLocationsClient() {
   const { data: locations, isLoading, isError, refetch } = usePopularLocations();
@@ -100,7 +85,7 @@ export function PopularLocationsClient() {
     {
       key: "category",
       label: "Category",
-      render: (_, location) => (
+      render: (_: any, location: PopularLocation) => (
         <Badge variant="outline">{location.category}</Badge>
       ),
     },
@@ -116,7 +101,7 @@ export function PopularLocationsClient() {
     {
       key: "is_active",
       label: "Status",
-      render: (_, location) => (
+      render: (_: any, location: PopularLocation) => (
         location.is_active ? (
           <Badge variant="default" className="bg-green-500 hover:bg-green-600">Active</Badge>
         ) : (
@@ -124,37 +109,23 @@ export function PopularLocationsClient() {
         )
       ),
     },
-    {
-      key: "id",
-      label: "",
-      width: "80px",
-      render: (_, location) => (
-        <div className="flex justify-end w-full">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleOpenEdit(location)}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => confirmDelete(location.id)}
-                className="text-red-600 focus:text-red-600 focus:bg-red-50"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      ),
-    },
   ];
+
+  const actions = useMemo(
+    () => [
+      {
+        icon: <Pencil className="h-4 w-4" />,
+        onClick: (location: PopularLocation) => handleOpenEdit(location),
+        className: "text-blue-600 hover:text-blue-700",
+      },
+      {
+        icon: <Trash2 className="h-4 w-4" />,
+        onClick: (location: PopularLocation) => confirmDelete(location.id),
+        className: "text-red-600 hover:text-red-700",
+      },
+    ],
+    []
+  );
 
   if (isLoading) {
     return (
@@ -191,6 +162,7 @@ export function PopularLocationsClient() {
       <DataTable
         columns={columns}
         data={locations || []}
+        actions={actions.length > 0 ? actions : undefined}
         isLoading={false}
         emptyMessage="No popular locations found."
       />
@@ -203,26 +175,12 @@ export function PopularLocationsClient() {
         isSubmitting={createMutation.isPending || updateMutation.isPending}
       />
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the popular location shortcut.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700"
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDelete}
+        entityLabel="popular location"
+      />
     </div>
   );
 }

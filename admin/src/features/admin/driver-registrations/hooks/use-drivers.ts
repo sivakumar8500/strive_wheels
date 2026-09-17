@@ -3,7 +3,7 @@ import {
   getDriverRegistrations,
   getDriverRegistrationDetails,
   verifyDriverDocument,
-  approveDriverRegistration,
+  reviewDriverRegistration,
 } from "../services/api";
 
 export const DRIVER_REGISTRATIONS_QUERY_KEY = ["driverRegistrations"];
@@ -52,14 +52,22 @@ export function useVerifyDocument() {
   });
 }
 
-export function useApproveApplication() {
+export function useReviewApplication() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (registrationId: number) => approveDriverRegistration(registrationId),
-    onSuccess: (_, registrationId) => {
+    mutationFn: ({
+      registrationId,
+      status,
+      rejectionReason,
+    }: {
+      registrationId: number;
+      status: "APPROVED" | "REJECTED";
+      rejectionReason?: string;
+    }) => reviewDriverRegistration(registrationId, status, rejectionReason),
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: [...DRIVER_REGISTRATION_DETAILS_QUERY_KEY, registrationId],
+        queryKey: [...DRIVER_REGISTRATION_DETAILS_QUERY_KEY, variables.registrationId],
       });
       queryClient.invalidateQueries({
         queryKey: DRIVER_REGISTRATIONS_QUERY_KEY,

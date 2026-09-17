@@ -20,17 +20,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Loader2, Plus, MoreHorizontal, Pencil, Trash2, Tag, CalendarIcon } from "lucide-react";
+import DeleteDialog from "@/components/shared/DeleteDialog";
+import { Loader2, Plus, MoreHorizontal, Pencil, Trash2, Tag, CalendarIcon, TicketPlusIcon } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 export function CouponsClient() {
@@ -104,27 +95,26 @@ export function CouponsClient() {
       ),
     },
     {
-      key: "max_discount_amount",
+      key: "max_discount",
       label: "Constraints",
       render: (_, coupon) => (
         <div className="text-sm space-y-1 text-muted-foreground">
-          <p>Max Disc: <span className="font-medium text-foreground">${coupon.max_discount_amount}</span></p>
-          <p>Min Ride: <span className="font-medium text-foreground">${coupon.min_ride_amount}</span></p>
+          <p>Max Disc: <span className="font-medium text-foreground">${coupon.max_discount ?? "N/A"}</span></p>
         </div>
       ),
     },
     {
-      key: "start_date",
+      key: "valid_from",
       label: "Validity Period",
       render: (_, coupon) => (
         <div className="text-sm space-y-1">
           <div className="flex items-center gap-2">
             <CalendarIcon className="h-3 w-3 text-muted-foreground" />
-            <span>Start: {format(new Date(coupon.start_date), "MMM d, yyyy HH:mm")}</span>
+            <span>Start: {format(new Date(coupon.valid_from), "MMM d, yyyy HH:mm")}</span>
           </div>
           <div className="flex items-center gap-2">
             <CalendarIcon className="h-3 w-3 text-muted-foreground" />
-            <span>End: {format(new Date(coupon.end_date), "MMM d, yyyy HH:mm")}</span>
+            <span>End: {format(new Date(coupon.valid_until), "MMM d, yyyy HH:mm")}</span>
           </div>
         </div>
       ),
@@ -133,14 +123,14 @@ export function CouponsClient() {
       key: "times_used",
       label: "Usage Stats",
       render: (_, coupon) => {
-        const usagePercentage = (coupon.times_used / coupon.usage_limit) * 100;
+        const usagePercentage = coupon.usage_limit ? (coupon.times_used / coupon.usage_limit) * 100 : 0;
         return (
           <div className="w-[120px] space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Used</span>
-              <span className="font-medium">{coupon.times_used} / {coupon.usage_limit}</span>
+              <span className="font-medium">{coupon.times_used} / {coupon.usage_limit ?? "∞"}</span>
             </div>
-            <Progress value={usagePercentage} className="h-2" />
+            {coupon.usage_limit && <Progress value={usagePercentage} className="h-2" />}
           </div>
         );
       },
@@ -209,16 +199,13 @@ export function CouponsClient() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <PageHeaderwithAddButton
-          title="Coupon & Promotional Campaigns"
-          description="Create and manage discount codes, define validity periods, and monitor usage limits."
-        />
-        <Button onClick={handleOpenCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Create Campaign
-        </Button>
-      </div>
+      <PageHeaderwithAddButton
+        title="Coupon & Promotional Campaigns"
+        description="Create and manage discount codes, define validity periods, and monitor usage limits."
+        onAddButtonClick={handleOpenCreate}
+        buttonText="Create Coupon"
+        icon={<TicketPlusIcon className="mr-2 h-4 w-4" />}
+      />
 
       <DataTable
         columns={columns}
@@ -235,26 +222,12 @@ export function CouponsClient() {
         isSubmitting={createMutation.isPending || updateMutation.isPending}
       />
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the promotional campaign.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700"
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDelete}
+        entityLabel="promotional campaign"
+      />
     </div>
   );
 }
