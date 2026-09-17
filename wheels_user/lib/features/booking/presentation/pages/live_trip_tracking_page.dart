@@ -245,8 +245,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
           });
         }
       }
-        _checkActiveBookingStatusHttp();
-      }
+      _checkActiveBookingStatusHttp();
     });
   }
 
@@ -2189,7 +2188,9 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                     children: [
                       // Drag Handle & Minimize/Expand Toggle Bar
                       GestureDetector(
-                        onTap: () => setState(() => _isSheetMinimized = !_isSheetMinimized),
+                        onTap: () => setState(() {
+                          _isSheetMinimized = !_isSheetMinimized;
+                        }),
                         behavior: HitTestBehavior.opaque,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
@@ -2215,7 +2216,9 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             InkWell(
-                              onTap: () => setState(() => _isSheetMinimized = false),
+                              onTap: () => setState(() {
+                                _isSheetMinimized = false;
+                              }),
                               borderRadius: BorderRadius.circular(12),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
@@ -2317,7 +2320,9 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                                           size: 20,
                                         ),
                                       ),
-                                      onPressed: () => setState(() => _isSheetMinimized = false),
+                                      onPressed: () => setState(() {
+                                        _isSheetMinimized = false;
+                                      }),
                                     ),
                                   ],
                                 ),
@@ -2530,7 +2535,9 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                                   size: 20,
                                 ),
                               ),
-                              onPressed: () => setState(() => _isSheetMinimized = true),
+                              onPressed: () => setState(() {
+                                _isSheetMinimized = true;
+                              }),
                             ),
                           ],
                         ),
