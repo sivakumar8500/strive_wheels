@@ -334,11 +334,16 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
     }
   }
 
+  String get _effectiveBookingId =>
+      widget.bookingId ??
+      (sl.isRegistered<ActiveBookingService>() ? sl<ActiveBookingService>().activeBooking?.bookingId : null) ??
+      'ER-9921-X4B';
+
   void _saveActiveBookingState() {
     if (sl.isRegistered<ActiveBookingService>()) {
       sl<ActiveBookingService>().setActiveBooking(
         ActiveBookingData(
-          bookingId: 'ER-9921-X4B',
+          bookingId: _effectiveBookingId,
           driverName: widget.driverName,
           driverRating: widget.driverRating,
           vehicleInfo: widget.vehicleInfo,
@@ -449,13 +454,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
               _onRiderLocationUpdate(LatLng(lat, lng));
             }
           }
-        } else if (event == 'booking.arrived' || event == 'rider.arrived' || event == 'booking.rider_arrived') {
-          setState(() {
-            _phase = TripPhase.driverArrived;
-          });
-          if (sl.isRegistered<ActiveBookingService>()) {
-            sl<ActiveBookingService>().updateBookingStatus('DRIVER_ARRIVED');
-          }
         } else {
           dynamic notifMetadata;
           if (data['notification'] is Map) {
@@ -466,6 +464,44 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                              eventData['status'] ?? 
                              (notifMetadata is Map ? notifMetadata['status'] : null))
                              ?.toString().toUpperCase() ?? '';
+
+          final isDriverArrived =
+              event == 'booking.arrived' ||
+              event == 'rider.arrived' ||
+              event == 'driver.arrived' ||
+              event == 'booking.rider_arrived' ||
+              rawStatus == 'RIDER_ARRIVED' ||
+              rawStatus == 'DRIVER_ARRIVED' ||
+              rawStatus == 'ARRIVED';
+
+          if (isDriverArrived && _phase != TripPhase.inTransit && _phase != TripPhase.driverArrived) {
+            setState(() {
+              _phase = TripPhase.driverArrived;
+            });
+            if (sl.isRegistered<ActiveBookingService>()) {
+              sl<ActiveBookingService>().updateBookingStatus('DRIVER_ARRIVED');
+            }
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(Icons.location_on, color: Colors.white, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Driver has arrived! Share OTP with driver: ${widget.startOtp ?? ""}',
+                          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: AppColors.primaryBlue,
+                  duration: const Duration(seconds: 4),
+                ),
+              );
+            }
+          }
 
           final isTripStarted =
               event == 'booking.verify' ||
@@ -478,8 +514,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
               event == 'rider.trip_started' ||
               event == 'trip_started' ||
               event == 'trip.started' ||
-              event == 'booking.updated' ||
-              event == 'notification.new' ||
               event == 'booking.start_success' ||
               event == 'ride.started' ||
               event == 'booking.start' ||
@@ -1297,10 +1331,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
       _dropCountdownSeconds = 30;
     });
 
-    final activeBooking = sl.isRegistered<ActiveBookingService>()
-        ? sl<ActiveBookingService>().activeBooking
-        : null;
-    final bookingId = activeBooking?.bookingId ?? 'ER-9921-X4B';
+    final bookingId = _effectiveBookingId;
 
     if (sl.isRegistered<CustomerWSController>()) {
       sl<CustomerWSController>().requestDrop(bookingId: bookingId, reason: reason);
@@ -1457,10 +1488,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                   Navigator.pop(ctx);
                 }
                 _isRiderDropModalShowing = false;
-                final activeBooking = sl.isRegistered<ActiveBookingService>()
-                    ? sl<ActiveBookingService>().activeBooking
-                    : null;
-                final bookingId = activeBooking?.bookingId ?? 'ER-9921-X4B';
+                final bookingId = _effectiveBookingId;
                 if (sl.isRegistered<CustomerWSController>()) {
                   sl<CustomerWSController>().sendDropApproved(bookingId: bookingId);
                 }
@@ -1554,10 +1582,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                               Navigator.pop(ctx);
                             }
                             _isRiderDropModalShowing = false;
-                            final activeBooking = sl.isRegistered<ActiveBookingService>()
-                                ? sl<ActiveBookingService>().activeBooking
-                                : null;
-                            final bookingId = activeBooking?.bookingId ?? 'ER-9921-X4B';
+                            final bookingId = _effectiveBookingId;
                             if (sl.isRegistered<CustomerWSController>()) {
                               sl<CustomerWSController>().sendDropRejected(
                                 bookingId: bookingId,
@@ -1585,10 +1610,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                               Navigator.pop(ctx);
                             }
                             _isRiderDropModalShowing = false;
-                            final activeBooking = sl.isRegistered<ActiveBookingService>()
-                                ? sl<ActiveBookingService>().activeBooking
-                                : null;
-                            final bookingId = activeBooking?.bookingId ?? 'ER-9921-X4B';
+                            final bookingId = _effectiveBookingId;
                             if (sl.isRegistered<CustomerWSController>()) {
                               sl<CustomerWSController>().sendDropApproved(bookingId: bookingId);
                             }
@@ -1623,10 +1645,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
     _dropCountdownTimer?.cancel();
     if (!mounted) return;
 
-    final activeBooking = sl.isRegistered<ActiveBookingService>()
-        ? sl<ActiveBookingService>().activeBooking
-        : null;
-    final bookingId = activeBooking?.bookingId ?? 'ER-9921-X4B';
+    final bookingId = _effectiveBookingId;
 
     if (sl.isRegistered<CustomerWSController>()) {
       sl<CustomerWSController>().sendDropApproved(bookingId: bookingId);
@@ -2297,6 +2316,39 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                             const SizedBox(height: 10),
                             // Action buttons in Minimized View
                             if (_phase != TripPhase.inTransit) ...[
+                              if (widget.startOtp != null && widget.startOtp!.isNotEmpty) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryBlue.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.3)),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Share OTP with Driver:',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.primaryBlue,
+                                        ),
+                                      ),
+                                      Text(
+                                        widget.startOtp!,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 2.0,
+                                          color: AppColors.primaryBlue,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                               SizedBox(
                                 width: double.infinity,
                                 height: 44,

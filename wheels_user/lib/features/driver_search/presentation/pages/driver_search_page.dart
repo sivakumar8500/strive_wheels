@@ -130,7 +130,6 @@ class _DriverSearchPageState extends State<DriverSearchPage>
             event == 'rider.trip_started' ||
             event == 'trip_started' ||
             event == 'trip.started' ||
-            event == 'booking.updated' ||
             event == 'booking.start_success' ||
             event == 'ride.started' ||
             event == 'booking.start' ||
@@ -158,9 +157,11 @@ class _DriverSearchPageState extends State<DriverSearchPage>
           }
 
           if (mounted) {
+            final effectiveBId = _bookingId != null ? 'ER-$_bookingId' : null;
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
                 builder: (_) => LiveTripTrackingPage(
+                  bookingId: effectiveBId,
                   driverName: dName,
                   driverRating: dRating,
                   vehicleInfo: '$vInfo • $lPlate',

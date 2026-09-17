@@ -59,6 +59,7 @@ class BookingConfirmedPage extends StatefulWidget {
 
 class _BookingConfirmedPageState extends State<BookingConfirmedPage> with WidgetsBindingObserver {
   bool _isRideCompleted = false;
+  bool _isDriverArrived = false;
   StreamSubscription? _wsSubscription;
 
   @override
@@ -101,8 +102,6 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
           event == 'rider.trip_started' ||      // Multi-Broadcast Alias 3
           event == 'trip_started' ||           // Multi-Broadcast Alias 4
           event == 'trip.started' ||           // Multi-Broadcast Alias 5
-          event == 'booking.updated' ||        // Multi-Broadcast Alias 6
-
           // 2. Additional WS ACK & Legacy Events
           event == 'booking.start_success' ||
           event == 'ride.started' ||
@@ -114,6 +113,45 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
           rawStatus == 'TRIP_IN_PROGRESS' ||  // Secondary DB status for ongoing trip
           rawStatus == 'IN_TRANSIT' ||
           rawStatus == 'STARTED';
+
+      // Driver arrived at pickup
+      final isDriverArrived =
+          event == 'booking.arrived' ||
+          event == 'booking.rider_arrived' ||
+          event == 'rider.arrived' ||
+          event == 'driver.arrived' ||
+          rawStatus == 'RIDER_ARRIVED' ||
+          rawStatus == 'DRIVER_ARRIVED' ||
+          rawStatus == 'ARRIVED';
+
+      if (isDriverArrived && !_isDriverArrived) {
+        setState(() {
+          _isDriverArrived = true;
+        });
+        if (sl.isRegistered<ActiveBookingService>()) {
+          sl<ActiveBookingService>().updateBookingStatus('RIDER_ARRIVED');
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.location_on, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Driver has arrived! Share OTP with driver: ${widget.startOtp ?? ""}',
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColors.primaryBlue,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      }
 
       // OTP verified by rider — directly show map tracking screen
       if (isTripStarted) {
@@ -136,6 +174,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (_) => LiveTripTrackingPage(
+                bookingId: widget.bookingId,
                 driverName: dName,
                 driverRating: dRating,
                 vehicleInfo: vInfo,
@@ -335,17 +374,21 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
 
             // Booking Confirmed Header Title & Subtitle
             Text(
-              'Booking Confirmed!',
+              _isDriverArrived ? 'Driver Has Arrived!' : 'Booking Confirmed!',
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: isDark ? AppColors.textPrimaryDark : const Color(0xFF0F172A),
+                color: _isDriverArrived
+                    ? AppColors.primaryBlue
+                    : (isDark ? AppColors.textPrimaryDark : const Color(0xFF0F172A)),
               ),
             ),
             const SizedBox(height: 6),
             Text(
-              'Your premium ride is scheduled and on its way.',
+              _isDriverArrived
+                  ? 'Please share your 4-digit OTP with the driver to start your journey.'
+                  : 'Your premium ride is scheduled and on its way.',
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 13,
@@ -818,6 +861,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => LiveTripTrackingPage(
+                      bookingId: widget.bookingId,
                       driverName: widget.driverName,
                       vehicleInfo: '${widget.vehicleModel} • ${widget.licensePlate}',
                       pickupAddress: widget.pickupAddress,
@@ -825,6 +869,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
                       pickupLatLng: widget.pickupLatLng,
                       dropLatLng: widget.dropLatLng,
                       startOtp: widget.startOtp,
+                      initialStatus: _isDriverArrived ? 'DRIVER_ARRIVED' : 'RIDER_ACCEPTED',
                     ),
                   ),
                 );
