@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/app_map_widget.dart';
@@ -266,6 +267,43 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
         _showDropRejectedDialog(reason);
       }
     });
+  }
+
+  Future<void> _launchExternalNavigation() async {
+    final bool isToDrop = _tripStatus == TripStatus.inProgress;
+    final double? targetLat = isToDrop ? widget.dropLat : widget.pickupLat;
+    final double? targetLng = isToDrop ? widget.dropLng : widget.pickupLng;
+    final String targetAddr = (isToDrop ? widget.dropAddress : widget.pickupAddress) ?? '';
+
+    if (targetLat != null && targetLng != null && targetLat != 0.0 && targetLng != 0.0) {
+      final googleMapsUrl = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$targetLat,$targetLng&travelmode=driving');
+      final geoUrl = Uri.parse('geo:$targetLat,$targetLng?q=$targetLat,$targetLng(${Uri.encodeComponent(targetAddr)})');
+
+      try {
+        if (await canLaunchUrl(geoUrl)) {
+          await launchUrl(geoUrl, mode: LaunchMode.externalApplication);
+          return;
+        }
+      } catch (_) {}
+
+      try {
+        if (await canLaunchUrl(googleMapsUrl)) {
+          await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
+          return;
+        }
+      } catch (_) {}
+
+      await launchUrl(googleMapsUrl, mode: LaunchMode.platformDefault);
+    } else if (targetAddr.isNotEmpty) {
+      final queryUrl = Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(targetAddr)}');
+      await launchUrl(queryUrl, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Destination coordinates unavailable for external navigation.')),
+        );
+      }
+    }
   }
 
   void _showDropRejectedDialog(String reason) {
@@ -1323,11 +1361,11 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
-                                        ],
-                                      ),
-                                    ),
-                                    ElevatedButton(
-                                      onPressed: () {},
+                                         ],
+                                       ),
+                                     ),
+                                     ElevatedButton(
+                                       onPressed: _launchExternalNavigation,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: const Color(0xFF0D6EFD),
                                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
