@@ -408,13 +408,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
       appBar: AppBar(
         backgroundColor: isDark ? AppColors.onboardingBgDark : Colors.white,
         elevation: 0.5,
-        leading: IconButton(
-          icon: Icon(
-            Icons.menu_rounded,
-            color: isDark ? AppColors.textPrimaryDark : AppColors.primaryBlue,
-          ),
-          onPressed: () {},
-        ),
+        automaticallyImplyLeading: false,
         title: Text(
           AppStrings.appName,
           style: GoogleFonts.poppins(

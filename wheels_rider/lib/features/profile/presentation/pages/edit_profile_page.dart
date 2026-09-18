@@ -5,8 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/network/api_endpoints.dart';
+import '../../../../core/widgets/zoomable_image_dialog.dart';
 import '../../domain/entities/profile_entity.dart';
 import '../bloc/profile_bloc.dart';
 import '../bloc/profile_event.dart';
@@ -22,7 +22,7 @@ class EditProfilePage extends StatefulWidget {
 }
 
 class _EditProfilePageState extends State<EditProfilePage> {
-  String selectedGender = '';
+  String selectedGender = 'Male';
   String? _profileImagePath;
   final ImagePicker _picker = ImagePicker();
 
@@ -31,6 +31,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late TextEditingController _mobileNumberController;
   late TextEditingController _emailController;
   late TextEditingController _dobController;
+  late TextEditingController _vehicleMakeController;
+  late TextEditingController _vehicleModelController;
+  late TextEditingController _vehicleNumberController;
+  late TextEditingController _vehicleColorController;
 
   @override
   void initState() {
@@ -41,11 +45,24 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     _firstNameController = TextEditingController(text: firstName);
     _lastNameController = TextEditingController(text: lastName);
-    _mobileNumberController = TextEditingController(text: widget.profile.phone);
+    
+    // Clean mobile number to remove duplicated +91 prefix for editing
+    String phoneText = widget.profile.phone;
+    if (phoneText.startsWith('+91')) {
+      phoneText = phoneText.replaceFirst('+91', '').trim();
+    }
+    _mobileNumberController = TextEditingController(text: phoneText);
     _emailController = TextEditingController(text: widget.profile.email);
     _dobController = TextEditingController(text: widget.profile.dob.isNotEmpty ? widget.profile.dob : '');
-    
-    selectedGender = widget.profile.gender.isNotEmpty ? widget.profile.gender : 'Male'; // Default or empty if not set
+
+    _vehicleMakeController = TextEditingController(text: widget.profile.vehicleMake.isNotEmpty ? widget.profile.vehicleMake : 'Toyota');
+    _vehicleModelController = TextEditingController(text: widget.profile.vehicleModel.isNotEmpty ? widget.profile.vehicleModel : 'Innova Crysta');
+    _vehicleNumberController = TextEditingController(text: widget.profile.vehicleNumber.isNotEmpty ? widget.profile.vehicleNumber : 'TS 09 EQ 1234');
+    _vehicleColorController = TextEditingController(text: widget.profile.vehicleColor.isNotEmpty ? widget.profile.vehicleColor : 'Pearl White');
+
+    if (widget.profile.gender.isNotEmpty) {
+      selectedGender = widget.profile.gender;
+    }
     _profileImagePath = widget.profile.profileImageUrl.isNotEmpty ? widget.profile.profileImageUrl : null;
   }
 
@@ -56,11 +73,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _mobileNumberController.dispose();
     _emailController.dispose();
     _dobController.dispose();
+    _vehicleMakeController.dispose();
+    _vehicleModelController.dispose();
+    _vehicleNumberController.dispose();
+    _vehicleColorController.dispose();
     super.dispose();
   }
 
   Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (image != null) {
       setState(() {
         _profileImagePath = image.path;
@@ -75,10 +96,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final email = _emailController.text.trim();
     final dob = _dobController.text.trim();
 
-    if (firstName.isEmpty || lastName.isEmpty || mobileNumber.isEmpty || email.isEmpty || dob.isEmpty || selectedGender.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all the fields')),
-      );
+    if (firstName.isEmpty || lastName.isEmpty || mobileNumber.isEmpty || email.isEmpty || dob.isEmpty) {
       return;
     }
 
@@ -92,7 +110,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       'last_name': lastName,
       'mobile_number': formattedPhone,
       'email': email,
-      'dob': dob, 
+      'dob': dob,
       'gender': selectedGender.toUpperCase(),
       'referral_code': '',
       'profile_photo_url': _profileImagePath ?? '',
@@ -103,7 +121,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFFBFAFD);
+    final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FD);
+    final cardBg = isDark ? const Color(0xFF1E1E1E) : Colors.white;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -111,27 +130,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
         title: Text(
           'Edit Profile',
           style: GoogleFonts.inter(
+            fontSize: 18,
             fontWeight: FontWeight.bold,
             color: isDark ? Colors.white : Colors.black87,
           ),
         ),
-        backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
-        iconTheme: IconThemeData(
-          color: isDark ? Colors.white : Colors.black87,
-        ),
+        centerTitle: true,
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         elevation: 0,
+        iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
       ),
       body: BlocConsumer<ProfileBloc, ProfileState>(
         listener: (context, state) {
           if (state is ProfileUpdateSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Profile updated successfully')),
-            );
-            Navigator.pop(context); // Go back after success
+            Navigator.pop(context);
           } else if (state is ProfileUpdateError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to update: ${state.message}')),
-            );
+            // Error handled silently
           }
         },
         builder: (context, state) {
@@ -139,190 +153,69 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
           return SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Profile Photo
-                  Center(
-                    child: GestureDetector(
-                      onTap: _pickImage,
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 100,
-                            height: 100,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.primaryBlue.withValues(alpha: 0.1),
-                              image: _profileImagePath != null && _profileImagePath!.isNotEmpty
-                                  ? DecorationImage(
-                                      image: (kIsWeb || _profileImagePath!.startsWith('http') || _profileImagePath!.startsWith('blob:'))
-                                          ? NetworkImage(_profileImagePath!) as ImageProvider
-                                          : FileImage(File(_profileImagePath!)),
-                                      fit: BoxFit.cover,
-                                    )
-                                  : const DecorationImage(
-                                      image: AssetImage('assets/images/strive_logo.jpg'), // Placeholder
-                                      fit: BoxFit.cover,
-                                    ),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header Avatar Card
+                _buildAvatarHeaderCard(isDark, cardBg),
+                const SizedBox(height: 20),
+
+                // Stats Summary Strip
+                _buildStatsSummaryStrip(isDark, cardBg),
+                const SizedBox(height: 24),
+
+                // Personal Info Section Card
+                _buildSectionTitle('PERSONAL DETAILS', isDark),
+                const SizedBox(height: 10),
+                _buildPersonalInfoCard(isDark, cardBg),
+                const SizedBox(height: 24),
+
+                // Gender Section Card
+                _buildSectionTitle('GENDER', isDark),
+                const SizedBox(height: 10),
+                _buildGenderCard(isDark, cardBg),
+                const SizedBox(height: 24),
+
+                // Vehicle Details Card
+                _buildSectionTitle('REGISTERED VEHICLE DETAILS', isDark),
+                const SizedBox(height: 10),
+                _buildVehicleEditCard(isDark, cardBg),
+                const SizedBox(height: 32),
+
+                // Save Action Button
+                SizedBox(
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: isLoading ? null : _saveProfile,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0D6EFD),
+                      foregroundColor: Colors.white,
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: isLoading
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Upload Profile Photo',
+                          )
+                        : Text(
+                            'Save Changes',
                             style: GoogleFonts.inter(
-                              fontSize: 14,
+                              fontSize: 15,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.primaryBlue,
                             ),
                           ),
-                        ],
-                      ),
-                    ),
                   ),
-                  const SizedBox(height: 32),
-
-                  // Name Fields
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AppTextField(
-                          label: 'First Name',
-                          hintText: 'Sirii',
-                          controller: _firstNameController,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: AppTextField(
-                          label: 'Last Name',
-                          hintText: 'Gurram',
-                          controller: _lastNameController,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Mobile Number
-                  AppTextField(
-                    label: '',
-                    hintText: 'Mobile Number',
-                    keyboardType: TextInputType.phone,
-                    controller: _mobileNumberController,
-                    prefixIcon: Padding(
-                      padding: const EdgeInsets.only(left: 16, right: 8, top: 14),
-                      child: Text(
-                        '+91',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? AppColors.white : AppColors.textPrimaryLight,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Email
-                  AppTextField(
-                    label: 'Email',
-                    hintText: 'Enter your email address',
-                    keyboardType: TextInputType.emailAddress,
-                    controller: _emailController,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // DOB
-                  AppTextField(
-                    label: 'Date of Birth',
-                    hintText: 'mm/dd/yyyy',
-                    readOnly: true,
-                    controller: _dobController,
-                    suffixIcon: Icon(
-                      Icons.calendar_today_outlined,
-                      color: isDark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.textPrimaryLight,
-                    ),
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime(1900),
-                        lastDate: DateTime.now(),
-                      );
-                      if (date != null) {
-                        setState(() {
-                          _dobController.text = "${date.month}/${date.day}/${date.year}";
-                        });
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Gender
-                  Text(
-                    'Gender',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? AppColors.white : AppColors.textPrimaryLight,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _buildGenderChip('Male', isDark),
-                      _buildGenderChip('Female', isDark),
-                      _buildGenderChip('Non-binary', isDark),
-                      _buildGenderChip('Prefer not to say', isDark),
-                    ],
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Save Button
-                  SizedBox(
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: isLoading ? null : _saveProfile,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.darkBlue,
-                        foregroundColor: AppColors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: isLoading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                color: AppColors.white,
-                                strokeWidth: 2.5,
-                              ),
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Save Changes',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                ],
-              ),
+                ),
+                const SizedBox(height: 32),
+              ],
             ),
           );
         },
@@ -330,38 +223,486 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
+  Widget _buildAvatarHeaderCard(bool isDark, Color cardBg) {
+    final imagePath = _profileImagePath != null ? ApiEndpoints.getImageUrl(_profileImagePath!) : '';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Center(
+            child: Stack(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    final zoomPath = _profileImagePath != null
+                        ? (_profileImagePath!.startsWith('http') || _profileImagePath!.startsWith('assets') || _profileImagePath!.startsWith('/')
+                            ? ApiEndpoints.getImageUrl(_profileImagePath!)
+                            : _profileImagePath!)
+                        : widget.profile.profileImageUrl;
+                    ZoomableImageDialog.show(
+                      context,
+                      imagePath: zoomPath,
+                      title: widget.profile.name.isNotEmpty ? widget.profile.name : 'Profile Photo',
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF0D6EFD), Color(0xFF00C6FF)],
+                      ),
+                    ),
+                    child: CircleAvatar(
+                      radius: 46,
+                      backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                      child: ClipOval(
+                        child: imagePath.isNotEmpty
+                            ? ((kIsWeb || imagePath.startsWith('http') || imagePath.startsWith('blob:'))
+                                ? Image.network(
+                                    imagePath,
+                                    width: 92,
+                                    height: 92,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Image.asset(
+                                      'assets/images/strive_logo.jpg',
+                                      width: 92,
+                                      height: 92,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                : Image.file(
+                                    File(_profileImagePath!),
+                                    width: 92,
+                                    height: 92,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Image.asset(
+                                      'assets/images/strive_logo.jpg',
+                                      width: 92,
+                                      height: 92,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ))
+                            : Image.asset(
+                                'assets/images/strive_logo.jpg',
+                                width: 92,
+                                height: 92,
+                                fit: BoxFit.cover,
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: GestureDetector(
+                    onTap: _pickImage,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D6EFD),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: cardBg, width: 2.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            widget.profile.name.isNotEmpty ? widget.profile.name : 'Puja Sri',
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF10B981),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Verified Driver Profile',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF10B981),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsSummaryStrip(bool isDark, Color cardBg) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildStatItem('Rating', '${widget.profile.rating > 0 ? widget.profile.rating.toStringAsFixed(1) : "5.0"} ★', isDark),
+          Container(width: 1, height: 28, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+          _buildStatItem('Status', widget.profile.status.toUpperCase(), isDark),
+          Container(width: 1, height: 28, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+          _buildStatItem('Wallet', '₹${widget.profile.walletBalance.toStringAsFixed(0)}', isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, bool isDark) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionTitle(String title, bool isDark) {
+    return Text(
+      title,
+      style: GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.bold,
+        letterSpacing: 0.8,
+        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+      ),
+    );
+  }
+
+  Widget _buildPersonalInfoCard(bool isDark, Color cardBg) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // First & Last Name
+          Row(
+            children: [
+              Expanded(
+                child: _buildInputField(
+                  label: 'First Name',
+                  controller: _firstNameController,
+                  icon: Icons.person_outline,
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildInputField(
+                  label: 'Last Name',
+                  controller: _lastNameController,
+                  icon: Icons.person_outline,
+                  isDark: isDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Mobile Number
+          _buildInputField(
+            label: 'Mobile Number',
+            controller: _mobileNumberController,
+            icon: Icons.phone_android_outlined,
+            keyboardType: TextInputType.phone,
+            prefixText: '+91 ',
+            isDark: isDark,
+          ),
+          const SizedBox(height: 14),
+
+          // Email
+          _buildInputField(
+            label: 'Email Address',
+            controller: _emailController,
+            icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            isDark: isDark,
+          ),
+          const SizedBox(height: 14),
+
+          // Date of Birth
+          _buildInputField(
+            label: 'Date of Birth',
+            controller: _dobController,
+            icon: Icons.calendar_month_outlined,
+            readOnly: true,
+            isDark: isDark,
+            onTap: () async {
+              final date = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now().subtract(const Duration(days: 365 * 20)),
+                firstDate: DateTime(1940),
+                lastDate: DateTime.now(),
+              );
+              if (date != null) {
+                setState(() {
+                  final m = date.month.toString().padLeft(2, '0');
+                  final d = date.day.toString().padLeft(2, '0');
+                  _dobController.text = "${date.year}-$m-$d";
+                });
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputField({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+    String? prefixText,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    required bool isDark,
+  }) {
+    final inputBg = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF3F4F8);
+    final textColor = isDark ? Colors.white : Colors.black87;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            decoration: BoxDecoration(
+              color: inputBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+              ),
+            ),
+            child: TextField(
+              controller: controller,
+              readOnly: readOnly,
+              enabled: !readOnly || onTap != null,
+              keyboardType: keyboardType,
+              onTap: onTap,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: textColor,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                prefixIcon: Icon(icon, size: 18, color: isDark ? Colors.grey.shade400 : Colors.grey.shade500),
+                prefixText: prefixText,
+                prefixStyle: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+                border: InputBorder.none,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGenderCard(bool isDark, Color cardBg) {
+    final genders = ['Male', 'Female', 'Non-binary', 'Other'];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: genders.map((g) => _buildGenderChip(g, isDark)).toList(),
+      ),
+    );
+  }
+
   Widget _buildGenderChip(String label, bool isDark) {
-    // Basic match ignoring case for pre-selected data from api
     final isSelected = selectedGender.toLowerCase() == label.toLowerCase();
-    return GestureDetector(
+    final selectedColor = const Color(0xFF0D6EFD);
+    final unselectedBg = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF3F4F8);
+
+    return InkWell(
       onTap: () {
         setState(() {
           selectedGender = label;
         });
       },
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primaryBlue
-              : (isDark ? AppColors.surfaceDark : AppColors.surfaceLight),
-          borderRadius: BorderRadius.circular(20),
+          color: isSelected ? selectedColor : unselectedBg,
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected
-                ? AppColors.primaryBlue
-                : (isDark ? AppColors.dividerDark : AppColors.dividerLight),
+            color: isSelected ? selectedColor : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
           ),
         ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected
-                ? AppColors.white
-                : (isDark ? AppColors.white : AppColors.textPrimaryLight),
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isSelected ? Icons.check_circle : Icons.circle_outlined,
+              size: 15,
+              color: isSelected ? Colors.white : (isDark ? Colors.grey.shade400 : Colors.grey.shade500),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black87),
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildVehicleEditCard(bool isDark, Color cardBg) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _buildInputField(
+                  label: 'Vehicle Make',
+                  controller: _vehicleMakeController,
+                  icon: Icons.directions_car_outlined,
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildInputField(
+                  label: 'Model Name',
+                  controller: _vehicleModelController,
+                  icon: Icons.alt_route_outlined,
+                  isDark: isDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _buildInputField(
+            label: 'Registration / License Plate Number',
+            controller: _vehicleNumberController,
+            icon: Icons.badge_outlined,
+            isDark: isDark,
+          ),
+          const SizedBox(height: 14),
+          _buildInputField(
+            label: 'Vehicle Color',
+            controller: _vehicleColorController,
+            icon: Icons.palette_outlined,
+            isDark: isDark,
+          ),
+        ],
       ),
     );
   }

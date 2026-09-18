@@ -27,6 +27,8 @@ class TripsPage extends StatefulWidget {
 class _TripsPageState extends State<TripsPage> {
   int _currentIndex = 1; // Trips is selected
   String _selectedFilter = 'All Rides';
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
   TripsBloc? _tripsBloc;
 
   @override
@@ -39,6 +41,7 @@ class _TripsPageState extends State<TripsPage> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -56,136 +59,161 @@ class _TripsPageState extends State<TripsPage> {
           BlocProvider(create: (_) => sl<ProfileBloc>()..add(GetProfileEvent())),
       ],
       child: Scaffold(
-      backgroundColor: bgColor,
-      body: SafeArea(
-        child: BlocBuilder<TripsBloc, TripsState>(
-          builder: (context, state) {
-            if (state is TripsLoading) {
-              return const Center(child: CircularProgressIndicator());
-            } else if (state is TripsError) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: AnimatedEmptyState(
-                    title: 'Oops!',
-                    subtitle: 'Failed to load trips. Please pull down to refresh.',
-                    icon: Icons.cloud_off,
+        backgroundColor: bgColor,
+        body: SafeArea(
+          child: BlocBuilder<TripsBloc, TripsState>(
+            builder: (context, state) {
+              if (state is TripsLoading) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (state is TripsError) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: AnimatedEmptyState(
+                      title: 'Oops!',
+                      subtitle: 'Failed to load trips. Please pull down to refresh.',
+                      icon: Icons.cloud_off,
+                    ),
                   ),
-                ),
-              );
-            } else if (state is TripsLoaded) {
-              final tripData = state.tripEntity;
-              return SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 16),
-                      _buildTopBar(isDark),
-                      const SizedBox(height: 24),
-                      _buildSearchAndFilters(isDark),
-                      const SizedBox(height: 24),
-                      _buildTotalMileageCard(isDark, tripData.totalMileage),
-                      const SizedBox(height: 16),
-                      _buildStatCardsRow(isDark, tripData.totalRides, tripData.avgRating),
-                      const SizedBox(height: 32),
-                      _buildTripsList(isDark, tripData.bookings),
-                      const SizedBox(height: 24),
-                    ],
+                );
+              } else if (state is TripsLoaded) {
+                final tripData = state.tripEntity;
+                return SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 12),
+                        _buildTopBar(isDark),
+                        const SizedBox(height: 14),
+                        _buildSearchAndFilters(isDark),
+                        const SizedBox(height: 14),
+                        _buildStatCardsRow(isDark, tripData.totalRides, tripData.avgRating),
+                        const SizedBox(height: 16),
+                        _buildTripsList(isDark, tripData.bookings),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            }
-            return const SizedBox.shrink();
-          },
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
         ),
-      ),
-      bottomNavigationBar: _buildBottomNavigationBar(context, isDark),
+        bottomNavigationBar: _buildBottomNavigationBar(context, isDark),
       ),
     );
   }
 
   Widget _buildTopBar(bool isDark) {
     Widget buildHeader(String name, String rating, String imageUrl) {
-      return Row(
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: Colors.grey.shade200,
-                backgroundImage: imageUrl.isNotEmpty
-                    ? NetworkImage(imageUrl)
-                    : const AssetImage('assets/images/login.png') as ImageProvider,
-              ),
-              Positioned(
-                bottom: 0,
-                right: -2,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0D6EFD), // Blue dot
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
+      return Expanded(
+        child: Row(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.grey.shade200,
+                  child: ClipOval(
+                    child: imageUrl.isNotEmpty
+                        ? Image.network(
+                            imageUrl,
+                            width: 36,
+                            height: 36,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Image.asset(
+                              'assets/images/strive_logo.jpg',
+                              width: 36,
+                              height: 36,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : Image.asset(
+                            'assets/images/strive_logo.jpg',
+                            width: 36,
+                            height: 36,
+                            fit: BoxFit.cover,
+                          ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                Positioned(
+                  bottom: 0,
+                  right: -2,
+                  child: Container(
+                    width: 11,
+                    height: 11,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0D6EFD),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Icon(Icons.drive_eta, size: 10, color: Colors.white),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    name,
-                    style: GoogleFonts.inter(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black,
+                      color: const Color(0xFF0D6EFD), // Blue dot
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1.5),
                     ),
                   ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0D6EFD),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Icon(Icons.drive_eta, size: 9, color: Colors.white),
+                      ),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          name.isEmpty ? 'Puja Sri' : name,
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.grey.shade800 : Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.star_rounded, size: 13, color: Color(0xFFFFB800)),
+                        const SizedBox(width: 3),
+                        Text(
+                          rating == '0.0' || rating.isEmpty ? '5.0' : rating,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
                 ],
               ),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey.shade800 : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 12),
-                    const SizedBox(width: 4),
-                    Text(
-                      rating,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       );
     }
 
@@ -195,8 +223,8 @@ class _TripsPageState extends State<TripsPage> {
         sl.isRegistered<ProfileBloc>()
             ? BlocBuilder<ProfileBloc, ProfileState>(
                 builder: (context, state) {
-                  String name = 'Loading...';
-                  String rating = '0.0';
+                  String name = 'Puja Sri';
+                  String rating = '5.0';
                   String imageUrl = '';
 
                   if (state is ProfileLoaded) {
@@ -212,13 +240,14 @@ class _TripsPageState extends State<TripsPage> {
                   return buildHeader(name, rating, imageUrl);
                 },
               )
-            : buildHeader('Alexander Smith', '4.98', ''),
+            : buildHeader('Puja Sri', '5.0', ''),
+        const SizedBox(width: 10),
         Stack(
           clipBehavior: Clip.none,
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
                 color: isDark ? Colors.grey.shade800 : Colors.white,
                 shape: BoxShape.circle,
@@ -230,18 +259,18 @@ class _TripsPageState extends State<TripsPage> {
                   ),
                 ],
               ),
-              child: const Icon(Icons.notifications_none, color: Colors.black87),
+              child: Icon(Icons.notifications_none, size: 18, color: isDark ? Colors.white70 : Colors.black87),
             ),
             Positioned(
-              top: 10,
-              right: 12,
+              top: 8,
+              right: 10,
               child: Container(
-                width: 8,
-                height: 8,
+                width: 7,
+                height: 7,
                 decoration: BoxDecoration(
                   color: Colors.red,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1.5),
+                  border: Border.all(color: Colors.white, width: 1.2),
                 ),
               ),
             ),
@@ -258,26 +287,40 @@ class _TripsPageState extends State<TripsPage> {
           children: [
             Expanded(
               child: Container(
-                height: 50,
+                height: 42,
                 decoration: BoxDecoration(
                   color: isDark ? AppColors.surfaceDark : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
                 ),
                 child: Row(
                   children: [
-                    const SizedBox(width: 16),
-                    Icon(Icons.search, color: Colors.grey.shade500, size: 20),
                     const SizedBox(width: 12),
+                    Icon(Icons.search, color: Colors.grey.shade500, size: 18),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: TextField(
+                        controller: _searchController,
+                        onChanged: (val) => setState(() => _searchQuery = val.trim()),
+                        style: GoogleFonts.inter(fontSize: 13.5, color: isDark ? Colors.white : Colors.black),
                         decoration: InputDecoration(
-                          hintText: 'Search rides, clients...',
+                          hintText: 'Search rides, clients, locations...',
                           hintStyle: GoogleFonts.inter(
-                            fontSize: 15,
+                            fontSize: 13.5,
                             color: Colors.grey.shade500,
                           ),
                           border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? GestureDetector(
+                                  onTap: () {
+                                    _searchController.clear();
+                                    setState(() => _searchQuery = '');
+                                  },
+                                  child: Icon(Icons.clear, size: 16, color: Colors.grey.shade500),
+                                )
+                              : null,
                         ),
                       ),
                     ),
@@ -285,20 +328,9 @@ class _TripsPageState extends State<TripsPage> {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.surfaceDark : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
-              ),
-              child: const Icon(Icons.tune, color: Colors.black87),
-            ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -306,22 +338,24 @@ class _TripsPageState extends State<TripsPage> {
               'All Rides',
               'Corporate',
               'Private',
+              'Completed',
+              'Cancelled',
               'Last Month',
             ].map((filter) {
               final isSelected = filter == _selectedFilter;
               return GestureDetector(
                 onTap: () => setState(() => _selectedFilter = filter),
                 child: Container(
-                  margin: const EdgeInsets.only(right: 12),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                   decoration: BoxDecoration(
                     color: isSelected ? const Color(0xFF0D52D6) : (isDark ? Colors.grey.shade800 : const Color(0xFFEFEFF4)),
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     filter,
                     style: GoogleFonts.inter(
-                      fontSize: 14,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                       color: isSelected ? Colors.white : (isDark ? Colors.grey.shade300 : const Color(0xFF4A5568)),
                     ),
@@ -335,149 +369,105 @@ class _TripsPageState extends State<TripsPage> {
     );
   }
 
-  Widget _buildTotalMileageCard(bool isDark, double totalMileage) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'TOTAL MILEAGE',
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    totalMileage.toStringAsFixed(0),
-                    style: GoogleFonts.inter(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : const Color(0xFF1E293B),
-                      letterSpacing: -1,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'km',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          SizedBox(
-            width: 80,
-            height: 40,
-            child: CustomPaint(
-              painter: WavePainter(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildStatCardsRow(bool isDark, int totalRides, double avgRating) {
+    final ratingVal = avgRating > 0 ? avgRating : 5.0;
     return Row(
       children: [
         Expanded(
-          child: _buildSquareStatCard(
-            icon: Icons.directions_car_outlined,
-            iconColor: const Color(0xFF0D52D6),
-            iconBg: const Color(0xFFEAF1FF),
+          child: _buildModernStatCard(
+            isDark: isDark,
             title: 'Total Rides',
             value: totalRides.toString(),
-            isDark: isDark,
+            icon: Icons.directions_car,
+            accentColor: const Color(0xFF0D52D6),
+            badgeText: 'Completed',
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 10),
         Expanded(
-          child: _buildSquareStatCard(
-            icon: Icons.star_outline,
-            iconColor: const Color(0xFFE23C00),
-            iconBg: const Color(0xFFFFF0EA),
-            title: 'Avg. Rating',
-            value: avgRating.toStringAsFixed(2),
+          child: _buildModernStatCard(
             isDark: isDark,
+            title: 'Avg. Rating',
+            value: '${ratingVal.toStringAsFixed(1)} ★',
+            icon: Icons.star,
+            accentColor: const Color(0xFFFF9800),
+            badgeText: 'Driver Rating',
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSquareStatCard({
-    required IconData icon,
-    required Color iconColor,
-    required Color iconBg,
+  Widget _buildModernStatCard({
+    required bool isDark,
     required String title,
     required String value,
-    required bool isDark,
+    required IconData icon,
+    required Color accentColor,
+    required String badgeText,
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : accentColor.withValues(alpha: 0.15),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: iconBg,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: iconColor, size: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: accentColor, size: 16),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  badgeText,
+                  style: GoogleFonts.inter(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: accentColor,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Text(
             title,
             style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             value,
             style: GoogleFonts.inter(
-              fontSize: 24,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
               color: isDark ? Colors.white : const Color(0xFF1E293B),
             ),
@@ -488,21 +478,57 @@ class _TripsPageState extends State<TripsPage> {
   }
 
   Widget _buildTripsList(bool isDark, List<BookingEntity> bookings) {
-    if (bookings.isEmpty) {
-      return const AnimatedEmptyState(
-        title: 'No Recent Bookings',
-        subtitle: 'Complete trips to see your bookings here.',
-        icon: Icons.history,
+    final filteredBookings = bookings.where((booking) {
+      // 1. Search Query Filter
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery.toLowerCase();
+        final matchesName = booking.clientName.toLowerCase().contains(q);
+        final matchesPickup = booking.pickupLocation.toLowerCase().contains(q);
+        final matchesDrop = booking.dropoffLocation.toLowerCase().contains(q);
+        final matchesStatus = booking.status.toLowerCase().contains(q);
+        final matchesTag = booking.tag.toLowerCase().contains(q);
+        if (!matchesName && !matchesPickup && !matchesDrop && !matchesStatus && !matchesTag) {
+          return false;
+        }
+      }
+
+      // 2. Category / Filter Chip
+      if (_selectedFilter == 'Corporate') {
+        return booking.tag.toUpperCase() == 'CORPORATE';
+      } else if (_selectedFilter == 'Private') {
+        return booking.tag.toUpperCase() == 'SELF' || booking.tag.toUpperCase() == 'PRIVATE';
+      } else if (_selectedFilter == 'Completed') {
+        final st = booking.status.toUpperCase();
+        return st.contains('COMPLET') || st == 'PAYMENT_COMPLETED' || st == 'TRIP_COMPLETED';
+      } else if (_selectedFilter == 'Cancelled') {
+        final st = booking.status.toUpperCase();
+        return st.contains('CANCEL') || st == 'EXPIRED';
+      } else if (_selectedFilter == 'Last Month') {
+        final now = DateTime.now();
+        final lastMonth = now.subtract(const Duration(days: 30));
+        return booking.timestamp.isAfter(lastMonth);
+      }
+
+      return true; // 'All Rides'
+    }).toList();
+
+    if (filteredBookings.isEmpty) {
+      return AnimatedEmptyState(
+        title: 'No Matching Rides',
+        subtitle: _searchQuery.isNotEmpty
+            ? 'No rides found matching "$_searchQuery".'
+            : 'No rides found under "$_selectedFilter".',
+        icon: Icons.search_off_rounded,
       );
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildDateHeader('RECENT RIDES', isDark),
-        const SizedBox(height: 12),
-        ...bookings.map((booking) => Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
+        _buildDateHeader('RIDES (${filteredBookings.length})', isDark),
+        const SizedBox(height: 10),
+        ...filteredBookings.map((booking) => Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
               child: _buildTripCard(
                 name: booking.clientName,
                 rating: booking.clientRating.toStringAsFixed(1),
@@ -522,8 +548,8 @@ class _TripsPageState extends State<TripsPage> {
     return Text(
       text,
       style: GoogleFonts.inter(
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
+        fontSize: 11,
+        fontWeight: FontWeight.bold,
         letterSpacing: 0.5,
         color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
       ),
@@ -541,15 +567,15 @@ class _TripsPageState extends State<TripsPage> {
     required bool isDark,
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -560,93 +586,99 @@ class _TripsPageState extends State<TripsPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  const CircleAvatar(
-                    radius: 20,
-                    backgroundImage: AssetImage('assets/images/login.png'), // Placeholder
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : const Color(0xFF1E293B),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
+              Expanded(
+                child: Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 16,
+                      backgroundImage: AssetImage('assets/images/login.png'),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 12),
-                          const SizedBox(width: 4),
                           Text(
-                            rating,
+                            name,
                             style: GoogleFonts.inter(
-                              fontSize: 12,
+                              fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                              color: isDark ? Colors.white : const Color(0xFF1E293B),
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 8),
-                          Container(
-                            width: 4,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade400,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEAF1FF),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              tag,
-                              style: GoogleFonts.inter(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFF0D52D6),
+                          const SizedBox(height: 3),
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.star, color: Colors.amber, size: 11),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    rating,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
+                              Container(
+                                width: 3,
+                                height: 3,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade400,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEAF1FF),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  tag,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: const Color(0xFF0D52D6),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
                     price,
                     style: GoogleFonts.inter(
-                      fontSize: 18,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
                       color: isDark ? Colors.white : const Color(0xFF1E293B),
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    status,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF0D52D6),
-                    ),
-                  ),
+                  _buildStatusFlag(status, isDark),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           // Route Locations
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -655,8 +687,8 @@ class _TripsPageState extends State<TripsPage> {
                 children: [
                   const SizedBox(height: 4),
                   Container(
-                    width: 8,
-                    height: 8,
+                    width: 7,
+                    height: 7,
                     decoration: BoxDecoration(
                       color: Colors.grey.shade500,
                       shape: BoxShape.circle,
@@ -664,13 +696,13 @@ class _TripsPageState extends State<TripsPage> {
                   ),
                   Container(
                     width: 1,
-                    height: 24,
+                    height: 16,
                     color: Colors.grey.shade300,
-                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    margin: const EdgeInsets.symmetric(vertical: 3),
                   ),
                   Container(
-                    width: 12,
-                    height: 12,
+                    width: 10,
+                    height: 10,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(color: const Color(0xFF0D52D6), width: 2),
@@ -678,7 +710,7 @@ class _TripsPageState extends State<TripsPage> {
                   ),
                 ],
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -686,17 +718,17 @@ class _TripsPageState extends State<TripsPage> {
                     Text(
                       pickup,
                       style: GoogleFonts.inter(
-                        fontSize: 14,
+                        fontSize: 12.5,
                         color: isDark ? Colors.grey.shade300 : const Color(0xFF4A5568),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 24), // Spacing matches the line
+                    const SizedBox(height: 12),
                     Text(
                       dropoff,
                       style: GoogleFonts.inter(
-                        fontSize: 14,
+                        fontSize: 12.5,
                         color: isDark ? Colors.grey.shade300 : const Color(0xFF4A5568),
                       ),
                       maxLines: 1,
@@ -706,6 +738,65 @@ class _TripsPageState extends State<TripsPage> {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusFlag(String status, bool isDark) {
+    final upper = status.toUpperCase();
+
+    Color bgColor;
+    Color textColor;
+    String displayText;
+    IconData? icon;
+
+    if (upper.contains('COMPLET') || upper == 'PAYMENT_COMPLETED' || upper == 'TRIP_COMPLETED') {
+      // Green flag for Completed
+      bgColor = isDark ? const Color(0xFF1B3A2B) : const Color(0xFFE6F4EA);
+      textColor = isDark ? const Color(0xFF81C784) : const Color(0xFF137333);
+      displayText = 'Completed';
+      icon = Icons.check_circle;
+    } else if (upper.contains('DROP') || upper.contains('EARLY') || upper == 'DROP_REQUESTED' || upper == 'DROP_ACCEPTED') {
+      // Yellow flag for Drop Request
+      bgColor = isDark ? const Color(0xFF3A301B) : const Color(0xFFFEF7E0);
+      textColor = isDark ? const Color(0xFFFFD54F) : const Color(0xFFB06000);
+      displayText = 'Drop Requested';
+      icon = Icons.alt_route;
+    } else if (upper.contains('CANCEL') || upper.contains('EXPIRED') || upper == 'CUSTOMER_CANCELLED' || upper == 'RIDER_CANCELLED') {
+      // Red flag for Cancelled
+      bgColor = isDark ? const Color(0xFF3C1E1E) : const Color(0xFFFCE8E6);
+      textColor = isDark ? const Color(0xFFE57373) : const Color(0xFFC5221F);
+      displayText = 'Cancelled';
+      icon = Icons.cancel;
+    } else {
+      // Default blue flag for Active / Searching / Accepted / In Progress
+      bgColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFEAF1FF);
+      textColor = isDark ? const Color(0xFF90CAF9) : const Color(0xFF0D52D6);
+      displayText = status.replaceAll('_', ' ').toLowerCase();
+      displayText = displayText.isEmpty ? 'Active' : '${displayText[0].toUpperCase()}${displayText.substring(1)}';
+      icon = Icons.directions_car;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 10, color: textColor),
+          const SizedBox(width: 3),
+          Text(
+            displayText,
+            style: GoogleFonts.inter(
+              fontSize: 9.5,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
           ),
         ],
       ),
@@ -740,46 +831,16 @@ class _TripsPageState extends State<TripsPage> {
         backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
         selectedItemColor: AppColors.primaryBlue,
         unselectedItemColor: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
-        selectedLabelStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500),
+        selectedLabelStyle: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w500),
         items: const [
-          BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.home_outlined)), activeIcon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.home)), label: 'Home'),
-          BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.history)), label: 'Trips'),
-          BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.currency_rupee)), label: 'Earnings'),
-          BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.settings_outlined)), label: 'Settings'),
+          BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 2), child: Icon(Icons.home_outlined, size: 20)), activeIcon: Padding(padding: EdgeInsets.only(bottom: 2), child: Icon(Icons.home, size: 20)), label: 'Home'),
+          BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 2), child: Icon(Icons.history, size: 20)), label: 'Trips'),
+          BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 2), child: Icon(Icons.currency_rupee, size: 20)), label: 'Earnings'),
+          BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 2), child: Icon(Icons.settings_outlined, size: 20)), label: 'Settings'),
         ],
       ),
     );
   }
 }
 
-class WavePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF0D52D6)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round;
-
-    final path = Path();
-    path.moveTo(0, size.height * 0.7);
-    
-    // Draw a smooth bezier curve resembling the mockup sparkline
-    path.cubicTo(
-      size.width * 0.25, size.height * 0.7, 
-      size.width * 0.25, size.height * 0.1, 
-      size.width * 0.5, size.height * 0.1
-    );
-    path.cubicTo(
-      size.width * 0.75, size.height * 0.1, 
-      size.width * 0.75, size.height * 0.8, 
-      size.width, size.height * 0.1
-    );
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}

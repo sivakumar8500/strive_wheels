@@ -25,6 +25,13 @@ mixin _$ProfileEntity {
   String get dob;
   String get gender;
   String get status;
+  String get vehicleMake;
+  String get vehicleModel;
+  String get vehicleNumber;
+  String get vehicleType;
+  String get vehicleColor;
+  String get vehicleYear;
+  String get fuelType;
 
   /// Create a copy of ProfileEntity
   /// with the given fields replaced by the non-null parameter values.
@@ -52,7 +59,21 @@ mixin _$ProfileEntity {
             (identical(other.email, email) || other.email == email) &&
             (identical(other.dob, dob) || other.dob == dob) &&
             (identical(other.gender, gender) || other.gender == gender) &&
-            (identical(other.status, status) || other.status == status));
+            (identical(other.status, status) || other.status == status) &&
+            (identical(other.vehicleMake, vehicleMake) ||
+                other.vehicleMake == vehicleMake) &&
+            (identical(other.vehicleModel, vehicleModel) ||
+                other.vehicleModel == vehicleModel) &&
+            (identical(other.vehicleNumber, vehicleNumber) ||
+                other.vehicleNumber == vehicleNumber) &&
+            (identical(other.vehicleType, vehicleType) ||
+                other.vehicleType == vehicleType) &&
+            (identical(other.vehicleColor, vehicleColor) ||
+                other.vehicleColor == vehicleColor) &&
+            (identical(other.vehicleYear, vehicleYear) ||
+                other.vehicleYear == vehicleYear) &&
+            (identical(other.fuelType, fuelType) ||
+                other.fuelType == fuelType));
   }
 
   @override
@@ -68,11 +89,18 @@ mixin _$ProfileEntity {
       email,
       dob,
       gender,
-      status);
+      status,
+      vehicleMake,
+      vehicleModel,
+      vehicleNumber,
+      vehicleType,
+      vehicleColor,
+      vehicleYear,
+      fuelType);
 
   @override
   String toString() {
-    return 'ProfileEntity(id: $id, name: $name, rating: $rating, profileImageUrl: $profileImageUrl, totalEarnings: $totalEarnings, walletBalance: $walletBalance, phone: $phone, email: $email, dob: $dob, gender: $gender, status: $status)';
+    return 'ProfileEntity(id: $id, name: $name, rating: $rating, profileImageUrl: $profileImageUrl, totalEarnings: $totalEarnings, walletBalance: $walletBalance, phone: $phone, email: $email, dob: $dob, gender: $gender, status: $status, vehicleMake: $vehicleMake, vehicleModel: $vehicleModel, vehicleNumber: $vehicleNumber, vehicleType: $vehicleType, vehicleColor: $vehicleColor, vehicleYear: $vehicleYear, fuelType: $fuelType)';
   }
 }
 
@@ -93,7 +121,14 @@ abstract mixin class $ProfileEntityCopyWith<$Res> {
       String email,
       String dob,
       String gender,
-      String status});
+      String status,
+      String vehicleMake,
+      String vehicleModel,
+      String vehicleNumber,
+      String vehicleType,
+      String vehicleColor,
+      String vehicleYear,
+      String fuelType});
 }
 
 /// @nodoc
@@ -120,6 +155,13 @@ class _$ProfileEntityCopyWithImpl<$Res>
     Object? dob = null,
     Object? gender = null,
     Object? status = null,
+    Object? vehicleMake = null,
+    Object? vehicleModel = null,
+    Object? vehicleNumber = null,
+    Object? vehicleType = null,
+    Object? vehicleColor = null,
+    Object? vehicleYear = null,
+    Object? fuelType = null,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -165,6 +207,34 @@ class _$ProfileEntityCopyWithImpl<$Res>
       status: null == status
           ? _self.status
           : status // ignore: cast_nullable_to_non_nullable
+              as String,
+      vehicleMake: null == vehicleMake
+          ? _self.vehicleMake
+          : vehicleMake // ignore: cast_nullable_to_non_nullable
+              as String,
+      vehicleModel: null == vehicleModel
+          ? _self.vehicleModel
+          : vehicleModel // ignore: cast_nullable_to_non_nullable
+              as String,
+      vehicleNumber: null == vehicleNumber
+          ? _self.vehicleNumber
+          : vehicleNumber // ignore: cast_nullable_to_non_nullable
+              as String,
+      vehicleType: null == vehicleType
+          ? _self.vehicleType
+          : vehicleType // ignore: cast_nullable_to_non_nullable
+              as String,
+      vehicleColor: null == vehicleColor
+          ? _self.vehicleColor
+          : vehicleColor // ignore: cast_nullable_to_non_nullable
+              as String,
+      vehicleYear: null == vehicleYear
+          ? _self.vehicleYear
+          : vehicleYear // ignore: cast_nullable_to_non_nullable
+              as String,
+      fuelType: null == fuelType
+          ? _self.fuelType
+          : fuelType // ignore: cast_nullable_to_non_nullable
               as String,
     ));
   }
@@ -274,7 +344,14 @@ extension ProfileEntityPatterns on ProfileEntity {
             String email,
             String dob,
             String gender,
-            String status)?
+            String status,
+            String vehicleMake,
+            String vehicleModel,
+            String vehicleNumber,
+            String vehicleType,
+            String vehicleColor,
+            String vehicleYear,
+            String fuelType)?
         $default, {
     required TResult orElse(),
   }) {
@@ -292,7 +369,14 @@ extension ProfileEntityPatterns on ProfileEntity {
             _that.email,
             _that.dob,
             _that.gender,
-            _that.status);
+            _that.status,
+            _that.vehicleMake,
+            _that.vehicleModel,
+            _that.vehicleNumber,
+            _that.vehicleType,
+            _that.vehicleColor,
+            _that.vehicleYear,
+            _that.fuelType);
       case _:
         return orElse();
     }
@@ -324,7 +408,14 @@ extension ProfileEntityPatterns on ProfileEntity {
             String email,
             String dob,
             String gender,
-            String status)
+            String status,
+            String vehicleMake,
+            String vehicleModel,
+            String vehicleNumber,
+            String vehicleType,
+            String vehicleColor,
+            String vehicleYear,
+            String fuelType)
         $default,
   ) {
     final _that = this;
@@ -341,7 +432,14 @@ extension ProfileEntityPatterns on ProfileEntity {
             _that.email,
             _that.dob,
             _that.gender,
-            _that.status);
+            _that.status,
+            _that.vehicleMake,
+            _that.vehicleModel,
+            _that.vehicleNumber,
+            _that.vehicleType,
+            _that.vehicleColor,
+            _that.vehicleYear,
+            _that.fuelType);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -372,7 +470,14 @@ extension ProfileEntityPatterns on ProfileEntity {
             String email,
             String dob,
             String gender,
-            String status)?
+            String status,
+            String vehicleMake,
+            String vehicleModel,
+            String vehicleNumber,
+            String vehicleType,
+            String vehicleColor,
+            String vehicleYear,
+            String fuelType)?
         $default,
   ) {
     final _that = this;
@@ -389,7 +494,14 @@ extension ProfileEntityPatterns on ProfileEntity {
             _that.email,
             _that.dob,
             _that.gender,
-            _that.status);
+            _that.status,
+            _that.vehicleMake,
+            _that.vehicleModel,
+            _that.vehicleNumber,
+            _that.vehicleType,
+            _that.vehicleColor,
+            _that.vehicleYear,
+            _that.fuelType);
       case _:
         return null;
     }
@@ -410,7 +522,14 @@ class _ProfileEntity extends ProfileEntity {
       required this.email,
       required this.dob,
       required this.gender,
-      required this.status})
+      required this.status,
+      this.vehicleMake = 'Toyota',
+      this.vehicleModel = 'Innova Crysta',
+      this.vehicleNumber = 'TS 09 EQ 1234',
+      this.vehicleType = 'SUV',
+      this.vehicleColor = 'Pearl White',
+      this.vehicleYear = '2023',
+      this.fuelType = 'Diesel'})
       : super._();
 
   @override
@@ -435,6 +554,27 @@ class _ProfileEntity extends ProfileEntity {
   final String gender;
   @override
   final String status;
+  @override
+  @JsonKey()
+  final String vehicleMake;
+  @override
+  @JsonKey()
+  final String vehicleModel;
+  @override
+  @JsonKey()
+  final String vehicleNumber;
+  @override
+  @JsonKey()
+  final String vehicleType;
+  @override
+  @JsonKey()
+  final String vehicleColor;
+  @override
+  @JsonKey()
+  final String vehicleYear;
+  @override
+  @JsonKey()
+  final String fuelType;
 
   /// Create a copy of ProfileEntity
   /// with the given fields replaced by the non-null parameter values.
@@ -462,7 +602,21 @@ class _ProfileEntity extends ProfileEntity {
             (identical(other.email, email) || other.email == email) &&
             (identical(other.dob, dob) || other.dob == dob) &&
             (identical(other.gender, gender) || other.gender == gender) &&
-            (identical(other.status, status) || other.status == status));
+            (identical(other.status, status) || other.status == status) &&
+            (identical(other.vehicleMake, vehicleMake) ||
+                other.vehicleMake == vehicleMake) &&
+            (identical(other.vehicleModel, vehicleModel) ||
+                other.vehicleModel == vehicleModel) &&
+            (identical(other.vehicleNumber, vehicleNumber) ||
+                other.vehicleNumber == vehicleNumber) &&
+            (identical(other.vehicleType, vehicleType) ||
+                other.vehicleType == vehicleType) &&
+            (identical(other.vehicleColor, vehicleColor) ||
+                other.vehicleColor == vehicleColor) &&
+            (identical(other.vehicleYear, vehicleYear) ||
+                other.vehicleYear == vehicleYear) &&
+            (identical(other.fuelType, fuelType) ||
+                other.fuelType == fuelType));
   }
 
   @override
@@ -478,11 +632,18 @@ class _ProfileEntity extends ProfileEntity {
       email,
       dob,
       gender,
-      status);
+      status,
+      vehicleMake,
+      vehicleModel,
+      vehicleNumber,
+      vehicleType,
+      vehicleColor,
+      vehicleYear,
+      fuelType);
 
   @override
   String toString() {
-    return 'ProfileEntity(id: $id, name: $name, rating: $rating, profileImageUrl: $profileImageUrl, totalEarnings: $totalEarnings, walletBalance: $walletBalance, phone: $phone, email: $email, dob: $dob, gender: $gender, status: $status)';
+    return 'ProfileEntity(id: $id, name: $name, rating: $rating, profileImageUrl: $profileImageUrl, totalEarnings: $totalEarnings, walletBalance: $walletBalance, phone: $phone, email: $email, dob: $dob, gender: $gender, status: $status, vehicleMake: $vehicleMake, vehicleModel: $vehicleModel, vehicleNumber: $vehicleNumber, vehicleType: $vehicleType, vehicleColor: $vehicleColor, vehicleYear: $vehicleYear, fuelType: $fuelType)';
   }
 }
 
@@ -505,7 +666,14 @@ abstract mixin class _$ProfileEntityCopyWith<$Res>
       String email,
       String dob,
       String gender,
-      String status});
+      String status,
+      String vehicleMake,
+      String vehicleModel,
+      String vehicleNumber,
+      String vehicleType,
+      String vehicleColor,
+      String vehicleYear,
+      String fuelType});
 }
 
 /// @nodoc
@@ -532,6 +700,13 @@ class __$ProfileEntityCopyWithImpl<$Res>
     Object? dob = null,
     Object? gender = null,
     Object? status = null,
+    Object? vehicleMake = null,
+    Object? vehicleModel = null,
+    Object? vehicleNumber = null,
+    Object? vehicleType = null,
+    Object? vehicleColor = null,
+    Object? vehicleYear = null,
+    Object? fuelType = null,
   }) {
     return _then(_ProfileEntity(
       id: null == id
@@ -577,6 +752,34 @@ class __$ProfileEntityCopyWithImpl<$Res>
       status: null == status
           ? _self.status
           : status // ignore: cast_nullable_to_non_nullable
+              as String,
+      vehicleMake: null == vehicleMake
+          ? _self.vehicleMake
+          : vehicleMake // ignore: cast_nullable_to_non_nullable
+              as String,
+      vehicleModel: null == vehicleModel
+          ? _self.vehicleModel
+          : vehicleModel // ignore: cast_nullable_to_non_nullable
+              as String,
+      vehicleNumber: null == vehicleNumber
+          ? _self.vehicleNumber
+          : vehicleNumber // ignore: cast_nullable_to_non_nullable
+              as String,
+      vehicleType: null == vehicleType
+          ? _self.vehicleType
+          : vehicleType // ignore: cast_nullable_to_non_nullable
+              as String,
+      vehicleColor: null == vehicleColor
+          ? _self.vehicleColor
+          : vehicleColor // ignore: cast_nullable_to_non_nullable
+              as String,
+      vehicleYear: null == vehicleYear
+          ? _self.vehicleYear
+          : vehicleYear // ignore: cast_nullable_to_non_nullable
+              as String,
+      fuelType: null == fuelType
+          ? _self.fuelType
+          : fuelType // ignore: cast_nullable_to_non_nullable
               as String,
     ));
   }

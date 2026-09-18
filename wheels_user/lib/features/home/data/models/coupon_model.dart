@@ -10,6 +10,8 @@ abstract class CouponModel with _$CouponModel {
     required String code,
     @JsonKey(name: 'discount_type') String? discountType,
     @JsonKey(name: 'discount_value') num? discountValue,
+    @JsonKey(name: 'valid_until') String? validUntil,
+    @JsonKey(name: 'expires_at') String? expiresAt,
   }) = _CouponModel;
 
   factory CouponModel.fromJson(Map<String, dynamic> json) =>

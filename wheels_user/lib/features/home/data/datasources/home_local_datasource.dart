@@ -11,7 +11,7 @@ class HomeLocalDataSourceImpl implements HomeLocalDataSource {
   @override
   Future<HomeDashboardModel> getHomeDashboardData() async {
     return const HomeDashboardModel(
-      userName: 'JW',
+      userName: 'Nikhil',
       greetingTitle: AppStrings.goodMorning,
       greetingSubtitle: AppStrings.readyForNextRide,
       recentRideTitle: AppStrings.recentRideOfficeToHome,

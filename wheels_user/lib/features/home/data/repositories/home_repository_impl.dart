@@ -1,3 +1,4 @@
+import '../../../../core/network/api_constants.dart';
 import '../../domain/entities/home_dashboard_entity.dart';
 import '../../domain/repositories/home_repository.dart';
 import '../datasources/home_local_datasource.dart';
@@ -24,12 +25,18 @@ class HomeRepositoryImpl implements HomeRepository {
 
     try {
       final rawServices = await remoteDataSource.getQuickServices();
-      quickServices = rawServices.map((m) => QuickServiceEntity(
-        id: m.id.toString(),
-        title: m.title,
-        subtitle: m.subtitle,
-        iconUrl: m.iconUrl ?? '',
-      )).toList();
+      quickServices = rawServices.map((m) {
+        String icon = m.iconUrl ?? '';
+        if (icon.isNotEmpty && !icon.startsWith('http')) {
+          icon = '${ApiConstants.baseUrl}$icon';
+        }
+        return QuickServiceEntity(
+          id: m.id.toString(),
+          title: m.title,
+          subtitle: m.subtitle,
+          iconUrl: icon,
+        );
+      }).toList();
     } catch (_) {}
 
     try {
@@ -44,12 +51,18 @@ class HomeRepositoryImpl implements HomeRepository {
 
     try {
       final rawCoupons = await remoteDataSource.getActiveCoupons();
-      coupons = rawCoupons.map((m) => CouponEntity(
-        id: m.id.toString(),
-        title: '${m.discountValue} OFF',
-        code: m.code,
-        description: m.discountType ?? '',
-      )).toList();
+      coupons = rawCoupons.map((m) {
+        final val = (m.discountValue != null && m.discountValue != 0)
+            ? '${m.discountValue} OFF'
+            : (m.code.isNotEmpty ? m.code : 'SPECIAL OFFER');
+        return CouponEntity(
+          id: m.id.toString(),
+          title: val,
+          code: m.code,
+          description: m.discountType ?? '',
+          validUntil: m.validUntil ?? m.expiresAt ?? '',
+        );
+      }).toList();
     } catch (_) {}
 
     return HomeDashboardEntity(

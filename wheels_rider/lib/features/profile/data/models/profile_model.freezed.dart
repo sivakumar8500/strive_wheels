@@ -24,6 +24,8 @@ mixin _$ProfileModel {
   double? get walletBalance;
   @JsonKey(name: 'user')
   Map<String, dynamic>? get user;
+  @JsonKey(name: 'vehicle_detail')
+  Map<String, dynamic>? get vehicleDetail;
 
   /// Create a copy of ProfileModel
   /// with the given fields replaced by the non-null parameter values.
@@ -32,9 +34,6 @@ mixin _$ProfileModel {
   $ProfileModelCopyWith<ProfileModel> get copyWith =>
       _$ProfileModelCopyWithImpl<ProfileModel>(
           this as ProfileModel, _$identity);
-
-  /// Serializes this ProfileModel to a JSON map.
-  Map<String, dynamic> toJson();
 
   @override
   bool operator ==(Object other) {
@@ -47,17 +46,24 @@ mixin _$ProfileModel {
                 other.totalEarnings == totalEarnings) &&
             (identical(other.walletBalance, walletBalance) ||
                 other.walletBalance == walletBalance) &&
-            const DeepCollectionEquality().equals(other.user, user));
+            const DeepCollectionEquality().equals(other.user, user) &&
+            const DeepCollectionEquality()
+                .equals(other.vehicleDetail, vehicleDetail));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, rating, totalEarnings,
-      walletBalance, const DeepCollectionEquality().hash(user));
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      rating,
+      totalEarnings,
+      walletBalance,
+      const DeepCollectionEquality().hash(user),
+      const DeepCollectionEquality().hash(vehicleDetail));
 
   @override
   String toString() {
-    return 'ProfileModel(id: $id, rating: $rating, totalEarnings: $totalEarnings, walletBalance: $walletBalance, user: $user)';
+    return 'ProfileModel(id: $id, rating: $rating, totalEarnings: $totalEarnings, walletBalance: $walletBalance, user: $user, vehicleDetail: $vehicleDetail)';
   }
 }
 
@@ -72,7 +78,8 @@ abstract mixin class $ProfileModelCopyWith<$Res> {
       @JsonKey(name: 'rating_avg') double? rating,
       @JsonKey(name: 'total_earnings') double? totalEarnings,
       @JsonKey(name: 'wallet_balance') double? walletBalance,
-      @JsonKey(name: 'user') Map<String, dynamic>? user});
+      @JsonKey(name: 'user') Map<String, dynamic>? user,
+      @JsonKey(name: 'vehicle_detail') Map<String, dynamic>? vehicleDetail});
 }
 
 /// @nodoc
@@ -92,6 +99,7 @@ class _$ProfileModelCopyWithImpl<$Res> implements $ProfileModelCopyWith<$Res> {
     Object? totalEarnings = freezed,
     Object? walletBalance = freezed,
     Object? user = freezed,
+    Object? vehicleDetail = freezed,
   }) {
     return _then(_self.copyWith(
       id: freezed == id
@@ -113,6 +121,10 @@ class _$ProfileModelCopyWithImpl<$Res> implements $ProfileModelCopyWith<$Res> {
       user: freezed == user
           ? _self.user
           : user // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>?,
+      vehicleDetail: freezed == vehicleDetail
+          ? _self.vehicleDetail
+          : vehicleDetail // ignore: cast_nullable_to_non_nullable
               as Map<String, dynamic>?,
     ));
   }
@@ -216,7 +228,9 @@ extension ProfileModelPatterns on ProfileModel {
             @JsonKey(name: 'rating_avg') double? rating,
             @JsonKey(name: 'total_earnings') double? totalEarnings,
             @JsonKey(name: 'wallet_balance') double? walletBalance,
-            @JsonKey(name: 'user') Map<String, dynamic>? user)?
+            @JsonKey(name: 'user') Map<String, dynamic>? user,
+            @JsonKey(name: 'vehicle_detail')
+            Map<String, dynamic>? vehicleDetail)?
         $default, {
     required TResult orElse(),
   }) {
@@ -224,7 +238,7 @@ extension ProfileModelPatterns on ProfileModel {
     switch (_that) {
       case _ProfileModel() when $default != null:
         return $default(_that.id, _that.rating, _that.totalEarnings,
-            _that.walletBalance, _that.user);
+            _that.walletBalance, _that.user, _that.vehicleDetail);
       case _:
         return orElse();
     }
@@ -250,14 +264,16 @@ extension ProfileModelPatterns on ProfileModel {
             @JsonKey(name: 'rating_avg') double? rating,
             @JsonKey(name: 'total_earnings') double? totalEarnings,
             @JsonKey(name: 'wallet_balance') double? walletBalance,
-            @JsonKey(name: 'user') Map<String, dynamic>? user)
+            @JsonKey(name: 'user') Map<String, dynamic>? user,
+            @JsonKey(name: 'vehicle_detail')
+            Map<String, dynamic>? vehicleDetail)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _ProfileModel():
         return $default(_that.id, _that.rating, _that.totalEarnings,
-            _that.walletBalance, _that.user);
+            _that.walletBalance, _that.user, _that.vehicleDetail);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -282,14 +298,16 @@ extension ProfileModelPatterns on ProfileModel {
             @JsonKey(name: 'rating_avg') double? rating,
             @JsonKey(name: 'total_earnings') double? totalEarnings,
             @JsonKey(name: 'wallet_balance') double? walletBalance,
-            @JsonKey(name: 'user') Map<String, dynamic>? user)?
+            @JsonKey(name: 'user') Map<String, dynamic>? user,
+            @JsonKey(name: 'vehicle_detail')
+            Map<String, dynamic>? vehicleDetail)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _ProfileModel() when $default != null:
         return $default(_that.id, _that.rating, _that.totalEarnings,
-            _that.walletBalance, _that.user);
+            _that.walletBalance, _that.user, _that.vehicleDetail);
       case _:
         return null;
     }
@@ -297,18 +315,19 @@ extension ProfileModelPatterns on ProfileModel {
 }
 
 /// @nodoc
-@JsonSerializable()
+
 class _ProfileModel extends ProfileModel {
   const _ProfileModel(
       {@JsonKey(name: 'id') this.id,
       @JsonKey(name: 'rating_avg') this.rating,
       @JsonKey(name: 'total_earnings') this.totalEarnings,
       @JsonKey(name: 'wallet_balance') this.walletBalance,
-      @JsonKey(name: 'user') final Map<String, dynamic>? user})
+      @JsonKey(name: 'user') final Map<String, dynamic>? user,
+      @JsonKey(name: 'vehicle_detail')
+      final Map<String, dynamic>? vehicleDetail})
       : _user = user,
+        _vehicleDetail = vehicleDetail,
         super._();
-  factory _ProfileModel.fromJson(Map<String, dynamic> json) =>
-      _$ProfileModelFromJson(json);
 
   @override
   @JsonKey(name: 'id')
@@ -333,6 +352,17 @@ class _ProfileModel extends ProfileModel {
     return EqualUnmodifiableMapView(value);
   }
 
+  final Map<String, dynamic>? _vehicleDetail;
+  @override
+  @JsonKey(name: 'vehicle_detail')
+  Map<String, dynamic>? get vehicleDetail {
+    final value = _vehicleDetail;
+    if (value == null) return null;
+    if (_vehicleDetail is EqualUnmodifiableMapView) return _vehicleDetail;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(value);
+  }
+
   /// Create a copy of ProfileModel
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -340,13 +370,6 @@ class _ProfileModel extends ProfileModel {
   @pragma('vm:prefer-inline')
   _$ProfileModelCopyWith<_ProfileModel> get copyWith =>
       __$ProfileModelCopyWithImpl<_ProfileModel>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$ProfileModelToJson(
-      this,
-    );
-  }
 
   @override
   bool operator ==(Object other) {
@@ -359,17 +382,24 @@ class _ProfileModel extends ProfileModel {
                 other.totalEarnings == totalEarnings) &&
             (identical(other.walletBalance, walletBalance) ||
                 other.walletBalance == walletBalance) &&
-            const DeepCollectionEquality().equals(other._user, _user));
+            const DeepCollectionEquality().equals(other._user, _user) &&
+            const DeepCollectionEquality()
+                .equals(other._vehicleDetail, _vehicleDetail));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, rating, totalEarnings,
-      walletBalance, const DeepCollectionEquality().hash(_user));
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      rating,
+      totalEarnings,
+      walletBalance,
+      const DeepCollectionEquality().hash(_user),
+      const DeepCollectionEquality().hash(_vehicleDetail));
 
   @override
   String toString() {
-    return 'ProfileModel(id: $id, rating: $rating, totalEarnings: $totalEarnings, walletBalance: $walletBalance, user: $user)';
+    return 'ProfileModel(id: $id, rating: $rating, totalEarnings: $totalEarnings, walletBalance: $walletBalance, user: $user, vehicleDetail: $vehicleDetail)';
   }
 }
 
@@ -386,7 +416,8 @@ abstract mixin class _$ProfileModelCopyWith<$Res>
       @JsonKey(name: 'rating_avg') double? rating,
       @JsonKey(name: 'total_earnings') double? totalEarnings,
       @JsonKey(name: 'wallet_balance') double? walletBalance,
-      @JsonKey(name: 'user') Map<String, dynamic>? user});
+      @JsonKey(name: 'user') Map<String, dynamic>? user,
+      @JsonKey(name: 'vehicle_detail') Map<String, dynamic>? vehicleDetail});
 }
 
 /// @nodoc
@@ -407,6 +438,7 @@ class __$ProfileModelCopyWithImpl<$Res>
     Object? totalEarnings = freezed,
     Object? walletBalance = freezed,
     Object? user = freezed,
+    Object? vehicleDetail = freezed,
   }) {
     return _then(_ProfileModel(
       id: freezed == id
@@ -428,6 +460,10 @@ class __$ProfileModelCopyWithImpl<$Res>
       user: freezed == user
           ? _self._user
           : user // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>?,
+      vehicleDetail: freezed == vehicleDetail
+          ? _self._vehicleDetail
+          : vehicleDetail // ignore: cast_nullable_to_non_nullable
               as Map<String, dynamic>?,
     ));
   }

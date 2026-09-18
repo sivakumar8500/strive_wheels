@@ -14,6 +14,8 @@ class HomeSearchBar extends StatefulWidget {
   final VoidCallback? onMicTap;
   final VoidCallback? onNotificationTap;
   final VoidCallback? onAvatarTap;
+  final String? profileImageUrl;
+  final String? userName;
   final bool readOnly;
 
   const HomeSearchBar({
@@ -26,6 +28,8 @@ class HomeSearchBar extends StatefulWidget {
     this.onMicTap,
     this.onNotificationTap,
     this.onAvatarTap,
+    this.profileImageUrl,
+    this.userName,
     this.readOnly = false,
   });
 
@@ -87,22 +91,12 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
       ),
       child: Row(
         children: [
-          // Hamburger Menu
-          IconButton(
-            key: const Key('home_search_menu_button'),
-            icon: Icon(Icons.menu, color: isDark ? AppColors.white : AppColors.onboardingTextPrimaryLight),
-            onPressed: widget.onMenuTap,
-            constraints: const BoxConstraints(),
-            padding: const EdgeInsets.all(8),
-            tooltip: 'Menu',
-          ),
-
           // Search Field Prefix Icon
           GestureDetector(
             onTap: widget.onTap,
             behavior: HitTestBehavior.opaque,
             child: Padding(
-              padding: const EdgeInsets.only(left: 4, right: 8),
+              padding: const EdgeInsets.only(left: 12, right: 8),
               child: Icon(
                 Icons.search,
                 color: hintColor,
@@ -198,25 +192,62 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
 
           const SizedBox(width: 4),
 
-          // Avatar Circle with Initials
+          // Profile Photo or User Initials Circle
           GestureDetector(
             key: const Key('home_search_avatar_button'),
             onTap: widget.onAvatarTap,
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: AppColors.primaryBlue,
-              child: Text(
-                'JW',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ),
+            child: _buildAvatarWidget(),
           ),
           const SizedBox(width: 4),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAvatarWidget() {
+    final photoUrl = widget.profileImageUrl?.trim() ?? '';
+    final name = widget.userName?.trim() ?? '';
+
+    String initials = 'JW';
+    if (name.isNotEmpty) {
+      final parts = name.split(' ').where((p) => p.isNotEmpty).toList();
+      if (parts.length >= 2) {
+        initials = '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+      } else if (parts.length == 1) {
+        initials = parts[0].substring(0, parts[0].length >= 2 ? 2 : 1).toUpperCase();
+      }
+    }
+
+    if (photoUrl.isNotEmpty) {
+      return CircleAvatar(
+        radius: 18,
+        backgroundColor: AppColors.primaryBlue,
+        child: ClipOval(
+          child: Image.network(
+            photoUrl,
+            width: 36,
+            height: 36,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _buildInitialsText(initials),
+          ),
+        ),
+      );
+    }
+
+    return CircleAvatar(
+      radius: 18,
+      backgroundColor: AppColors.primaryBlue,
+      child: _buildInitialsText(initials),
+    );
+  }
+
+  Widget _buildInitialsText(String initials) {
+    return Text(
+      initials,
+      style: GoogleFonts.inter(
+        fontSize: 13,
+        fontWeight: FontWeight.bold,
+        color: Colors.white,
       ),
     );
   }

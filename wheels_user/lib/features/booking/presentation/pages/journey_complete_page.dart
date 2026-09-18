@@ -20,7 +20,7 @@ class JourneyCompletePage extends StatefulWidget {
     this.vehicleInfo = 'Black Tesla Model S • ABC-1234',
     this.distanceText = '12.4 km',
     this.durationText = '24 mins',
-    this.finalPaymentText = '₹32.50',
+    this.finalPaymentText = '',
   });
 
   @override
@@ -48,13 +48,7 @@ class _JourneyCompletePageState extends State<JourneyCompletePage> {
       appBar: AppBar(
         backgroundColor: isDark ? AppColors.onboardingBgDark : Colors.white,
         elevation: 0.5,
-        leading: IconButton(
-          icon: Icon(
-            Icons.menu_rounded,
-            color: isDark ? AppColors.textPrimaryDark : AppColors.primaryBlue,
-          ),
-          onPressed: () {},
-        ),
+        automaticallyImplyLeading: false,
         title: Text(
           AppStrings.appName,
           style: GoogleFonts.poppins(

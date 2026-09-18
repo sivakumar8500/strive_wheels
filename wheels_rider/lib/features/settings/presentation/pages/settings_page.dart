@@ -15,7 +15,9 @@ import '../../../../core/di/injection_container.dart';
 import '../../../profile/presentation/bloc/profile_bloc.dart';
 import '../../../profile/presentation/bloc/profile_event.dart';
 import '../../../profile/presentation/bloc/profile_state.dart';
+import '../../../profile/domain/entities/profile_entity.dart';
 import '../../../profile/presentation/pages/edit_profile_page.dart';
+import '../../../../core/widgets/zoomable_image_dialog.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -28,6 +30,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   int _currentIndex = 3; // Settings is selected
   late final ProfileBloc _profileBloc;
+  ProfileEntity? _lastLoadedProfile;
 
   @override
   void initState() {
@@ -59,12 +62,22 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 32),
                   BlocBuilder<ProfileBloc, ProfileState>(
                     builder: (context, state) {
-                      if (state is ProfileLoading) {
-                        return const Center(child: CircularProgressIndicator());
-                      } else if (state is ProfileLoaded) {
-                        return _buildProfileCard(isDark, state.profile);
+                      if (state is ProfileLoaded) {
+                        _lastLoadedProfile = state.profile;
                       } else if (state is ProfileUpdateSuccess) {
-                        return _buildProfileCard(isDark, state.profile);
+                        _lastLoadedProfile = state.profile;
+                      }
+
+                      if (_lastLoadedProfile != null) {
+                        return Column(
+                          children: [
+                            _buildProfileCard(isDark, _lastLoadedProfile!),
+                            const SizedBox(height: 20),
+                            _buildSectionHeader('VEHICLE DETAILS', isDark),
+                            const SizedBox(height: 10),
+                            _buildVehicleCard(isDark, _lastLoadedProfile!),
+                          ],
+                        );
                       } else if (state is ProfileError) {
                         return Center(child: Text(state.message));
                       }
@@ -93,105 +106,160 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
 
-  Widget _buildProfileCard(bool isDark, profile) {
+  Widget _buildProfileCard(bool isDark, ProfileEntity profile) {
+    final nameText = profile.name.isNotEmpty ? profile.name : 'Puja Sri';
+    final ratingVal = profile.rating > 0 ? profile.rating.toStringAsFixed(1) : '5.0';
+    final walletVal = profile.walletBalance.toStringAsFixed(0);
+    final earningsVal = profile.totalEarnings.toStringAsFixed(0);
+    final phoneText = profile.phone.isNotEmpty ? profile.phone : '+91 9876543210';
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
             blurRadius: 15,
-            offset: const Offset(0, 5),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         children: [
-          Align(
-            alignment: Alignment.topRight,
-            child: IconButton(
-              icon: const Icon(Icons.edit, color: Color(0xFF0D52D6)),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BlocProvider.value(
-                      value: _profileBloc,
-                      child: EditProfilePage(profile: profile),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF0D52D6), width: 3),
-                ),
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundImage: profile.profileImageUrl.isNotEmpty
-                      ? NetworkImage(profile.profileImageUrl)
-                      : const AssetImage('assets/images/login.png') as ImageProvider,
-                ),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0D52D6),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.verified, color: Colors.white, size: 16),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            profile.name,
-            style: GoogleFonts.inter(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : const Color(0xFF1E293B),
-            ),
-          ),
-          const SizedBox(height: 12),
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEAF1FF),
+                  color: const Color(0xFF10B981).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.account_balance_wallet, color: Color(0xFF0D52D6), size: 14),
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF10B981),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                     const SizedBox(width: 6),
                     Text(
-                      '₹${profile.walletBalance}',
+                      'VERIFIED DRIVER',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF10B981),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit_note, color: Color(0xFF0D6EFD), size: 24),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BlocProvider.value(
+                        value: _profileBloc,
+                        child: EditProfilePage(profile: profile),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Avatar Stack
+          GestureDetector(
+            onTap: () {
+              ZoomableImageDialog.show(
+                context,
+                imagePath: profile.profileImageUrl,
+                title: profile.name.isNotEmpty ? profile.name : 'Profile Photo',
+              );
+            },
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF0D6EFD), Color(0xFF00C6FF)],
+                    ),
+                  ),
+                  child: CircleAvatar(
+                    radius: 42,
+                    backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                    child: ClipOval(
+                      child: profile.profileImageUrl.isNotEmpty
+                          ? Image.network(
+                              profile.profileImageUrl,
+                              width: 84,
+                              height: 84,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Image.asset(
+                                'assets/images/strive_logo.jpg',
+                                width: 84,
+                                height: 84,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Image.asset(
+                              'assets/images/strive_logo.jpg',
+                              width: 84,
+                              height: 84,
+                              fit: BoxFit.cover,
+                            ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Driver Name
+          Text(
+            nameText,
+            style: GoogleFonts.inter(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : const Color(0xFF1E293B),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Badges Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.account_balance_wallet, color: Color(0xFF0D6EFD), size: 13),
+                    const SizedBox(width: 5),
+                    Text(
+                      '₹$walletVal',
                       style: GoogleFonts.inter(
                         fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF0D52D6),
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF0D6EFD),
                       ),
                     ),
                   ],
@@ -199,21 +267,21 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.grey.shade800 : const Color(0xFFF1F3F5),
-                  borderRadius: BorderRadius.circular(20),
+                  color: isDark ? Colors.grey.shade800 : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 14),
-                    const SizedBox(width: 6),
+                    const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 14),
+                    const SizedBox(width: 4),
                     Text(
-                      profile.rating.toString(),
+                      '$ratingVal ★',
                       style: GoogleFonts.inter(
                         fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white : const Color(0xFF4A5568),
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF334155),
                       ),
                     ),
                   ],
@@ -221,7 +289,11 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ],
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 20),
+          Divider(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+          const SizedBox(height: 14),
+
+          // Bottom Quick Info
           Row(
             children: [
               Expanded(
@@ -231,23 +303,24 @@ class _SettingsPageState extends State<SettingsPage> {
                       'TOTAL EARNINGS',
                       style: GoogleFonts.inter(
                         fontSize: 10,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.bold,
                         color: Colors.grey.shade500,
                         letterSpacing: 0.5,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     Text(
-                      '₹${profile.totalEarnings}',
+                      '₹$earningsVal',
                       style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
                         color: isDark ? Colors.white : const Color(0xFF1E293B),
                       ),
                     ),
                   ],
                 ),
               ),
+              Container(width: 1, height: 28, color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
               Expanded(
                 child: Column(
                   children: [
@@ -255,17 +328,17 @@ class _SettingsPageState extends State<SettingsPage> {
                       'PHONE',
                       style: GoogleFonts.inter(
                         fontSize: 10,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.bold,
                         color: Colors.grey.shade500,
                         letterSpacing: 0.5,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     Text(
-                      profile.phone,
+                      phoneText,
                       style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
                         color: isDark ? Colors.white : const Color(0xFF1E293B),
                       ),
                     ),
@@ -276,6 +349,146 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildVehicleCard(bool isDark, ProfileEntity profile) {
+    final makeModel = "${profile.vehicleMake} ${profile.vehicleModel}".trim();
+    final plateNumber = profile.vehicleNumber;
+    final colorYear = "${profile.vehicleColor} • ${profile.vehicleYear}";
+    final typeFuel = "${profile.vehicleType} • ${profile.fuelType}";
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.directions_car_filled, color: Color(0xFF0D6EFD), size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      makeModel.isNotEmpty ? makeModel : 'Toyota Innova Crysta',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF1E293B),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      typeFuel,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: Colors.grey.shade500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Official License Plate Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF2D3748) : const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF4A5568) : const Color(0xFFF59E0B),
+                    width: 1.5,
+                  ),
+                ),
+                child: Text(
+                  plateNumber.isNotEmpty ? plateNumber : 'TS 09 EQ 1234',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                    color: isDark ? Colors.white : const Color(0xFF78350F),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Divider(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildVehicleMetaItem('Color & Year', colorYear, isDark),
+              _buildVehicleMetaItem('Verification', 'APPROVED', isDark, isBadge: true),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVehicleMetaItem(String label, String value, bool isDark, {bool isBadge = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        isBadge
+            ? Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  value,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF10B981),
+                  ),
+                ),
+              )
+            : Text(
+                value,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+      ],
     );
   }
 
@@ -301,7 +514,7 @@ class _SettingsPageState extends State<SettingsPage> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -309,36 +522,84 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       child: Column(
         children: [
+          // Step 1: Address Details
+          _buildListTile(
+            icon: Icons.location_on_outlined,
+            iconColor: const Color(0xFF0D6EFD),
+            iconBgColor: const Color(0xFFEAF1FF),
+            stepBadge: 'STEP 1',
+            title: 'Address Details',
+            subtitle: 'Residential & Permanent Address',
+            isDark: isDark,
+            onTap: () => _showAddressDetailsBottomSheet(context, isDark),
+          ),
+
+          // Step 2: Identity & KYC Documents
+          _buildListTile(
+            icon: Icons.badge_outlined,
+            iconColor: const Color(0xFF0D6EFD),
+            iconBgColor: const Color(0xFFEAF1FF),
+            stepBadge: 'STEP 2',
+            title: 'Identity & KYC Documents',
+            subtitle: 'Aadhaar, PAN & Driving License',
+            isDark: isDark,
+            onTap: () => _showKycDocumentsBottomSheet(context, isDark),
+          ),
+
+          // Step 3: Vehicle Details
           _buildListTile(
             icon: Icons.directions_car_outlined,
-            iconColor: const Color(0xFF0D52D6),
+            iconColor: const Color(0xFF0D6EFD),
             iconBgColor: const Color(0xFFEAF1FF),
+            stepBadge: 'STEP 3',
             title: 'Vehicle Details',
+            subtitle: 'Make, Model, License Plate & Fuel',
             isDark: isDark,
             onTap: () => _showVehicleDetailsBottomSheet(context, isDark),
           ),
+
+          // Step 4: Vehicle Documents
           _buildListTile(
             icon: Icons.description_outlined,
-            iconColor: const Color(0xFF0D52D6),
+            iconColor: const Color(0xFF0D6EFD),
             iconBgColor: const Color(0xFFEAF1FF),
-            title: 'Documents',
+            stepBadge: 'STEP 4',
+            title: 'Vehicle Documents',
+            subtitle: 'RC Book, Insurance, PUC & Permit',
             isDark: isDark,
-            onTap: () => _showDocumentsBottomSheet(context, isDark),
+            onTap: () => _showVehicleDocumentsBottomSheet(context, isDark),
           ),
+
+          // Step 5: Bank Account Details
           _buildListTile(
-            icon: Icons.emoji_events_outlined,
-            iconColor: const Color(0xFF0D52D6),
+            icon: Icons.account_balance_outlined,
+            iconColor: const Color(0xFF0D6EFD),
             iconBgColor: const Color(0xFFEAF1FF),
-            title: 'Achievements',
+            stepBadge: 'STEP 5',
+            title: 'Bank Account Details',
+            subtitle: 'Bank Name, Account Number & IFSC Code',
+            isDark: isDark,
+            onTap: () => _showBankDetailsBottomSheet(context, isDark),
+          ),
+
+          // Step 6: Emergency Contact
+          _buildListTile(
+            icon: Icons.contact_phone_outlined,
+            iconColor: const Color(0xFF0D6EFD),
+            iconBgColor: const Color(0xFFEAF1FF),
+            stepBadge: 'STEP 6',
+            title: 'Emergency Contacts',
+            subtitle: 'Primary & Secondary Emergency Numbers',
             isDark: isDark,
             isLast: true,
+            onTap: () => _showEmergencyContactsBottomSheet(context, isDark),
           ),
         ],
       ),
     );
   }
 
-  void _showVehicleDetailsBottomSheet(BuildContext context, bool isDark) {
+  void _showAddressDetailsBottomSheet(BuildContext context, bool isDark) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -363,40 +624,34 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               Text(
-                'Vehicle Details',
+                'Step 1: Address Details',
                 style: GoogleFonts.inter(
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: isDark ? Colors.white : Colors.black87,
                 ),
               ),
               const SizedBox(height: 16),
-              _buildDetailRow('Make', 'Toyota', isDark),
-              _buildDetailRow('Model', 'Camry', isDark),
-              _buildDetailRow('Year', '2023', isDark),
-              _buildDetailRow('License Plate', 'ABC-1234', isDark),
-              const SizedBox(height: 32),
+              _buildDetailRow('Street Address', 'Plot No 42, Jubilee Hills', isDark),
+              _buildDetailRow('City', 'Hyderabad', isDark),
+              _buildDetailRow('State', 'Telangana', isDark),
+              _buildDetailRow('Pincode', '500033', isDark),
+              _buildDetailRow('Address Type', 'Permanent & Residential', isDark),
+              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryBlue,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: const Color(0xFF0D6EFD),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: Text(
-                    'Close',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: Text('Close', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
               ),
             ],
@@ -406,7 +661,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  void _showDocumentsBottomSheet(BuildContext context, bool isDark) {
+  void _showKycDocumentsBottomSheet(BuildContext context, bool isDark) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -431,39 +686,289 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               Text(
-                'Documents',
+                'Step 2: Identity & KYC Documents',
                 style: GoogleFonts.inter(
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: isDark ? Colors.white : Colors.black87,
                 ),
               ),
               const SizedBox(height: 16),
-              _buildDocumentItem('Driver\'s License', 'Verified', true, isDark),
-              _buildDocumentItem('Vehicle Insurance', 'Verified', true, isDark),
-              _buildDocumentItem('Registration Certificate', 'Pending Review', false, isDark),
-              const SizedBox(height: 32),
+              _buildDocumentItem('Driving License', 'VERIFIED', true, isDark),
+              _buildDocumentItem('Aadhaar Card', 'VERIFIED', true, isDark),
+              _buildDocumentItem('PAN Card', 'VERIFIED', true, isDark),
+              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryBlue,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: const Color(0xFF0D6EFD),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: Text(
-                    'Close',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                  child: Text('Close', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showVehicleDetailsBottomSheet(BuildContext context, bool isDark) {
+    final profile = _lastLoadedProfile;
+    final vMake = profile?.vehicleMake ?? 'Toyota';
+    final vModel = profile?.vehicleModel ?? 'Innova Crysta';
+    final vNumber = profile?.vehicleNumber ?? 'TS 09 EQ 1234';
+    final vType = profile?.vehicleType ?? 'SUV / Prime';
+    final vColor = profile?.vehicleColor ?? 'Pearl White';
+    final vYear = profile?.vehicleYear ?? '2023';
+    final vFuel = profile?.fuelType ?? 'Diesel';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Step 3: Vehicle Details',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildDetailRow('Vehicle Brand / Make', vMake, isDark),
+              _buildDetailRow('Model Name', vModel, isDark),
+              _buildDetailRow('License Plate Number', vNumber, isDark),
+              _buildDetailRow('Vehicle Type', vType, isDark),
+              _buildDetailRow('Color', vColor, isDark),
+              _buildDetailRow('Model Year', vYear, isDark),
+              _buildDetailRow('Fuel Type', vFuel, isDark),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D6EFD),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
+                  child: Text('Close', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showVehicleDocumentsBottomSheet(BuildContext context, bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Step 4: Vehicle Documents',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildDocumentItem('Registration Certificate (RC)', 'VERIFIED', true, isDark),
+              _buildDocumentItem('Vehicle Insurance', 'VERIFIED', true, isDark),
+              _buildDocumentItem('Pollution Certificate (PUC)', 'VERIFIED', true, isDark),
+              _buildDocumentItem('Commercial Permit', 'VERIFIED', true, isDark),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D6EFD),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text('Close', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showBankDetailsBottomSheet(BuildContext context, bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Step 5: Bank Account Details',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildDetailRow('Bank Name', 'HDFC Bank', isDark),
+              _buildDetailRow('Account Holder', _lastLoadedProfile?.name ?? 'Puja Sri', isDark),
+              _buildDetailRow('Account Number', '•••• •••• 8912', isDark),
+              _buildDetailRow('IFSC Code', 'HDFC0001234', isDark),
+              _buildDetailRow('Payout Method', 'Weekly Direct Deposit', isDark),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D6EFD),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text('Close', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showEmergencyContactsBottomSheet(BuildContext context, bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Step 6: Emergency Contacts',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildDetailRow('Primary Emergency Contact', '+91 9876543210', isDark),
+              _buildDetailRow('Relation', 'Spouse / Family', isDark),
+              _buildDetailRow('Secondary Emergency Contact', '+91 9123456789', isDark),
+              _buildDetailRow('Relation', 'Parent / Brother', isDark),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D6EFD),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text('Close', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
               ),
             ],
@@ -477,21 +982,31 @@ class _SettingsPageState extends State<SettingsPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+          Expanded(
+            flex: 5,
+            child: Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              ),
             ),
           ),
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white : Colors.black87,
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 5,
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -630,6 +1145,7 @@ class _SettingsPageState extends State<SettingsPage> {
     required Color iconBgColor,
     required String title,
     String? subtitle,
+    String? stepBadge,
     required bool isDark,
     bool isLast = false,
     VoidCallback? onTap,
@@ -640,7 +1156,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ? const BorderRadius.vertical(bottom: Radius.circular(24))
           : BorderRadius.zero,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         decoration: BoxDecoration(
           border: !isLast
               ? Border(
@@ -654,51 +1170,78 @@ class _SettingsPageState extends State<SettingsPage> {
         child: Row(
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: iconBgColor,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: iconColor, size: 22),
+              child: Icon(icon, color: iconColor, size: 20),
             ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white : const Color(0xFF1E293B),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      if (stepBadge != null) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            stepBadge,
+                            style: GoogleFonts.inter(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF0D6EFD),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : const Color(0xFF1E293B),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey.shade500,
+                  if (subtitle != null && subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ]
-              ],
+                  ],
+                ],
+              ),
             ),
-          ),
-          Icon(
-            Icons.chevron_right,
-            color: Colors.grey.shade400,
-            size: 20,
-          ),
-        ],
+            Icon(
+              Icons.chevron_right_rounded,
+              color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+              size: 20,
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildLogOutButton(BuildContext context, bool isDark) {
     return ElevatedButton(

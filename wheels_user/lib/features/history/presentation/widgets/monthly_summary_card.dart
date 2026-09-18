@@ -21,10 +21,10 @@ class MonthlySummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: AppColors.primaryBlue,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(16),
         gradient: const LinearGradient(
           colors: [
             Color(0xFF0F4CBA),
@@ -35,9 +35,9 @@ class MonthlySummaryCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryBlue.withValues(alpha: 0.3),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
+            color: AppColors.primaryBlue.withValues(alpha: 0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -51,40 +51,40 @@ class MonthlySummaryCard extends StatelessWidget {
               Text(
                 title,
                 style: GoogleFonts.inter(
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.w500,
                   color: const Color(0xFFDBEAFE),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.calendar_today_outlined,
                   color: Colors.white,
-                  size: 16,
+                  size: 14,
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
 
           // Main Stat: Trip Count
           Text(
             tripCountText,
             style: GoogleFonts.poppins(
-              fontSize: 28,
+              fontSize: 22,
               fontWeight: FontWeight.bold,
               color: Colors.white,
               letterSpacing: -0.5,
             ),
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
 
           // Bottom Row: Distance Subtitle + Spent Badge
           Row(
@@ -93,19 +93,19 @@ class MonthlySummaryCard extends StatelessWidget {
               Text(
                 distanceText,
                 style: GoogleFonts.inter(
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w400,
                   color: const Color(0xFF93C5FD),
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
+                  horizontal: 10,
+                  vertical: 4,
                 ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: Colors.white.withValues(alpha: 0.3),
                     width: 1,
@@ -114,7 +114,7 @@ class MonthlySummaryCard extends StatelessWidget {
                 child: Text(
                   spentText,
                   style: GoogleFonts.inter(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                   ),

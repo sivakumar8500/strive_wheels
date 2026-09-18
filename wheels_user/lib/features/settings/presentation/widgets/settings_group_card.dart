@@ -145,9 +145,9 @@ class SettingsGroupCard extends StatelessWidget {
                           if (rowData.isSwitch)
                             Switch(
                               key: Key('settings_switch_${rowData.title}'),
-                              value: rowData.switchValue,
+                              value: rowData.switchValue == true,
                               onChanged: rowData.onSwitchChanged,
-                              activeColor: AppColors.primaryBlue,
+                              activeThumbColor: AppColors.primaryBlue,
                               activeTrackColor: AppColors.primaryBlue.withValues(alpha: 0.4),
                             )
                           else

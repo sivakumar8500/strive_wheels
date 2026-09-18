@@ -23,8 +23,20 @@ abstract class VehicleTypeModel with _$VehicleTypeModel {
     @JsonKey(name: 'created_at') String? createdAt,
   }) = _VehicleTypeModel;
 
-  factory VehicleTypeModel.fromJson(Map<String, dynamic> json) =>
-      _$VehicleTypeModelFromJson(json);
+  factory VehicleTypeModel.fromJson(Map<String, dynamic> json) {
+    final model = _$VehicleTypeModelFromJson(json);
+    final String? image = (json['icon_url'] ??
+            json['image_url'] ??
+            json['icon'] ??
+            json['image'] ??
+            json['vehicle_image'] ??
+            json['photo_url'])
+        ?.toString();
+    if (image != null && image.isNotEmpty && (model.iconUrl == null || model.iconUrl!.isEmpty)) {
+      return model.copyWith(iconUrl: image);
+    }
+    return model;
+  }
 }
 
 extension VehicleTypeModelX on VehicleTypeModel {

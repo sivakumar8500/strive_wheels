@@ -26,11 +26,7 @@ class RideHistoryTopBar extends StatelessWidget implements PreferredSizeWidget {
       backgroundColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
-      leading: IconButton(
-        key: const Key('history_menu_button'),
-        icon: Icon(Icons.menu_rounded, color: iconColor),
-        onPressed: onMenuTap,
-      ),
+      automaticallyImplyLeading: false,
       title: Text(
         AppStrings.striveHeader,
         style: GoogleFonts.poppins(

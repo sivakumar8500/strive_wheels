@@ -32,10 +32,13 @@ class TripsRemoteDataSourceImpl implements TripsRemoteDataSource {
 
       final bookings = dataList.map((e) => BookingModel.fromJson(Map<String, dynamic>.from(e))).toList();
 
+      final validRatings = bookings.where((b) => b.clientRating > 0).map((b) => b.clientRating).toList();
+      final computedAvg = validRatings.isNotEmpty ? validRatings.reduce((a, b) => a + b) / validRatings.length : 5.0;
+
       return TripModel(
         totalMileage: 0.0,
         totalRides: bookings.length,
-        avgRating: 0.0,
+        avgRating: computedAvg,
         bookings: bookings,
       );
     } on DioException catch (e) {

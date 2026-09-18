@@ -111,7 +111,7 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
                   },
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
 
                 // 2. Segmented Filter Tabs (All trips, Rides, Deliveries)
                 SegmentedFilterBar(
@@ -123,7 +123,7 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
                   },
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
 
                 // 3. Monthly Summary Card
                 MonthlySummaryCard(
@@ -133,7 +133,7 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
                   spentText: entity?.spentText ?? AppStrings.totalSpentAmount,
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
                 // 4. Past Rides Section Header
                 Row(
@@ -142,7 +142,7 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
                     Text(
                       AppStrings.pastRides,
                       style: GoogleFonts.inter(
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: isDark
                             ? AppColors.white
@@ -152,7 +152,7 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
                     Text(
                       AppStrings.jun2026,
                       style: GoogleFonts.inter(
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.w500,
                         color: isDark
                             ? AppColors.textSecondaryDark
@@ -162,7 +162,7 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
                   ],
                 ),
 
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
 
                 // 5. List of Past Ride Cards
                 if (filteredRides.isEmpty)

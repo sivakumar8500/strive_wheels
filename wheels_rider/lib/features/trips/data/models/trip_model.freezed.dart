@@ -36,9 +36,6 @@ mixin _$BookingModel {
       _$BookingModelCopyWithImpl<BookingModel>(
           this as BookingModel, _$identity);
 
-  /// Serializes this BookingModel to a JSON map.
-  Map<String, dynamic> toJson();
-
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
@@ -60,7 +57,6 @@ mixin _$BookingModel {
             (identical(other.status, status) || other.status == status));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, id, clientName, clientRating,
       tag, price, pickupLocation, dropoffLocation, timestamp, status);
@@ -367,7 +363,7 @@ extension BookingModelPatterns on BookingModel {
 }
 
 /// @nodoc
-@JsonSerializable()
+
 class _BookingModel extends BookingModel {
   const _BookingModel(
       {required this.id,
@@ -380,8 +376,6 @@ class _BookingModel extends BookingModel {
       required this.timestamp,
       required this.status})
       : super._();
-  factory _BookingModel.fromJson(Map<String, dynamic> json) =>
-      _$BookingModelFromJson(json);
 
   @override
   final String id;
@@ -415,13 +409,6 @@ class _BookingModel extends BookingModel {
       __$BookingModelCopyWithImpl<_BookingModel>(this, _$identity);
 
   @override
-  Map<String, dynamic> toJson() {
-    return _$BookingModelToJson(
-      this,
-    );
-  }
-
-  @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
@@ -442,7 +429,6 @@ class _BookingModel extends BookingModel {
             (identical(other.status, status) || other.status == status));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, id, clientName, clientRating,
       tag, price, pickupLocation, dropoffLocation, timestamp, status);
@@ -554,9 +540,6 @@ mixin _$TripModel {
   $TripModelCopyWith<TripModel> get copyWith =>
       _$TripModelCopyWithImpl<TripModel>(this as TripModel, _$identity);
 
-  /// Serializes this TripModel to a JSON map.
-  Map<String, dynamic> toJson();
-
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
@@ -571,7 +554,6 @@ mixin _$TripModel {
             const DeepCollectionEquality().equals(other.bookings, bookings));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, totalMileage, totalRides,
       avgRating, const DeepCollectionEquality().hash(bookings));
@@ -808,7 +790,7 @@ extension TripModelPatterns on TripModel {
 }
 
 /// @nodoc
-@JsonSerializable()
+
 class _TripModel extends TripModel {
   const _TripModel(
       {@JsonKey(name: 'total_mileage') required this.totalMileage,
@@ -817,8 +799,6 @@ class _TripModel extends TripModel {
       required final List<BookingModel> bookings})
       : _bookings = bookings,
         super._();
-  factory _TripModel.fromJson(Map<String, dynamic> json) =>
-      _$TripModelFromJson(json);
 
   @override
   @JsonKey(name: 'total_mileage')
@@ -846,13 +826,6 @@ class _TripModel extends TripModel {
       __$TripModelCopyWithImpl<_TripModel>(this, _$identity);
 
   @override
-  Map<String, dynamic> toJson() {
-    return _$TripModelToJson(
-      this,
-    );
-  }
-
-  @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
@@ -866,7 +839,6 @@ class _TripModel extends TripModel {
             const DeepCollectionEquality().equals(other._bookings, _bookings));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, totalMileage, totalRides,
       avgRating, const DeepCollectionEquality().hash(_bookings));

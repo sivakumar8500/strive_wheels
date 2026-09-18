@@ -9,10 +9,10 @@ part of 'popular_location_model.dart';
 _PopularLocationModel _$PopularLocationModelFromJson(
   Map<String, dynamic> json,
 ) => _PopularLocationModel(
-  id: (json['id'] as num).toInt(),
-  title: json['name'] as String,
-  address: json['address'] as String,
-  type: json['category'] as String,
+  id: (json['id'] as num?)?.toInt() ?? 0,
+  title: (json['name'] ?? json['title'] ?? '').toString(),
+  address: (json['address'] ?? json['location'] ?? '').toString(),
+  type: (json['category'] ?? json['type'] ?? 'city').toString(),
 );
 
 Map<String, dynamic> _$PopularLocationModelToJson(

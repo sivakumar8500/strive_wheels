@@ -18,5 +18,12 @@ abstract class ProfileEntity with _$ProfileEntity {
     required String dob,
     required String gender,
     required String status,
+    @Default('Toyota') String vehicleMake,
+    @Default('Innova Crysta') String vehicleModel,
+    @Default('TS 09 EQ 1234') String vehicleNumber,
+    @Default('SUV') String vehicleType,
+    @Default('Pearl White') String vehicleColor,
+    @Default('2023') String vehicleYear,
+    @Default('Diesel') String fuelType,
   }) = _ProfileEntity;
 }

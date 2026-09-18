@@ -11,7 +11,6 @@ part of 'settings_model.dart';
 
 // dart format off
 T _$identity<T>(T value) => value;
-
 /// @nodoc
 mixin _$SettingsModel {
 
@@ -22,8 +21,6 @@ mixin _$SettingsModel {
 @pragma('vm:prefer-inline')
 $SettingsModelCopyWith<SettingsModel> get copyWith => _$SettingsModelCopyWithImpl<SettingsModel>(this as SettingsModel, _$identity);
 
-  /// Serializes this SettingsModel to a JSON map.
-  Map<String, dynamic> toJson();
 
 
 @override
@@ -31,7 +28,7 @@ bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is SettingsModel&&(identical(other.profile, profile) || other.profile == profile)&&(identical(other.rideNotificationsEnabled, rideNotificationsEnabled) || other.rideNotificationsEnabled == rideNotificationsEnabled)&&(identical(other.isDarkMode, isDarkMode) || other.isDarkMode == isDarkMode)&&(identical(other.selectedLanguage, selectedLanguage) || other.selectedLanguage == selectedLanguage)&&(identical(other.appVersion, appVersion) || other.appVersion == appVersion));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
 int get hashCode => Object.hash(runtimeType,profile,rideNotificationsEnabled,isDarkMode,selectedLanguage,appVersion);
 
@@ -219,11 +216,11 @@ return $default(_that.profile,_that.rideNotificationsEnabled,_that.isDarkMode,_t
 }
 
 /// @nodoc
-@JsonSerializable()
+
 
 class _SettingsModel implements SettingsModel {
   const _SettingsModel({required this.profile, required this.rideNotificationsEnabled, required this.isDarkMode, required this.selectedLanguage, required this.appVersion});
-  factory _SettingsModel.fromJson(Map<String, dynamic> json) => _$SettingsModelFromJson(json);
+  
 
 @override final  UserProfileModel profile;
 @override final  bool rideNotificationsEnabled;
@@ -237,17 +234,14 @@ class _SettingsModel implements SettingsModel {
 @pragma('vm:prefer-inline')
 _$SettingsModelCopyWith<_SettingsModel> get copyWith => __$SettingsModelCopyWithImpl<_SettingsModel>(this, _$identity);
 
-@override
-Map<String, dynamic> toJson() {
-  return _$SettingsModelToJson(this, );
-}
+
 
 @override
 bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is _SettingsModel&&(identical(other.profile, profile) || other.profile == profile)&&(identical(other.rideNotificationsEnabled, rideNotificationsEnabled) || other.rideNotificationsEnabled == rideNotificationsEnabled)&&(identical(other.isDarkMode, isDarkMode) || other.isDarkMode == isDarkMode)&&(identical(other.selectedLanguage, selectedLanguage) || other.selectedLanguage == selectedLanguage)&&(identical(other.appVersion, appVersion) || other.appVersion == appVersion));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
 int get hashCode => Object.hash(runtimeType,profile,rideNotificationsEnabled,isDarkMode,selectedLanguage,appVersion);
 

@@ -11,33 +11,30 @@ part of 'user_profile_model.dart';
 
 // dart format off
 T _$identity<T>(T value) => value;
-
 /// @nodoc
 mixin _$UserProfileModel {
 
- String get name; String get membershipTier; String get totalRides; String get rating;
+ String get name; String get membershipTier; String get totalRides; String get rating; String get phone; String get email; String get gender; bool get isCorporate; String? get companyName; String? get corporateEmail; String? get corporateId; String? get department; String? get designation;
 /// Create a copy of UserProfileModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $UserProfileModelCopyWith<UserProfileModel> get copyWith => _$UserProfileModelCopyWithImpl<UserProfileModel>(this as UserProfileModel, _$identity);
 
-  /// Serializes this UserProfileModel to a JSON map.
-  Map<String, dynamic> toJson();
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserProfileModel&&(identical(other.name, name) || other.name == name)&&(identical(other.membershipTier, membershipTier) || other.membershipTier == membershipTier)&&(identical(other.totalRides, totalRides) || other.totalRides == totalRides)&&(identical(other.rating, rating) || other.rating == rating));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserProfileModel&&(identical(other.name, name) || other.name == name)&&(identical(other.membershipTier, membershipTier) || other.membershipTier == membershipTier)&&(identical(other.totalRides, totalRides) || other.totalRides == totalRides)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.email, email) || other.email == email)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.isCorporate, isCorporate) || other.isCorporate == isCorporate)&&(identical(other.companyName, companyName) || other.companyName == companyName)&&(identical(other.corporateEmail, corporateEmail) || other.corporateEmail == corporateEmail)&&(identical(other.corporateId, corporateId) || other.corporateId == corporateId)&&(identical(other.department, department) || other.department == department)&&(identical(other.designation, designation) || other.designation == designation));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
-int get hashCode => Object.hash(runtimeType,name,membershipTier,totalRides,rating);
+int get hashCode => Object.hash(runtimeType,name,membershipTier,totalRides,rating,phone,email,gender,isCorporate,companyName,corporateEmail,corporateId,department,designation);
 
 @override
 String toString() {
-  return 'UserProfileModel(name: $name, membershipTier: $membershipTier, totalRides: $totalRides, rating: $rating)';
+  return 'UserProfileModel(name: $name, membershipTier: $membershipTier, totalRides: $totalRides, rating: $rating, phone: $phone, email: $email, gender: $gender, isCorporate: $isCorporate, companyName: $companyName, corporateEmail: $corporateEmail, corporateId: $corporateId, department: $department, designation: $designation)';
 }
 
 
@@ -48,7 +45,7 @@ abstract mixin class $UserProfileModelCopyWith<$Res>  {
   factory $UserProfileModelCopyWith(UserProfileModel value, $Res Function(UserProfileModel) _then) = _$UserProfileModelCopyWithImpl;
 @useResult
 $Res call({
- String name, String membershipTier, String totalRides, String rating
+ String name, String membershipTier, String totalRides, String rating, String phone, String email, String gender, bool isCorporate, String? companyName, String? corporateEmail, String? corporateId, String? department, String? designation
 });
 
 
@@ -65,13 +62,22 @@ class _$UserProfileModelCopyWithImpl<$Res>
 
 /// Create a copy of UserProfileModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? name = null,Object? membershipTier = null,Object? totalRides = null,Object? rating = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? name = null,Object? membershipTier = null,Object? totalRides = null,Object? rating = null,Object? phone = null,Object? email = null,Object? gender = null,Object? isCorporate = null,Object? companyName = freezed,Object? corporateEmail = freezed,Object? corporateId = freezed,Object? department = freezed,Object? designation = freezed,}) {
   return _then(_self.copyWith(
 name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,membershipTier: null == membershipTier ? _self.membershipTier : membershipTier // ignore: cast_nullable_to_non_nullable
 as String,totalRides: null == totalRides ? _self.totalRides : totalRides // ignore: cast_nullable_to_non_nullable
 as String,rating: null == rating ? _self.rating : rating // ignore: cast_nullable_to_non_nullable
-as String,
+as String,phone: null == phone ? _self.phone : phone // ignore: cast_nullable_to_non_nullable
+as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
+as String,gender: null == gender ? _self.gender : gender // ignore: cast_nullable_to_non_nullable
+as String,isCorporate: null == isCorporate ? _self.isCorporate : isCorporate // ignore: cast_nullable_to_non_nullable
+as bool,companyName: freezed == companyName ? _self.companyName : companyName // ignore: cast_nullable_to_non_nullable
+as String?,corporateEmail: freezed == corporateEmail ? _self.corporateEmail : corporateEmail // ignore: cast_nullable_to_non_nullable
+as String?,corporateId: freezed == corporateId ? _self.corporateId : corporateId // ignore: cast_nullable_to_non_nullable
+as String?,department: freezed == department ? _self.department : department // ignore: cast_nullable_to_non_nullable
+as String?,designation: freezed == designation ? _self.designation : designation // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -156,10 +162,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String name,  String membershipTier,  String totalRides,  String rating)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String name,  String membershipTier,  String totalRides,  String rating,  String phone,  String email,  String gender,  bool isCorporate,  String? companyName,  String? corporateEmail,  String? corporateId,  String? department,  String? designation)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _UserProfileModel() when $default != null:
-return $default(_that.name,_that.membershipTier,_that.totalRides,_that.rating);case _:
+return $default(_that.name,_that.membershipTier,_that.totalRides,_that.rating,_that.phone,_that.email,_that.gender,_that.isCorporate,_that.companyName,_that.corporateEmail,_that.corporateId,_that.department,_that.designation);case _:
   return orElse();
 
 }
@@ -177,10 +183,10 @@ return $default(_that.name,_that.membershipTier,_that.totalRides,_that.rating);c
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String name,  String membershipTier,  String totalRides,  String rating)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String name,  String membershipTier,  String totalRides,  String rating,  String phone,  String email,  String gender,  bool isCorporate,  String? companyName,  String? corporateEmail,  String? corporateId,  String? department,  String? designation)  $default,) {final _that = this;
 switch (_that) {
 case _UserProfileModel():
-return $default(_that.name,_that.membershipTier,_that.totalRides,_that.rating);case _:
+return $default(_that.name,_that.membershipTier,_that.totalRides,_that.rating,_that.phone,_that.email,_that.gender,_that.isCorporate,_that.companyName,_that.corporateEmail,_that.corporateId,_that.department,_that.designation);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -197,10 +203,10 @@ return $default(_that.name,_that.membershipTier,_that.totalRides,_that.rating);c
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String name,  String membershipTier,  String totalRides,  String rating)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String name,  String membershipTier,  String totalRides,  String rating,  String phone,  String email,  String gender,  bool isCorporate,  String? companyName,  String? corporateEmail,  String? corporateId,  String? department,  String? designation)?  $default,) {final _that = this;
 switch (_that) {
 case _UserProfileModel() when $default != null:
-return $default(_that.name,_that.membershipTier,_that.totalRides,_that.rating);case _:
+return $default(_that.name,_that.membershipTier,_that.totalRides,_that.rating,_that.phone,_that.email,_that.gender,_that.isCorporate,_that.companyName,_that.corporateEmail,_that.corporateId,_that.department,_that.designation);case _:
   return null;
 
 }
@@ -209,16 +215,25 @@ return $default(_that.name,_that.membershipTier,_that.totalRides,_that.rating);c
 }
 
 /// @nodoc
-@JsonSerializable()
+
 
 class _UserProfileModel implements UserProfileModel {
-  const _UserProfileModel({required this.name, required this.membershipTier, required this.totalRides, required this.rating});
-  factory _UserProfileModel.fromJson(Map<String, dynamic> json) => _$UserProfileModelFromJson(json);
+  const _UserProfileModel({required this.name, required this.membershipTier, required this.totalRides, required this.rating, required this.phone, required this.email, required this.gender, required this.isCorporate, this.companyName, this.corporateEmail, this.corporateId, this.department, this.designation});
+  
 
 @override final  String name;
 @override final  String membershipTier;
 @override final  String totalRides;
 @override final  String rating;
+@override final  String phone;
+@override final  String email;
+@override final  String gender;
+@override final  bool isCorporate;
+@override final  String? companyName;
+@override final  String? corporateEmail;
+@override final  String? corporateId;
+@override final  String? department;
+@override final  String? designation;
 
 /// Create a copy of UserProfileModel
 /// with the given fields replaced by the non-null parameter values.
@@ -226,23 +241,20 @@ class _UserProfileModel implements UserProfileModel {
 @pragma('vm:prefer-inline')
 _$UserProfileModelCopyWith<_UserProfileModel> get copyWith => __$UserProfileModelCopyWithImpl<_UserProfileModel>(this, _$identity);
 
-@override
-Map<String, dynamic> toJson() {
-  return _$UserProfileModelToJson(this, );
-}
+
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserProfileModel&&(identical(other.name, name) || other.name == name)&&(identical(other.membershipTier, membershipTier) || other.membershipTier == membershipTier)&&(identical(other.totalRides, totalRides) || other.totalRides == totalRides)&&(identical(other.rating, rating) || other.rating == rating));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserProfileModel&&(identical(other.name, name) || other.name == name)&&(identical(other.membershipTier, membershipTier) || other.membershipTier == membershipTier)&&(identical(other.totalRides, totalRides) || other.totalRides == totalRides)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.email, email) || other.email == email)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.isCorporate, isCorporate) || other.isCorporate == isCorporate)&&(identical(other.companyName, companyName) || other.companyName == companyName)&&(identical(other.corporateEmail, corporateEmail) || other.corporateEmail == corporateEmail)&&(identical(other.corporateId, corporateId) || other.corporateId == corporateId)&&(identical(other.department, department) || other.department == department)&&(identical(other.designation, designation) || other.designation == designation));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
-int get hashCode => Object.hash(runtimeType,name,membershipTier,totalRides,rating);
+int get hashCode => Object.hash(runtimeType,name,membershipTier,totalRides,rating,phone,email,gender,isCorporate,companyName,corporateEmail,corporateId,department,designation);
 
 @override
 String toString() {
-  return 'UserProfileModel(name: $name, membershipTier: $membershipTier, totalRides: $totalRides, rating: $rating)';
+  return 'UserProfileModel(name: $name, membershipTier: $membershipTier, totalRides: $totalRides, rating: $rating, phone: $phone, email: $email, gender: $gender, isCorporate: $isCorporate, companyName: $companyName, corporateEmail: $corporateEmail, corporateId: $corporateId, department: $department, designation: $designation)';
 }
 
 
@@ -253,7 +265,7 @@ abstract mixin class _$UserProfileModelCopyWith<$Res> implements $UserProfileMod
   factory _$UserProfileModelCopyWith(_UserProfileModel value, $Res Function(_UserProfileModel) _then) = __$UserProfileModelCopyWithImpl;
 @override @useResult
 $Res call({
- String name, String membershipTier, String totalRides, String rating
+ String name, String membershipTier, String totalRides, String rating, String phone, String email, String gender, bool isCorporate, String? companyName, String? corporateEmail, String? corporateId, String? department, String? designation
 });
 
 
@@ -270,13 +282,22 @@ class __$UserProfileModelCopyWithImpl<$Res>
 
 /// Create a copy of UserProfileModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? name = null,Object? membershipTier = null,Object? totalRides = null,Object? rating = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? name = null,Object? membershipTier = null,Object? totalRides = null,Object? rating = null,Object? phone = null,Object? email = null,Object? gender = null,Object? isCorporate = null,Object? companyName = freezed,Object? corporateEmail = freezed,Object? corporateId = freezed,Object? department = freezed,Object? designation = freezed,}) {
   return _then(_UserProfileModel(
 name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,membershipTier: null == membershipTier ? _self.membershipTier : membershipTier // ignore: cast_nullable_to_non_nullable
 as String,totalRides: null == totalRides ? _self.totalRides : totalRides // ignore: cast_nullable_to_non_nullable
 as String,rating: null == rating ? _self.rating : rating // ignore: cast_nullable_to_non_nullable
-as String,
+as String,phone: null == phone ? _self.phone : phone // ignore: cast_nullable_to_non_nullable
+as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
+as String,gender: null == gender ? _self.gender : gender // ignore: cast_nullable_to_non_nullable
+as String,isCorporate: null == isCorporate ? _self.isCorporate : isCorporate // ignore: cast_nullable_to_non_nullable
+as bool,companyName: freezed == companyName ? _self.companyName : companyName // ignore: cast_nullable_to_non_nullable
+as String?,corporateEmail: freezed == corporateEmail ? _self.corporateEmail : corporateEmail // ignore: cast_nullable_to_non_nullable
+as String?,corporateId: freezed == corporateId ? _self.corporateId : corporateId // ignore: cast_nullable_to_non_nullable
+as String?,department: freezed == department ? _self.department : department // ignore: cast_nullable_to_non_nullable
+as String?,designation: freezed == designation ? _self.designation : designation // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

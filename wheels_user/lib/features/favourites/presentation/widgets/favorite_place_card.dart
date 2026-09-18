@@ -73,20 +73,20 @@ class FavoritePlaceCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: cardBg,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -95,19 +95,19 @@ class FavoritePlaceCard extends StatelessWidget {
         children: [
           // Left Icon Badge Container
           Container(
-            width: 48,
-            height: 48,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               color: _getPlaceIconBg(place.iconType),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               _getPlaceIcon(place.iconType),
               color: _getPlaceIconColor(place.iconType),
-              size: 24,
+              size: 20,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 10),
 
           // Title, Address, and "Ride here" Pill Button
           Expanded(
@@ -117,7 +117,7 @@ class FavoritePlaceCard extends StatelessWidget {
                 Text(
                   place.title,
                   style: GoogleFonts.inter(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: isDark
                         ? AppColors.white
@@ -128,35 +128,35 @@ class FavoritePlaceCard extends StatelessWidget {
                 Text(
                   place.address,
                   style: GoogleFonts.inter(
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.w400,
                     color: isDark
                         ? AppColors.textSecondaryDark
                         : AppColors.onboardingTextSecondaryLight,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // "Ride here" Soft Blue Pill Button
                 InkWell(
                   key: Key('ride_here_button_${place.id}'),
                   onTap: onRideHereTap,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 5,
+                      horizontal: 10,
+                      vertical: 4,
                     ),
                     decoration: BoxDecoration(
                       color: isDark
                           ? const Color(0xFF1E293B)
                           : const Color(0xFFEEF2FF),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       AppStrings.rideHere,
                       style: GoogleFonts.inter(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: AppColors.primaryBlue,
                       ),
@@ -171,25 +171,25 @@ class FavoritePlaceCard extends StatelessWidget {
           Column(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF3F1D24) : AppColors.favouriteHeartBg,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
                   Icons.favorite_rounded,
                   color: AppColors.favouriteHeartIcon,
-                  size: 18,
+                  size: 16,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Icon(
                 Icons.chevron_right_rounded,
                 color: isDark
                     ? AppColors.textSecondaryDark
                     : AppColors.onboardingTextSecondaryLight,
-                size: 20,
+                size: 18,
               ),
             ],
           ),

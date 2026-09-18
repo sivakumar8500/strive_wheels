@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
@@ -92,13 +92,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       final activeData = activeBookingService.activeBooking;
       if (activeData == null) return;
 
-      final response = await sl<http.Client>().get(
-        Uri.parse('${ApiConstants.baseUrl}/bookings/${activeData.bookingId}'),
-        headers: {'Content-Type': 'application/json'},
+      final response = await sl<Dio>().get(
+        '${ApiConstants.baseUrl}/bookings/${activeData.bookingId}',
       ).timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
+        final decoded = response.data is String ? jsonDecode(response.data) : response.data;
         final data = decoded['data'] as Map<String, dynamic>? ?? decoded;
         final status = (data['status'] ?? '').toString().toUpperCase();
 
@@ -229,6 +228,19 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       }
     } catch (e) {
       debugPrint('Error getting current location: $e');
+    }
+  }
+
+  String _getTimeBasedGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) {
+      return 'Good Morning 👋';
+    } else if (hour >= 12 && hour < 17) {
+      return 'Good Afternoon 👋';
+    } else if (hour >= 17 && hour < 21) {
+      return 'Good Evening 👋';
+    } else {
+      return 'Good Night 👋';
     }
   }
 
@@ -458,7 +470,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           }
 
           final entity = state.dashboardEntity;
-          final greetingTitle = entity?.greetingTitle ?? AppStrings.goodMorning;
+          final greetingTitle = _getTimeBasedGreeting();
           final greetingSubtitle =
               entity?.greetingSubtitle ?? AppStrings.readyForNextRide;
           final recentTitle =
@@ -554,6 +566,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   right: 0,
                   child: HomeSearchBar(
                     readOnly: true,
+                    userName: entity?.userName ?? 'Nikhil',
                     onTap: () => _navigateToLocationSearch(context),
                     onMenuTap: () {
                       context.read<HomeBloc>().add(const OpenMenuEvent());
@@ -580,6 +593,46 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     onAvatarTap: () {
                       context.read<HomeBloc>().add(const OpenProfileEvent());
                     },
+                  ),
+                ),
+
+                // 2.5 Floating Top Right Current Location GPS Button
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 76,
+                  right: 16,
+                  child: GestureDetector(
+                    onTap: () {
+                      if (_mapController != null) {
+                        _mapController!.animateCamera(
+                          CameraUpdate.newCameraPosition(
+                            CameraPosition(
+                              target: _currentPosition,
+                              zoom: 18.0,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.cardBgDark : Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.12),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.my_location,
+                        color: AppColors.primaryBlue,
+                        size: 22,
+                      ),
+                    ),
                   ),
                 ),
 
@@ -678,6 +731,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                               context
                                   .read<HomeBloc>()
                                   .add(const RepeatRideEvent());
+                              _navigateToLocationSearch(context);
                             },
                           ),
 
@@ -753,49 +807,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 ),
               ),
 
-                // 4. Floating GPS Recenter Button (positioned above bottom sheet)
-                Positioned(
-                  bottom: (MediaQuery.of(context).size.height * 0.35) + 16,
-                  right: 16,
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.my_location,
-                        color: isDark ? Colors.white : const Color(0xFF0D6EFD),
-                        size: 22,
-                      ),
-                      onPressed: () {
-                        if (_mapController != null && mounted) {
-                          try {
-                            _mapController!.animateCamera(
-                              CameraUpdate.newCameraPosition(
-                                CameraPosition(
-                                  target: _currentPosition,
-                                  zoom: 18.0,
-                                ),
-                              ),
-                            );
-                          } catch (e) {
-                            debugPrint('Error animating camera to current location: $e');
-                          }
-                        }
-                      },
-                    ),
-                  ),
-                ),
             ],
             );
           }

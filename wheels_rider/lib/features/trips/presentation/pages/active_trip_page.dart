@@ -1573,7 +1573,8 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                           )
                         else
                           _buildBottomOption(Icons.edit_note_rounded, 'Modify', isDark, () {}),
-                        _buildBottomOption(Icons.cancel_outlined, 'Cancel', isDark, _showRiderCancelDialog, isCancel: true),
+                        if (_tripStatus != TripStatus.inProgress)
+                          _buildBottomOption(Icons.cancel_outlined, 'Cancel', isDark, _showRiderCancelDialog, isCancel: true),
                       ],
                     ),
 

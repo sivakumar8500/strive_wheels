@@ -57,3 +57,17 @@ class SelectSettingItemEvent extends SettingsEvent {
 class LogoutEvent extends SettingsEvent {
   const LogoutEvent();
 }
+
+class UpdateUserProfileEvent extends SettingsEvent {
+  final String name;
+  final String phone;
+  final String email;
+  final String gender;
+
+  const UpdateUserProfileEvent({
+    required this.name,
+    required this.phone,
+    required this.email,
+    required this.gender,
+  });
+}

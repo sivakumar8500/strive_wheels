@@ -225,24 +225,6 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
     }
   }
 
-  IconData _getIconForVehicle(String code) {
-    final upper = code.toUpperCase();
-    if (upper.contains('BIKE') || upper.contains('TWO') || upper.contains('SCOOT')) {
-      return Icons.two_wheeler_rounded;
-    } else if (upper.contains('AUTO') || upper.contains('RICKSHAW')) {
-      return Icons.electric_rickshaw_rounded;
-    } else if (upper.contains('VAN') || upper.contains('TRAVELLER') || upper.contains('TEMPO')) {
-      return Icons.airport_shuttle_rounded;
-    } else if (upper.contains('BUS')) {
-      return upper.contains('LUXURY')
-          ? Icons.directions_bus_filled_rounded
-          : Icons.directions_bus_rounded;
-    } else if (upper.contains('TRUCK') || upper.contains('CARGO')) {
-      return Icons.local_shipping_rounded;
-    }
-    return Icons.local_taxi_rounded;
-  }
-
   String _getDefaultSubtitle(VehicleTypeEntity vehicle) {
     if (vehicle.description != null && vehicle.description!.trim().isNotEmpty) {
       return vehicle.description!;
@@ -292,6 +274,7 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: cardBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -299,7 +282,12 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
       builder: (modalContext) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 16,
+              bottom: MediaQuery.of(modalContext).padding.bottom + 16,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -804,14 +792,16 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
     Color textSecondary, {
     double iconSize = 26,
   }) {
-    final iconUrl = vehicle.iconUrl?.trim();
-    final hasNetworkUrl = iconUrl != null &&
-        iconUrl.isNotEmpty &&
-        (iconUrl.startsWith('http://') || iconUrl.startsWith('https://'));
+    final rawUrl = vehicle.iconUrl?.trim();
+    if (rawUrl != null && rawUrl.isNotEmpty) {
+      final String fullUrl = (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))
+          ? rawUrl
+          : (rawUrl.startsWith('/')
+              ? '${ApiConstants.baseUrl}$rawUrl'
+              : '${ApiConstants.baseUrl}/$rawUrl');
 
-    if (hasNetworkUrl) {
       return Image.network(
-        iconUrl,
+        fullUrl,
         fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) {
           return _buildStaticFallbackVehicleImage(
@@ -868,7 +858,7 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
       return Image.asset(
         assetPath,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => Icon(
+        errorBuilder: (context, error, stackTrace) => Icon(
           fallbackIcon,
           color: isSelected ? AppColors.primaryBlue : textSecondary,
           size: iconSize,
@@ -1247,122 +1237,19 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
+                const SizedBox(width: 8),
 
-          // 3. Floating Map Controls (Glide smoothly above draggable bottom sheet)
-          Positioned(
-            right: 16,
-            bottom: floatingButtonsBottom,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // "+ Add stop" Button
-                InkWell(
-                  key: const Key('map_add_stop_button'),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Add stop along route'),
-                        duration: Duration(seconds: 1),
-                        backgroundColor: AppColors.primaryBlue,
-                      ),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: dividerColor,
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.12),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.add_circle_outline_rounded,
-                          color: textPrimary,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Add stop',
-                          style: GoogleFonts.inter(
-                            color: textPrimary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // Street View / Layer Toggle Button (Street View / Satellite / Terrain)
+                // Current Location Button (Beside top locations)
                 Container(
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
                     color: cardBg,
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: dividerColor,
-                      width: 1,
-                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.12),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: IconButton(
-                    key: const Key('street_view_mode_button'),
-                    padding: EdgeInsets.zero,
-                    tooltip: 'Switch Map View',
-                    icon: Icon(
-                      _currentMapType == MapType.normal
-                          ? Icons.map_rounded
-                          : Icons.layers_rounded,
-                      color: AppColors.primaryBlue,
-                      size: 22,
-                    ),
-                    onPressed: _toggleMapLayer,
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // Recenter / Near-Detail Zoom Button
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: cardBg,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: dividerColor,
-                      width: 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.12),
-                        blurRadius: 8,
+                        blurRadius: 10,
                         offset: const Offset(0, 2),
                       ),
                     ],
@@ -1370,6 +1257,7 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
                   child: IconButton(
                     key: const Key('map_recenter_button'),
                     padding: EdgeInsets.zero,
+                    tooltip: 'Current Location',
                     icon: const Icon(
                       Icons.my_location_rounded,
                       color: AppColors.primaryBlue,
@@ -1379,6 +1267,44 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
                   ),
                 ),
               ],
+            ),
+          ),
+
+          // 3. Floating Map Layer Toggle Button (Glide smoothly above draggable bottom sheet)
+          Positioned(
+            right: 16,
+            bottom: floatingButtonsBottom,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: cardBg,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: dividerColor,
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: IconButton(
+                key: const Key('street_view_mode_button'),
+                padding: EdgeInsets.zero,
+                tooltip: 'Switch Map View',
+                icon: Icon(
+                  _currentMapType == MapType.normal
+                      ? Icons.map_rounded
+                      : Icons.layers_rounded,
+                  color: AppColors.primaryBlue,
+                  size: 22,
+                ),
+                onPressed: _toggleMapLayer,
+              ),
             ),
           ),
 
@@ -1412,8 +1338,12 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
                   ),
                   child: ListView(
                     controller: scrollController,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
+                    padding: EdgeInsets.only(
+                      left: 16,
+                      right: 16,
+                      top: 10,
+                      bottom: MediaQuery.of(context).padding.bottom + 16,
+                    ),
                     children: [
                       // Drag Handle Bar (Swipe down visual indicator)
                       Center(

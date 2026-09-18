@@ -61,20 +61,20 @@ class PastRideCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: cardBg,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -86,19 +86,19 @@ class PastRideCard extends StatelessWidget {
             children: [
               // Vehicle Icon Badge
               Container(
-                width: 48,
-                height: 48,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   color: _getServiceBgColor(ride.serviceType),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   _getServiceIcon(ride.serviceType),
                   color: _getServiceIconColor(ride.serviceType),
-                  size: 24,
+                  size: 20,
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 10),
 
               // Title, Subtitle, and Completed Status
               Expanded(
@@ -107,26 +107,28 @@ class PastRideCard extends StatelessWidget {
                   children: [
                     Text(
                       ride.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: isDark
                             ? AppColors.white
                             : AppColors.onboardingTextPrimaryLight,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       ride.dateAndVehicle,
                       style: GoogleFonts.inter(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w400,
                         color: isDark
                             ? AppColors.textSecondaryDark
                             : AppColors.onboardingTextSecondaryLight,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
 
                     // Completed Badge Row
                     Row(
@@ -134,13 +136,13 @@ class PastRideCard extends StatelessWidget {
                         const Icon(
                           Icons.check_circle_rounded,
                           color: AppColors.completedGreen,
-                          size: 14,
+                          size: 13,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           ride.status,
                           style: GoogleFonts.inter(
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: AppColors.completedGreen,
                           ),
@@ -151,11 +153,13 @@ class PastRideCard extends StatelessWidget {
                 ),
               ),
 
+              const SizedBox(width: 8),
+
               // Amount Top Right
               Text(
                 ride.amount,
                 style: GoogleFonts.inter(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: isDark
                       ? AppColors.white
@@ -165,19 +169,19 @@ class PastRideCard extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
 
-          // Bottom Action Row: Wide "Book again" Pill Button + Right Chevron Button
+          // Bottom Action Row: Sleek "Book again" Pill Button + Right Chevron Button
           Row(
             children: [
               Expanded(
                 child: SizedBox(
-                  height: 44,
+                  height: 36,
                   child: ElevatedButton(
                     key: Key('book_again_button_${ride.id}'),
                     onPressed: onBookAgainTap,
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
                       alignment: Alignment.center,
                       backgroundColor: isDark
                           ? const Color(0xFF1E293B)
@@ -185,7 +189,7 @@ class PastRideCard extends StatelessWidget {
                       foregroundColor: AppColors.primaryBlue,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(22),
+                        borderRadius: BorderRadius.circular(18),
                         side: BorderSide(
                           color: isDark
                               ? const Color(0xFF334155)
@@ -197,7 +201,7 @@ class PastRideCard extends StatelessWidget {
                     child: Text(
                       AppStrings.bookAgain,
                       style: GoogleFonts.inter(
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AppColors.primaryBlue,
                       ),
@@ -205,21 +209,21 @@ class PastRideCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
 
               // Chevron Right Button
               InkWell(
                 key: Key('ride_details_chevron_${ride.id}'),
                 onTap: onBookAgainTap,
-                borderRadius: BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(18),
                 child: Container(
-                  width: 44,
-                  height: 44,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
                     color: isDark
                         ? const Color(0xFF1E293B)
                         : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(22),
+                    borderRadius: BorderRadius.circular(18),
                     border: Border.all(
                       color: isDark
                           ? const Color(0xFF334155)
@@ -232,7 +236,7 @@ class PastRideCard extends StatelessWidget {
                     color: isDark
                         ? AppColors.textSecondaryDark
                         : AppColors.onboardingTextSecondaryLight,
-                    size: 20,
+                    size: 18,
                   ),
                 ),
               ),

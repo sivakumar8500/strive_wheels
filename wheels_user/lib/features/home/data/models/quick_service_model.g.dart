@@ -8,10 +8,10 @@ part of 'quick_service_model.dart';
 
 _QuickServiceModel _$QuickServiceModelFromJson(Map<String, dynamic> json) =>
     _QuickServiceModel(
-      id: (json['id'] as num).toInt(),
-      title: json['title'] as String,
-      subtitle: json['subtitle'] as String,
-      iconUrl: json['icon_url'] as String?,
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      title: (json['title'] ?? json['name'] ?? '').toString(),
+      subtitle: (json['subtitle'] ?? json['description'] ?? '').toString(),
+      iconUrl: (json['icon_url'] ?? json['icon'] ?? json['image_url'])?.toString(),
     );
 
 Map<String, dynamic> _$QuickServiceModelToJson(_QuickServiceModel instance) =>

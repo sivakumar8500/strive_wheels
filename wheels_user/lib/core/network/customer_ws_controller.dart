@@ -215,13 +215,16 @@ class CustomerWSController {
   }
 
   /// Request custom/early drop location from customer side.
-  void requestDrop({required dynamic bookingId, required String reason}) {
+  void requestDrop({required dynamic bookingId, required String reason, double? lat, double? lng, double? distanceKm}) {
     final bIdInt = bookingId is String ? int.tryParse(bookingId.replaceAll(RegExp(r'[^0-9]'), '')) : bookingId;
     final payload = {
       'booking_id': bIdInt ?? bookingId,
       'requested_by': 'CUSTOMER',
       'reason': reason,
       'is_drop_requested': true,
+      if (lat != null) 'lat': lat,
+      if (lng != null) 'lng': lng,
+      if (distanceKm != null) 'distance_km': distanceKm,
       'timestamp': DateTime.now().toIso8601String(),
     };
     _ws.send('booking.drop_requested', payload);
@@ -229,12 +232,15 @@ class CustomerWSController {
   }
 
   /// Approve a drop request from the rider / counterpart.
-  void sendDropApproved({required dynamic bookingId}) {
+  void sendDropApproved({required dynamic bookingId, double? lat, double? lng, double? distanceKm}) {
     final bIdInt = bookingId is String ? int.tryParse(bookingId.replaceAll(RegExp(r'[^0-9]'), '')) : bookingId;
     final payload = {
       'booking_id': bIdInt ?? bookingId,
       'accepted_by': 'CUSTOMER',
       'is_drop_accepted': true,
+      if (lat != null) 'lat': lat,
+      if (lng != null) 'lng': lng,
+      if (distanceKm != null) 'distance_km': distanceKm,
       'timestamp': DateTime.now().toIso8601String(),
     };
     _ws.send('booking.drop_accepted', payload);

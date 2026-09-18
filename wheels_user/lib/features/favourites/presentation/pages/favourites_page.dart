@@ -126,6 +126,7 @@ class _FavouritesPageState extends State<FavouritesPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: isDark ? AppColors.onboardingBgDark : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -136,7 +137,7 @@ class _FavouritesPageState extends State<FavouritesPage> {
             left: 24,
             right: 24,
             top: 24,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).padding.bottom + 24,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -317,7 +318,7 @@ class _FavouritesPageState extends State<FavouritesPage> {
                   },
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
 
                 // 2. Shortcut Shelf Card
                 ShortcutShelfCard(
@@ -325,7 +326,7 @@ class _FavouritesPageState extends State<FavouritesPage> {
                   subtitle: entity?.shortcutSubtitle ?? AppStrings.tapPlaceToUseAsDestination,
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 14),
 
                 // 3. Saved Places List
                 if (places.isEmpty)

@@ -66,16 +66,16 @@ class ManeuverBannerWidget extends StatelessWidget {
 
     return SafeArea(
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: bannerBg,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
@@ -83,15 +83,15 @@ class ManeuverBannerWidget extends StatelessWidget {
           children: [
             // Turn Direction Icon Circle
             Container(
-              width: 48,
-              height: 48,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
                 color: AppColors.primaryBlue,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primaryBlue.withValues(alpha: 0.4),
-                    blurRadius: 10,
+                    color: AppColors.primaryBlue.withValues(alpha: 0.35),
+                    blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
                 ],
@@ -99,10 +99,10 @@ class ManeuverBannerWidget extends StatelessWidget {
               child: Icon(
                 icon,
                 color: Colors.white,
-                size: 28,
+                size: 22,
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 10),
 
             // Distance & Road Name
             Expanded(
@@ -115,17 +115,17 @@ class ManeuverBannerWidget extends StatelessWidget {
                       Text(
                         distanceStr,
                         style: GoogleFonts.poppins(
-                          fontSize: 18,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           roadName,
                           style: GoogleFonts.poppins(
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: const Color(0xFF94A3B8),
                           ),
@@ -135,11 +135,11 @@ class ManeuverBannerWidget extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
                   Text(
                     instruction,
                     style: GoogleFonts.poppins(
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w500,
                       color: const Color(0xFFCBD5E1),
                     ),
@@ -150,7 +150,7 @@ class ManeuverBannerWidget extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
 
             // Route Overview & Mute Action Buttons
             Column(
@@ -158,9 +158,9 @@ class ManeuverBannerWidget extends StatelessWidget {
               children: [
                 InkWell(
                   onTap: onOverviewTap,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(16),
                   child: Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
@@ -168,16 +168,16 @@ class ManeuverBannerWidget extends StatelessWidget {
                     child: const Icon(
                       Icons.map_rounded,
                       color: Colors.white,
-                      size: 18,
+                      size: 16,
                     ),
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 InkWell(
                   onTap: onToggleMute,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(16),
                   child: Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
@@ -185,7 +185,7 @@ class ManeuverBannerWidget extends StatelessWidget {
                     child: Icon(
                       isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
                       color: isMuted ? const Color(0xFFEF4444) : Colors.white,
-                      size: 18,
+                      size: 16,
                     ),
                   ),
                 ),

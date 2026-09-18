@@ -21,10 +21,10 @@ class ShortcutShelfCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: cardBg,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isDark ? const Color(0xFF334155) : const Color(0xFFDBEAFE),
           width: 1,
@@ -38,18 +38,18 @@ class ShortcutShelfCard extends StatelessWidget {
               Text(
                 AppStrings.yourShortcutShelf,
                 style: GoogleFonts.inter(
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: AppColors.primaryBlue,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Padding(
-                padding: const EdgeInsets.only(right: 48),
+                padding: const EdgeInsets.only(right: 40),
                 child: Text(
                   title,
                   style: GoogleFonts.poppins(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: isDark
                         ? AppColors.white
@@ -57,11 +57,11 @@ class ShortcutShelfCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 subtitle,
                 style: GoogleFonts.inter(
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.w400,
                   color: isDark
                       ? AppColors.textSecondaryDark
@@ -76,15 +76,15 @@ class ShortcutShelfCard extends StatelessWidget {
             right: 0,
             top: 0,
             child: Container(
-              width: 44,
-              height: 44,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 8,
+                    blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
                 ],
@@ -92,7 +92,7 @@ class ShortcutShelfCard extends StatelessWidget {
               child: const Icon(
                 Icons.favorite_rounded,
                 color: AppColors.primaryBlue,
-                size: 22,
+                size: 18,
               ),
             ),
           ),

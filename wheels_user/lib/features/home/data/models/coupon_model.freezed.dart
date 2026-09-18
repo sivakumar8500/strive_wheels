@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$CouponModel {
 
- int get id; String get code;@JsonKey(name: 'discount_type') String? get discountType;@JsonKey(name: 'discount_value') num? get discountValue;
+ int get id; String get code;@JsonKey(name: 'discount_type') String? get discountType;@JsonKey(name: 'discount_value') num? get discountValue;@JsonKey(name: 'valid_until') String? get validUntil;@JsonKey(name: 'expires_at') String? get expiresAt;
 /// Create a copy of CouponModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $CouponModelCopyWith<CouponModel> get copyWith => _$CouponModelCopyWithImpl<Coup
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CouponModel&&(identical(other.id, id) || other.id == id)&&(identical(other.code, code) || other.code == code)&&(identical(other.discountType, discountType) || other.discountType == discountType)&&(identical(other.discountValue, discountValue) || other.discountValue == discountValue));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CouponModel&&(identical(other.id, id) || other.id == id)&&(identical(other.code, code) || other.code == code)&&(identical(other.discountType, discountType) || other.discountType == discountType)&&(identical(other.discountValue, discountValue) || other.discountValue == discountValue)&&(identical(other.validUntil, validUntil) || other.validUntil == validUntil)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,code,discountType,discountValue);
+int get hashCode => Object.hash(runtimeType,id,code,discountType,discountValue,validUntil,expiresAt);
 
 @override
 String toString() {
-  return 'CouponModel(id: $id, code: $code, discountType: $discountType, discountValue: $discountValue)';
+  return 'CouponModel(id: $id, code: $code, discountType: $discountType, discountValue: $discountValue, validUntil: $validUntil, expiresAt: $expiresAt)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $CouponModelCopyWith<$Res>  {
   factory $CouponModelCopyWith(CouponModel value, $Res Function(CouponModel) _then) = _$CouponModelCopyWithImpl;
 @useResult
 $Res call({
- int id, String code,@JsonKey(name: 'discount_type') String? discountType,@JsonKey(name: 'discount_value') num? discountValue
+ int id, String code,@JsonKey(name: 'discount_type') String? discountType,@JsonKey(name: 'discount_value') num? discountValue,@JsonKey(name: 'valid_until') String? validUntil,@JsonKey(name: 'expires_at') String? expiresAt
 });
 
 
@@ -65,13 +65,15 @@ class _$CouponModelCopyWithImpl<$Res>
 
 /// Create a copy of CouponModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? code = null,Object? discountType = freezed,Object? discountValue = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? code = null,Object? discountType = freezed,Object? discountValue = freezed,Object? validUntil = freezed,Object? expiresAt = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,code: null == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
 as String,discountType: freezed == discountType ? _self.discountType : discountType // ignore: cast_nullable_to_non_nullable
 as String?,discountValue: freezed == discountValue ? _self.discountValue : discountValue // ignore: cast_nullable_to_non_nullable
-as num?,
+as num?,validUntil: freezed == validUntil ? _self.validUntil : validUntil // ignore: cast_nullable_to_non_nullable
+as String?,expiresAt: freezed == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -156,10 +158,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String code, @JsonKey(name: 'discount_type')  String? discountType, @JsonKey(name: 'discount_value')  num? discountValue)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String code, @JsonKey(name: 'discount_type')  String? discountType, @JsonKey(name: 'discount_value')  num? discountValue, @JsonKey(name: 'valid_until')  String? validUntil, @JsonKey(name: 'expires_at')  String? expiresAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CouponModel() when $default != null:
-return $default(_that.id,_that.code,_that.discountType,_that.discountValue);case _:
+return $default(_that.id,_that.code,_that.discountType,_that.discountValue,_that.validUntil,_that.expiresAt);case _:
   return orElse();
 
 }
@@ -177,10 +179,10 @@ return $default(_that.id,_that.code,_that.discountType,_that.discountValue);case
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String code, @JsonKey(name: 'discount_type')  String? discountType, @JsonKey(name: 'discount_value')  num? discountValue)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String code, @JsonKey(name: 'discount_type')  String? discountType, @JsonKey(name: 'discount_value')  num? discountValue, @JsonKey(name: 'valid_until')  String? validUntil, @JsonKey(name: 'expires_at')  String? expiresAt)  $default,) {final _that = this;
 switch (_that) {
 case _CouponModel():
-return $default(_that.id,_that.code,_that.discountType,_that.discountValue);case _:
+return $default(_that.id,_that.code,_that.discountType,_that.discountValue,_that.validUntil,_that.expiresAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -197,10 +199,10 @@ return $default(_that.id,_that.code,_that.discountType,_that.discountValue);case
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String code, @JsonKey(name: 'discount_type')  String? discountType, @JsonKey(name: 'discount_value')  num? discountValue)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String code, @JsonKey(name: 'discount_type')  String? discountType, @JsonKey(name: 'discount_value')  num? discountValue, @JsonKey(name: 'valid_until')  String? validUntil, @JsonKey(name: 'expires_at')  String? expiresAt)?  $default,) {final _that = this;
 switch (_that) {
 case _CouponModel() when $default != null:
-return $default(_that.id,_that.code,_that.discountType,_that.discountValue);case _:
+return $default(_that.id,_that.code,_that.discountType,_that.discountValue,_that.validUntil,_that.expiresAt);case _:
   return null;
 
 }
@@ -212,13 +214,15 @@ return $default(_that.id,_that.code,_that.discountType,_that.discountValue);case
 @JsonSerializable()
 
 class _CouponModel implements CouponModel {
-  const _CouponModel({required this.id, required this.code, @JsonKey(name: 'discount_type') this.discountType, @JsonKey(name: 'discount_value') this.discountValue});
+  const _CouponModel({required this.id, required this.code, @JsonKey(name: 'discount_type') this.discountType, @JsonKey(name: 'discount_value') this.discountValue, @JsonKey(name: 'valid_until') this.validUntil, @JsonKey(name: 'expires_at') this.expiresAt});
   factory _CouponModel.fromJson(Map<String, dynamic> json) => _$CouponModelFromJson(json);
 
 @override final  int id;
 @override final  String code;
 @override@JsonKey(name: 'discount_type') final  String? discountType;
 @override@JsonKey(name: 'discount_value') final  num? discountValue;
+@override@JsonKey(name: 'valid_until') final  String? validUntil;
+@override@JsonKey(name: 'expires_at') final  String? expiresAt;
 
 /// Create a copy of CouponModel
 /// with the given fields replaced by the non-null parameter values.
@@ -233,16 +237,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CouponModel&&(identical(other.id, id) || other.id == id)&&(identical(other.code, code) || other.code == code)&&(identical(other.discountType, discountType) || other.discountType == discountType)&&(identical(other.discountValue, discountValue) || other.discountValue == discountValue));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CouponModel&&(identical(other.id, id) || other.id == id)&&(identical(other.code, code) || other.code == code)&&(identical(other.discountType, discountType) || other.discountType == discountType)&&(identical(other.discountValue, discountValue) || other.discountValue == discountValue)&&(identical(other.validUntil, validUntil) || other.validUntil == validUntil)&&(identical(other.expiresAt, expiresAt) || other.expiresAt == expiresAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,code,discountType,discountValue);
+int get hashCode => Object.hash(runtimeType,id,code,discountType,discountValue,validUntil,expiresAt);
 
 @override
 String toString() {
-  return 'CouponModel(id: $id, code: $code, discountType: $discountType, discountValue: $discountValue)';
+  return 'CouponModel(id: $id, code: $code, discountType: $discountType, discountValue: $discountValue, validUntil: $validUntil, expiresAt: $expiresAt)';
 }
 
 
@@ -253,7 +257,7 @@ abstract mixin class _$CouponModelCopyWith<$Res> implements $CouponModelCopyWith
   factory _$CouponModelCopyWith(_CouponModel value, $Res Function(_CouponModel) _then) = __$CouponModelCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String code,@JsonKey(name: 'discount_type') String? discountType,@JsonKey(name: 'discount_value') num? discountValue
+ int id, String code,@JsonKey(name: 'discount_type') String? discountType,@JsonKey(name: 'discount_value') num? discountValue,@JsonKey(name: 'valid_until') String? validUntil,@JsonKey(name: 'expires_at') String? expiresAt
 });
 
 
@@ -270,13 +274,15 @@ class __$CouponModelCopyWithImpl<$Res>
 
 /// Create a copy of CouponModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? code = null,Object? discountType = freezed,Object? discountValue = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? code = null,Object? discountType = freezed,Object? discountValue = freezed,Object? validUntil = freezed,Object? expiresAt = freezed,}) {
   return _then(_CouponModel(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,code: null == code ? _self.code : code // ignore: cast_nullable_to_non_nullable
 as String,discountType: freezed == discountType ? _self.discountType : discountType // ignore: cast_nullable_to_non_nullable
 as String?,discountValue: freezed == discountValue ? _self.discountValue : discountValue // ignore: cast_nullable_to_non_nullable
-as num?,
+as num?,validUntil: freezed == validUntil ? _self.validUntil : validUntil // ignore: cast_nullable_to_non_nullable
+as String?,expiresAt: freezed == expiresAt ? _self.expiresAt : expiresAt // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../home/presentation/pages/home_page.dart';
 import '../../../trips/presentation/pages/trips_page.dart';
@@ -42,7 +43,15 @@ class EarningsView extends StatefulWidget {
 
 class _EarningsViewState extends State<EarningsView> {
   int _currentIndex = 2; // Earnings is selected
-  String _activityFilter = 'Week';
+  DateTime _selectedDate = DateTime.now();
+
+  DateTime _getStartOfWeek(DateTime date) {
+    return date.subtract(Duration(days: date.weekday - 1));
+  }
+
+  DateTime _getEndOfWeek(DateTime date) {
+    return date.add(Duration(days: 7 - date.weekday));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,23 +82,23 @@ class _EarningsViewState extends State<EarningsView> {
               final earnings = state.earnings;
               return SingleChildScrollView(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 14.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       _buildTopBar(isDark),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 14),
                       _buildTotalEarningsCard(earnings.totalEarnings, earnings.trips, earnings.hours, earnings.rating),
-                      const SizedBox(height: 24),
-                      _buildWeeklyActivityCard(isDark),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 14),
+                      _buildWeeklyActivityCard(isDark, earnings.recentActivities),
+                      const SizedBox(height: 14),
                       _buildWithdrawButton(),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 20),
                       _buildRecentActivityHeader(isDark),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 10),
                       _buildRecentActivityList(isDark, earnings.recentActivities),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
@@ -147,18 +156,36 @@ class _EarningsViewState extends State<EarningsView> {
             clipBehavior: Clip.none,
             children: [
               CircleAvatar(
-                radius: 24,
+                radius: 20,
                 backgroundColor: Colors.grey.shade200,
-                backgroundImage: imageUrl.isNotEmpty
-                    ? NetworkImage(imageUrl)
-                    : const AssetImage('assets/images/login.png') as ImageProvider,
+                child: ClipOval(
+                  child: imageUrl.isNotEmpty
+                      ? Image.network(
+                          imageUrl,
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Image.asset(
+                            'assets/images/strive_logo.jpg',
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : Image.asset(
+                          'assets/images/strive_logo.jpg',
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.cover,
+                        ),
+                ),
               ),
               Positioned(
                 bottom: 0,
                 right: -2,
                 child: Container(
-                  width: 14,
-                  height: 14,
+                  width: 12,
+                  height: 12,
                   decoration: BoxDecoration(
                     color: const Color(0xFF0D6EFD), // Blue dot
                     shape: BoxShape.circle,
@@ -168,7 +195,7 @@ class _EarningsViewState extends State<EarningsView> {
               ),
             ],
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -180,35 +207,35 @@ class _EarningsViewState extends State<EarningsView> {
                       color: const Color(0xFF0D6EFD),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: const Icon(Icons.drive_eta, size: 10, color: Colors.white),
+                    child: const Icon(Icons.drive_eta, size: 9, color: Colors.white),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 5),
                   Text(
-                    name,
+                    name.isEmpty ? 'Puja Sri' : name,
                     style: GoogleFonts.inter(
-                      fontSize: 20,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: isDark ? Colors.white : Colors.black,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: isDark ? Colors.grey.shade800 : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 12),
-                    const SizedBox(width: 4),
+                    const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 11),
+                    const SizedBox(width: 3),
                     Text(
-                      rating,
+                      rating == '0.0' || rating.isEmpty ? '5.0' : rating,
                       style: GoogleFonts.inter(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: isDark ? Colors.white : Colors.black87,
                       ),
@@ -228,8 +255,8 @@ class _EarningsViewState extends State<EarningsView> {
         sl.isRegistered<ProfileBloc>()
             ? BlocBuilder<ProfileBloc, ProfileState>(
                 builder: (context, state) {
-                  String name = 'Loading...';
-                  String rating = '0.0';
+                  String name = 'Puja Sri';
+                  String rating = '5.0';
                   String imageUrl = '';
 
                   if (state is ProfileLoaded) {
@@ -250,27 +277,27 @@ class _EarningsViewState extends State<EarningsView> {
           clipBehavior: Clip.none,
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
                 color: isDark ? Colors.grey.shade800 : Colors.white,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 10,
+                    blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
                 ],
               ),
-              child: const Icon(Icons.notifications_none, color: Colors.black87),
+              child: const Icon(Icons.notifications_none, color: Colors.black87, size: 20),
             ),
             Positioned(
-              top: 10,
-              right: 12,
+              top: 8,
+              right: 10,
               child: Container(
-                width: 8,
-                height: 8,
+                width: 7,
+                height: 7,
                 decoration: BoxDecoration(
                   color: Colors.red,
                   shape: BoxShape.circle,
@@ -286,19 +313,19 @@ class _EarningsViewState extends State<EarningsView> {
 
   Widget _buildTotalEarningsCard(double totalEarnings, int trips, double hours, double rating) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF0D52D6), Color(0xFF0038A8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0D52D6).withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: const Color(0xFF0D52D6).withValues(alpha: 0.25),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -311,26 +338,26 @@ class _EarningsViewState extends State<EarningsView> {
               Text(
                 'TOTAL EARNINGS',
                 style: GoogleFonts.inter(
-                  fontSize: 12,
+                  fontSize: 10,
                   fontWeight: FontWeight.w600,
-                  letterSpacing: 1.0,
+                  letterSpacing: 0.8,
                   color: Colors.white.withValues(alpha: 0.8),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.trending_up, color: Colors.white, size: 14),
-                    const SizedBox(width: 4),
+                    const Icon(Icons.trending_up, color: Colors.white, size: 12),
+                    const SizedBox(width: 3),
                     Text(
                       '+12.4%',
                       style: GoogleFonts.inter(
-                        fontSize: 12,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -340,7 +367,7 @@ class _EarningsViewState extends State<EarningsView> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
@@ -348,29 +375,29 @@ class _EarningsViewState extends State<EarningsView> {
               Text(
                 '₹${totalEarnings.toStringAsFixed(0)}',
                 style: GoogleFonts.inter(
-                  fontSize: 48,
+                  fontSize: 30,
                   fontWeight: FontWeight.w700,
                   color: Colors.white,
-                  letterSpacing: -1,
+                  letterSpacing: -0.5,
                 ),
               ),
               Text(
                 '.${(totalEarnings % 1 * 100).toInt().toString().padLeft(2, '0')}',
                 style: GoogleFonts.inter(
-                  fontSize: 24,
+                  fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: Colors.white.withValues(alpha: 0.8),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(child: _buildEarningStat('Trips', '$trips')),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Expanded(child: _buildEarningStat('Hours', '${hours}h')),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Expanded(child: _buildEarningStat('Rating', '$rating★')),
             ],
           ),
@@ -381,25 +408,25 @@ class _EarningsViewState extends State<EarningsView> {
 
   Widget _buildEarningStat(String title, String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
           Text(
             title,
             style: GoogleFonts.inter(
-              fontSize: 12,
+              fontSize: 11,
               color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             value,
             style: GoogleFonts.inter(
-              fontSize: 20,
+              fontSize: 14,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
@@ -409,17 +436,22 @@ class _EarningsViewState extends State<EarningsView> {
     );
   }
 
-  Widget _buildWeeklyActivityCard(bool isDark) {
+  Widget _buildWeeklyActivityCard(bool isDark, List<EarningsActivityEntity> activities) {
+    final startOfWeek = _getStartOfWeek(_selectedDate);
+    final endOfWeek = _getEndOfWeek(_selectedDate);
+
+    final dayNames = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -432,111 +464,118 @@ class _EarningsViewState extends State<EarningsView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Weekly\nActivity',
+                    'Weekly Activity',
                     style: GoogleFonts.inter(
-                      fontSize: 18,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: isDark ? Colors.white : Colors.black,
-                      height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
-                    'Aug 12 - Aug 18',
+                    '${DateFormat('MMM dd').format(startOfWeek)} - ${DateFormat('MMM dd, yyyy').format(endOfWeek)}',
                     style: GoogleFonts.inter(
-                      fontSize: 13,
+                      fontSize: 11,
                       color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                     ),
                   ),
                 ],
               ),
-              Container(
-                height: 36,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey.shade800 : const Color(0xFFF3F4F6),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Row(
-                  children: [
-                    _buildToggleTab('Week', _activityFilter == 'Week', isDark),
-                    _buildToggleTab('Month', _activityFilter == 'Month', isDark),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 80), // Space for mock chart
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: ['M', 'T', 'W', 'T', 'F', 'S', 'S'].asMap().entries.map((entry) {
-                  bool isFriday = entry.key == 4;
-                  return Text(
-                    entry.value,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: isFriday ? AppColors.primaryBlue : (isDark ? Colors.grey.shade400 : Colors.grey.shade500),
-                    ),
+              InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _selectedDate,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
                   );
-                }).toList(),
-              ),
-              // Tooltip over F
-              Positioned(
-                top: -35,
-                left: 175, // approximate position over 'F'
+                  if (picked != null) {
+                    setState(() => _selectedDate = picked);
+                  }
+                },
+                borderRadius: BorderRadius.circular(12),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.white : const Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(8),
+                    color: isDark ? Colors.grey.shade800 : AppColors.primaryBlue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.3)),
                   ),
-                  child: Text(
-                    '\$245',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.black : Colors.white,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.calendar_today, size: 13, color: AppColors.primaryBlue),
+                      const SizedBox(width: 4),
+                      Text(
+                        DateFormat('MMM dd').format(_selectedDate),
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primaryBlue,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
+          const SizedBox(height: 12),
+          // Dynamic Weekly Day Cards without vertical bars
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(7, (index) {
+              final dayDate = startOfWeek.add(Duration(days: index));
+              final isSelected = dayDate.year == _selectedDate.year &&
+                  dayDate.month == _selectedDate.month &&
+                  dayDate.day == _selectedDate.day;
 
-  Widget _buildToggleTab(String title, bool isSelected, bool isDark) {
-    return GestureDetector(
-      onTap: () => setState(() => _activityFilter = title),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: isSelected ? (isDark ? Colors.grey.shade700 : Colors.white) : Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  )
-                ]
-              : [],
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          title,
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            color: isSelected ? AppColors.primaryBlue : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+              return GestureDetector(
+                onTap: () => setState(() => _selectedDate = dayDate),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? (isDark ? AppColors.primaryBlue.withValues(alpha: 0.25) : const Color(0xFFEFF6FF))
+                        : (isDark ? Colors.grey.shade800.withValues(alpha: 0.4) : const Color(0xFFF8FAFC)),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected ? AppColors.primaryBlue : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        dayNames[index],
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                          color: isSelected
+                              ? AppColors.primaryBlue
+                              : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${dayDate.day}',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected
+                              ? AppColors.primaryBlue
+                              : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -546,21 +585,21 @@ class _EarningsViewState extends State<EarningsView> {
       onPressed: () {},
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFF0D52D6),
-        padding: const EdgeInsets.symmetric(vertical: 18),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
         ),
         elevation: 0,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 20),
-          const SizedBox(width: 8),
+          const Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 16),
+          const SizedBox(width: 6),
           Text(
             'Withdraw to Bank',
             style: GoogleFonts.inter(
-              fontSize: 16,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
               color: Colors.white,
             ),
@@ -575,9 +614,9 @@ class _EarningsViewState extends State<EarningsView> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          'Recent Activity',
+          'Recent Activity (${DateFormat('MMM dd').format(_selectedDate)})',
           style: GoogleFonts.inter(
-            fontSize: 20,
+            fontSize: 15,
             fontWeight: FontWeight.bold,
             color: isDark ? Colors.white : const Color(0xFF1E293B),
           ),
@@ -586,13 +625,13 @@ class _EarningsViewState extends State<EarningsView> {
           onPressed: () {},
           style: TextButton.styleFrom(
             padding: EdgeInsets.zero,
-            minimumSize: const Size(50, 30),
+            minimumSize: const Size(40, 26),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
           child: Text(
             'See All',
             style: GoogleFonts.inter(
-              fontSize: 14,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               color: AppColors.primaryBlue,
             ),
@@ -603,16 +642,23 @@ class _EarningsViewState extends State<EarningsView> {
   }
 
   Widget _buildRecentActivityList(bool isDark, List<EarningsActivityEntity> activities) {
-    if (activities.isEmpty) {
-      return const AnimatedEmptyState(
-        title: 'No Recent Activity',
-        subtitle: 'Complete trips to see your earnings here.',
-        icon: Icons.receipt_long_outlined,
+    // Strictly filter activities by selected date
+    final filtered = activities.where((a) {
+      return a.timestamp.year == _selectedDate.year &&
+          a.timestamp.month == _selectedDate.month &&
+          a.timestamp.day == _selectedDate.day;
+    }).toList();
+
+    if (filtered.isEmpty) {
+      return AnimatedEmptyState(
+        title: 'No Activity Found',
+        subtitle: 'No earnings recorded for ${DateFormat('MMM dd, yyyy').format(_selectedDate)}.',
+        icon: Icons.event_busy_outlined,
       );
     }
-    
+
     return Column(
-      children: activities.map((activity) {
+      children: filtered.map((activity) {
         IconData iconData;
         Color iconBgColor;
         Color iconColor;
@@ -636,7 +682,7 @@ class _EarningsViewState extends State<EarningsView> {
         }
 
         return Padding(
-          padding: const EdgeInsets.only(bottom: 12.0),
+          padding: const EdgeInsets.only(bottom: 8.0),
           child: _buildActivityItem(
             icon: iconData,
             iconBgColor: iconBgColor,
@@ -669,36 +715,36 @@ class _EarningsViewState extends State<EarningsView> {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
+            blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
           decoration: BoxDecoration(
             border: hasBorder
-                ? Border(left: BorderSide(color: borderColor ?? Colors.transparent, width: 4))
+                ? Border(left: BorderSide(color: borderColor ?? Colors.transparent, width: 3))
                 : null,
           ),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(10),
           child: Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   color: iconBgColor,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: iconColor),
+                child: Icon(icon, color: iconColor, size: 18),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -706,16 +752,16 @@ class _EarningsViewState extends State<EarningsView> {
                     Text(
                       title,
                       style: GoogleFonts.inter(
-                        fontSize: 15,
+                        fontSize: 13,
                         fontWeight: FontWeight.bold,
                         color: isDark ? Colors.white : const Color(0xFF1E293B),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle,
                       style: GoogleFonts.inter(
-                        fontSize: 12,
+                        fontSize: 11,
                         color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
                       ),
                     ),
@@ -725,7 +771,7 @@ class _EarningsViewState extends State<EarningsView> {
               Text(
                 amount,
                 style: GoogleFonts.inter(
-                  fontSize: 18,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: amountColor,
                 ),

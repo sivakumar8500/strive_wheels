@@ -164,7 +164,9 @@ class _OffersCarouselState extends State<OffersCarousel> {
                             ),
                           ),
                           child: Text(
-                            AppStrings.limitedOffer,
+                            (coupon.validUntil != null && coupon.validUntil!.trim().isNotEmpty)
+                                ? 'Valid till ${coupon.validUntil}'
+                                : AppStrings.limitedOffer,
                             style: GoogleFonts.inter(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -188,7 +190,7 @@ class _OffersCarouselState extends State<OffersCarousel> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              coupon.code,
+                              coupon.code.isNotEmpty ? 'Code: ${coupon.code}' : coupon.description,
                               style: GoogleFonts.inter(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w400,

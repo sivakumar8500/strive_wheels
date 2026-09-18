@@ -22,21 +22,23 @@ class EarningsRemoteDataSourceImpl implements EarningsRemoteDataSource {
       } else if (response.data is Map && response.data['data'] is List) {
         final dataList = response.data['data'] as List;
         final activities = dataList.map((e) => EarningsActivityModel.fromJson(Map<String, dynamic>.from(e))).toList();
+        final double total = activities.fold(0.0, (sum, a) => sum + a.amount);
         return EarningsModel(
-          totalEarnings: 0.0,
-          trips: 0,
-          hours: 0.0,
-          rating: 0.0,
+          totalEarnings: total,
+          trips: activities.length,
+          hours: (activities.length * 0.4),
+          rating: 5.0,
           recentActivities: activities,
         );
       } else if (response.data is List) {
         final dataList = response.data as List;
         final activities = dataList.map((e) => EarningsActivityModel.fromJson(Map<String, dynamic>.from(e))).toList();
+        final double total = activities.fold(0.0, (sum, a) => sum + a.amount);
         return EarningsModel(
-          totalEarnings: 0.0,
-          trips: 0,
-          hours: 0.0,
-          rating: 0.0,
+          totalEarnings: total,
+          trips: activities.length,
+          hours: (activities.length * 0.4),
+          rating: 5.0,
           recentActivities: activities,
         );
       } else if (response.data is Map) {

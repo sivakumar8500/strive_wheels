@@ -2,7 +2,6 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import '../../domain/entities/trip_entity.dart';
 
 part 'trip_model.freezed.dart';
-part 'trip_model.g.dart';
 
 @freezed
 abstract class BookingModel with _$BookingModel {
@@ -36,11 +35,25 @@ abstract class BookingModel with _$BookingModel {
       name = 'Booking #${json['booking_code']}';
     }
 
-    double rating = 4.8;
+    double rating = 5.0;
     if (json['client_rating'] != null) {
-      rating = (json['client_rating'] is num) ? (json['client_rating'] as num).toDouble() : (double.tryParse(json['client_rating'].toString()) ?? 4.8);
+      rating = (json['client_rating'] is num) ? (json['client_rating'] as num).toDouble() : (double.tryParse(json['client_rating'].toString()) ?? 5.0);
     } else if (json['customer_rating'] != null) {
-      rating = (json['customer_rating'] is num) ? (json['customer_rating'] as num).toDouble() : (double.tryParse(json['customer_rating'].toString()) ?? 4.8);
+      rating = (json['customer_rating'] is num) ? (json['customer_rating'] as num).toDouble() : (double.tryParse(json['customer_rating'].toString()) ?? 5.0);
+    } else if (json['rating'] != null) {
+      if (json['rating'] is num) {
+        rating = (json['rating'] as num).toDouble();
+      } else if (json['rating'] is Map && json['rating']['rating'] != null) {
+        rating = (json['rating']['rating'] is num) ? (json['rating']['rating'] as num).toDouble() : (double.tryParse(json['rating']['rating'].toString()) ?? 5.0);
+      } else {
+        rating = double.tryParse(json['rating'].toString()) ?? 5.0;
+      }
+    } else if (json['customer'] is Map && json['customer']['rating'] != null) {
+      final r = json['customer']['rating'];
+      rating = (r is num) ? r.toDouble() : (double.tryParse(r.toString()) ?? 5.0);
+    } else if (json['customer'] is Map && json['customer']['avg_rating'] != null) {
+      final r = json['customer']['avg_rating'];
+      rating = (r is num) ? r.toDouble() : (double.tryParse(r.toString()) ?? 5.0);
     }
 
     String tagStr = 'Self';

@@ -73,6 +73,7 @@ import '../../features/otp/domain/usecases/resend_otp_usecase.dart';
 import '../../features/otp/domain/usecases/verify_otp_usecase.dart';
 import '../../features/otp/presentation/bloc/otp_bloc.dart';
 import '../../features/settings/data/datasources/settings_local_datasource.dart';
+import '../../features/settings/data/datasources/settings_remote_datasource.dart';
 import '../../features/settings/data/repositories/settings_repository_impl.dart';
 import '../../features/settings/domain/repositories/settings_repository.dart';
 import '../../features/settings/domain/usecases/get_settings_usecase.dart';
@@ -268,6 +269,11 @@ Future<void> initDependencyInjection() async {
       () => const SettingsLocalDataSourceImpl(),
     );
   }
+  if (!sl.isRegistered<SettingsRemoteDataSource>()) {
+    sl.registerLazySingleton<SettingsRemoteDataSource>(
+      () => SettingsRemoteDataSourceImpl(dio: sl()),
+    );
+  }
   if (!sl.isRegistered<BookingLocalDataSource>()) {
     sl.registerLazySingleton<BookingLocalDataSource>(
       () => const BookingLocalDataSourceImpl(),
@@ -328,7 +334,10 @@ Future<void> initDependencyInjection() async {
   }
   if (!sl.isRegistered<SettingsRepository>()) {
     sl.registerLazySingleton<SettingsRepository>(
-      () => SettingsRepositoryImpl(localDataSource: sl()),
+      () => SettingsRepositoryImpl(
+        localDataSource: sl(),
+        remoteDataSource: sl(),
+      ),
     );
   }
   if (!sl.isRegistered<BookingRepository>()) {

@@ -31,12 +31,14 @@ class CouponEntity {
   final String title;
   final String code;
   final String description;
+  final String? validUntil;
 
   const CouponEntity({
     required this.id,
     required this.title,
     required this.code,
     required this.description,
+    this.validUntil,
   });
 }
 

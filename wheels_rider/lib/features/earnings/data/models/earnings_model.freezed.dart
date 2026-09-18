@@ -29,9 +29,6 @@ mixin _$EarningsActivityModel {
       _$EarningsActivityModelCopyWithImpl<EarningsActivityModel>(
           this as EarningsActivityModel, _$identity);
 
-  /// Serializes this EarningsActivityModel to a JSON map.
-  Map<String, dynamic> toJson();
-
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
@@ -47,7 +44,6 @@ mixin _$EarningsActivityModel {
                 other.timestamp == timestamp));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
       Object.hash(runtimeType, id, type, title, subtitle, amount, timestamp);
@@ -289,7 +285,7 @@ extension EarningsActivityModelPatterns on EarningsActivityModel {
 }
 
 /// @nodoc
-@JsonSerializable()
+
 class _EarningsActivityModel extends EarningsActivityModel {
   const _EarningsActivityModel(
       {required this.id,
@@ -299,8 +295,6 @@ class _EarningsActivityModel extends EarningsActivityModel {
       required this.amount,
       required this.timestamp})
       : super._();
-  factory _EarningsActivityModel.fromJson(Map<String, dynamic> json) =>
-      _$EarningsActivityModelFromJson(json);
 
   @override
   final String id;
@@ -325,13 +319,6 @@ class _EarningsActivityModel extends EarningsActivityModel {
           this, _$identity);
 
   @override
-  Map<String, dynamic> toJson() {
-    return _$EarningsActivityModelToJson(
-      this,
-    );
-  }
-
-  @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
@@ -346,7 +333,6 @@ class _EarningsActivityModel extends EarningsActivityModel {
                 other.timestamp == timestamp));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
       Object.hash(runtimeType, id, type, title, subtitle, amount, timestamp);
@@ -441,9 +427,6 @@ mixin _$EarningsModel {
       _$EarningsModelCopyWithImpl<EarningsModel>(
           this as EarningsModel, _$identity);
 
-  /// Serializes this EarningsModel to a JSON map.
-  Map<String, dynamic> toJson();
-
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
@@ -458,7 +441,6 @@ mixin _$EarningsModel {
                 .equals(other.recentActivities, recentActivities));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, totalEarnings, trips, hours,
       rating, const DeepCollectionEquality().hash(recentActivities));
@@ -710,7 +692,7 @@ extension EarningsModelPatterns on EarningsModel {
 }
 
 /// @nodoc
-@JsonSerializable()
+
 class _EarningsModel extends EarningsModel {
   const _EarningsModel(
       {@JsonKey(name: 'total_earnings') required this.totalEarnings,
@@ -721,8 +703,6 @@ class _EarningsModel extends EarningsModel {
       required final List<EarningsActivityModel> recentActivities})
       : _recentActivities = recentActivities,
         super._();
-  factory _EarningsModel.fromJson(Map<String, dynamic> json) =>
-      _$EarningsModelFromJson(json);
 
   @override
   @JsonKey(name: 'total_earnings')
@@ -752,13 +732,6 @@ class _EarningsModel extends EarningsModel {
       __$EarningsModelCopyWithImpl<_EarningsModel>(this, _$identity);
 
   @override
-  Map<String, dynamic> toJson() {
-    return _$EarningsModelToJson(
-      this,
-    );
-  }
-
-  @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
@@ -772,7 +745,6 @@ class _EarningsModel extends EarningsModel {
                 .equals(other._recentActivities, _recentActivities));
   }
 
-  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, totalEarnings, trips, hours,
       rating, const DeepCollectionEquality().hash(_recentActivities));

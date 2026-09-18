@@ -86,6 +86,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   bool _isManualPan = false;
   bool _isLoadingAction = false;
   bool _isDropRequestPending = false;
+  bool _isLocationPermissionGranted = false;
   
   BitmapDescriptor? _customMarker;
   LatLng? _currentLatLng;
@@ -151,13 +152,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             _isDropRequestPending = false;
             _navigationPolylinePoints.clear();
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Trip was cancelled by customer'),
-              backgroundColor: Color(0xFFEF4444),
-              duration: Duration(seconds: 4),
-            ),
-          );
         } else if (isDropAccepted || status == 'COMPLETED') {
           _stopActiveRideHttpPolling();
           setState(() => _isDropRequestPending = false);
@@ -567,25 +561,64 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     super.dispose();
   }
 
-  Future<void> _determinePositionAndSend() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+  void _showPermissionSettingsDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Location Permission Required'),
+        content: const Text('StriveWheels Rider requires location access to navigate to pickup/drop locations and track live trips.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Geolocator.openAppSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
 
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  Future<void> _determinePositionAndSend() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      return;
+      serviceEnabled = await Geolocator.openLocationSettings();
+      if (!serviceEnabled) return;
     }
 
-    permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
+        if (mounted && _isLocationPermissionGranted) {
+          setState(() => _isLocationPermissionGranted = false);
+        }
         return;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
+      if (mounted) {
+        if (_isLocationPermissionGranted) {
+          setState(() => _isLocationPermissionGranted = false);
+        }
+        _showPermissionSettingsDialog();
+      }
       return;
+    }
+
+    if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+      if (mounted && !_isLocationPermissionGranted) {
+        setState(() {
+          _isLocationPermissionGranted = true;
+        });
+      }
     }
 
     try {
@@ -739,7 +772,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     },
                     mapType: MapType.normal,
                     zoomControlsEnabled: false,
-                    myLocationEnabled: true,
+                    myLocationEnabled: _isLocationPermissionGranted,
                     myLocationButtonEnabled: false,
                     polylines: _buildPolylines(),
                     markers: _buildMarkers(),
@@ -761,53 +794,33 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     ),
                   ),
 
-                // 3. Regular Floating Action Buttons (GPS and Filters)
-                if (!isGuidanceActive) ...[
-                  Positioned(
-                    top: MediaQuery.of(context).padding.top + 180,
-                    left: 16,
-                    child: _buildFloatingButton(Icons.my_location, isDark, onTap: () {
-                      if (_mapController != null && _currentLatLng != null) {
-                        _mapController!.animateCamera(CameraUpdate.newLatLng(_currentLatLng!));
-                      }
-                    }),
-                  ),
-                  Positioned(
-                    top: MediaQuery.of(context).padding.top + 180,
-                    right: 16,
-                    child: _buildFloatingButton(Icons.tune, isDark),
-                  ),
-                ],
-
-                // 4. Floating Recenter & Overview Buttons in Active Guidance Mode
-                if (isGuidanceActive && _isManualPan)
-                  Positioned(
-                    right: 16,
-                    bottom: 190,
-                    child: FloatingActionButton.extended(
-                      heroTag: 'recenter_btn',
-                      onPressed: () {
+                // 3. Floating Recenter / GPS Button (Top Right)
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + (isGuidanceActive ? 80 : 180),
+                  right: 16,
+                  child: _buildFloatingButton(
+                    Icons.my_location,
+                    isDark,
+                    onTap: () {
+                      if (isGuidanceActive) {
                         setState(() => _isManualPan = false);
-                        if (_mapController != null && _currentLatLng != null) {
-                          _mapController!.animateCamera(
-                            CameraUpdate.newCameraPosition(
-                              CameraPosition(
-                                target: _currentLatLng!,
-                                zoom: 17.5,
-                                tilt: 45.0,
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                      backgroundColor: AppColors.primaryBlue,
-                      icon: const Icon(Icons.navigation_rounded, color: Colors.white),
-                      label: Text(
-                        'Recenter',
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                    ),
+                      }
+                      if (_mapController != null && _currentLatLng != null) {
+                        _mapController!.animateCamera(
+                          isGuidanceActive
+                              ? CameraUpdate.newCameraPosition(
+                                  CameraPosition(
+                                    target: _currentLatLng!,
+                                    zoom: 17.5,
+                                    tilt: 45.0,
+                                  ),
+                                )
+                              : CameraUpdate.newLatLng(_currentLatLng!),
+                        );
+                      }
+                    },
                   ),
+                ),
 
                 // 5. Top Dashboard Card (Only when NOT in active navigation guidance)
                 if (!isGuidanceActive)
@@ -980,12 +993,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                 value: _isOnDuty,
                                 onChanged: (val) {
                                   if (!val && (_hasActiveRideRequest || _currentRideRequest != null)) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Cannot turn off duty while a ride is active.'),
-                                        backgroundColor: Colors.orange,
-                                      ),
-                                    );
                                     return;
                                   }
                                   setState(() {
@@ -2160,13 +2167,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       }
                     }
                     _clearActiveRideState();
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                      const SnackBar(
-                        content: Text('Trip cancelled successfully'),
-                        backgroundColor: Color(0xFFEF4444),
-                        duration: Duration(seconds: 4),
-                      ),
-                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFEF4444),

@@ -13,10 +13,14 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
   Future<SettingsModel> getSettingsData() async {
     return const SettingsModel(
       profile: UserProfileModel(
-        name: AppStrings.alexanderPierce,
+        name: 'Puja Sri',
         membershipTier: AppStrings.diamondMember,
         totalRides: AppStrings.totalRidesCount,
         rating: AppStrings.ratingValue,
+        phone: '+91 98765 43210',
+        email: 'pujasri@strive.com',
+        gender: 'Female',
+        isCorporate: false,
       ),
       rideNotificationsEnabled: true,
       isDarkMode: false,

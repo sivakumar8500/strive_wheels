@@ -101,6 +101,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
   bool _isRouteUnavailable = false;
   DateTime? _lastRouteFetchTime;
   LatLng? _lastRouteFetchPos;
+  double _savedFareAmount = 0.0;
 
   late AnimationController _animController;
   LatLng _animStartPos = const LatLng(0, 0);
@@ -201,6 +202,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
   Timer? _staleTimer;
   DateTime? _lastLocationTime;
   bool _isLocationStale = false;
+  bool _hasNavigatedToComplete = false;
 
   Future<void> _startCustomerDeviceLocationTracking() async {
     if (_customerPositionStreamSubscription != null) return;
@@ -235,7 +237,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
   void _startStaleLocationTimer() {
     _staleTimer?.cancel();
     _staleTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!mounted) return;
+      if (!mounted || _hasNavigatedToComplete) return;
       if (_lastLocationTime != null) {
         final secondsSinceLastFix = DateTime.now().difference(_lastLocationTime!).inSeconds;
         final isStaleNow = secondsSinceLastFix > 15;
@@ -251,6 +253,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
 
   Future<void> _checkActiveBookingStatusHttp() async {
     try {
+      if (_hasNavigatedToComplete) return;
       final bookingId = _effectiveBookingId;
       if (bookingId.isEmpty) return;
 
@@ -268,7 +271,8 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
       final isDropAcc = data['is_drop_accepted'] == true;
 
       if (isDropAcc) {
-        _onRiderApprovedDrop();
+        if (_hasNavigatedToComplete) return;
+        _onRiderApprovedDrop(data);
         return;
       }
 
@@ -532,6 +536,19 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
               rawStatus == 'IN_TRANSIT' ||
               rawStatus == 'STARTED';
 
+          final bookingObj = data['booking'] as Map<String, dynamic>?;
+          if (bookingObj != null) {
+            final fFare = bookingObj['final_fare'] ?? bookingObj['estimated_fare'];
+            if (fFare is num && fFare > 0) {
+              _savedFareAmount = fFare.toDouble();
+            }
+          }
+          if (data['final_fare'] is num && (data['final_fare'] as num) > 0) {
+            _savedFareAmount = (data['final_fare'] as num).toDouble();
+          } else if (data['finalFare'] is num && (data['finalFare'] as num) > 0) {
+            _savedFareAmount = (data['finalFare'] as num).toDouble();
+          }
+
           if (isTripStarted) {
             if (_phase != TripPhase.inTransit) {
               setState(() {
@@ -568,17 +585,31 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
               }
             }
           } else if (event == 'booking.completed' || event == 'rider.trip_completed' || event == 'booking.trip_completed') {
+            if (_hasNavigatedToComplete) return;
+            _hasNavigatedToComplete = true;
+            _staleTimer?.cancel();
             if (sl.isRegistered<ActiveBookingService>()) {
               sl<ActiveBookingService>().clearActiveBooking();
             }
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => JourneyCompletePage(
-                  driverName: widget.driverName,
-                  vehicleInfo: widget.vehicleInfo,
+            final fareVal = data['final_fare'] ?? data['finalFare'] ?? data['price'] ?? data['fare'] ?? data['final_amount'] ??
+                bookingObj?['final_fare'] ?? bookingObj?['estimated_fare'] ?? bookingObj?['finalFare'];
+            final double fare = (fareVal is num) ? fareVal.toDouble() : (double.tryParse(fareVal?.toString() ?? '') ?? _savedFareAmount);
+            final String fareStr = fare > 0 ? '₹${fare.toStringAsFixed(2)}' : (_savedFareAmount > 0 ? '₹${_savedFareAmount.toStringAsFixed(2)}' : '');
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).clearSnackBars();
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => JourneyCompletePage(
+                    driverName: widget.driverName,
+                    vehicleInfo: widget.vehicleInfo,
+                    distanceText: _formattedDistance,
+                    durationText: _formattedDuration,
+                    finalPaymentText: fareStr,
+                  ),
                 ),
-              ),
-            );
+              );
+            }
           } else if (event == 'booking.drop_requested' ||
               event == 'booking.drop_request' ||
               event == 'trip.drop_requested' ||
@@ -607,7 +638,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
               event == 'booking.drop_accepted' ||
               event == 'trip.drop_approved' ||
               event == 'trip.drop_accepted') {
-            _onRiderApprovedDrop();
+            _onRiderApprovedDrop(data);
           } else if (event == 'booking.cancelled' ||
               event == 'booking.rider_cancelled' ||
               event == 'booking.customer_cancelled' ||
@@ -1047,9 +1078,15 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (modalCtx) {
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 16,
+            bottom: MediaQuery.of(modalCtx).padding.bottom + 16,
+          ),
           decoration: BoxDecoration(
             color: isDark ? AppColors.cardBgDark : Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -1343,7 +1380,12 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
     final bookingId = _effectiveBookingId;
 
     if (sl.isRegistered<CustomerWSController>()) {
-      sl<CustomerWSController>().requestDrop(bookingId: bookingId, reason: reason);
+      sl<CustomerWSController>().requestDrop(
+        bookingId: bookingId,
+        reason: reason,
+        lat: _currentVehiclePos.latitude,
+        lng: _currentVehiclePos.longitude,
+      );
     }
 
     _dropCountdownTimer?.cancel();
@@ -1430,32 +1472,23 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
     );
   }
 
-  void _onRiderApprovedDrop() {
+  void _onRiderApprovedDrop([Map<String, dynamic>? data]) {
     _dropCountdownTimer?.cancel();
-    if (!mounted) return;
+    _staleTimer?.cancel();
+    if (!mounted || _hasNavigatedToComplete) return;
+    _hasNavigatedToComplete = true;
 
     if (sl.isRegistered<ActiveBookingService>()) {
       sl<ActiveBookingService>().clearActiveBooking();
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Rider Approved Drop Request! Pay & Complete.',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: AppColors.primaryBlue,
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    final bookingObj = (data != null && data['booking'] is Map) ? data['booking'] as Map<String, dynamic> : null;
+    final fareVal = data?['final_fare'] ?? data?['finalFare'] ?? data?['price'] ?? data?['fare'] ?? data?['final_amount'] ??
+        bookingObj?['final_fare'] ?? bookingObj?['estimated_fare'] ?? bookingObj?['finalFare'];
+    final double fare = (fareVal is num) ? fareVal.toDouble() : (double.tryParse(fareVal?.toString() ?? '') ?? _savedFareAmount);
+    final String fareStr = fare > 0 ? '₹${fare.toStringAsFixed(2)}' : (_savedFareAmount > 0 ? '₹${_savedFareAmount.toStringAsFixed(2)}' : '');
+
+    ScaffoldMessenger.of(context).clearSnackBars();
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
@@ -1464,6 +1497,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
           vehicleInfo: widget.vehicleInfo,
           distanceText: _formattedDistance,
           durationText: _formattedDuration,
+          finalPaymentText: fareStr,
         ),
       ),
     );
@@ -1480,6 +1514,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
       context: context,
       isDismissible: false,
       enableDrag: false,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -1506,7 +1541,12 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
             });
 
             return Container(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: MediaQuery.of(ctx).padding.bottom + 24,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1621,7 +1661,11 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                             _isRiderDropModalShowing = false;
                             final bookingId = _effectiveBookingId;
                             if (sl.isRegistered<CustomerWSController>()) {
-                              sl<CustomerWSController>().sendDropApproved(bookingId: bookingId);
+                              sl<CustomerWSController>().sendDropApproved(
+                                bookingId: bookingId,
+                                lat: _currentVehiclePos.latitude,
+                                lng: _currentVehiclePos.longitude,
+                              );
                             }
                             _onRiderApprovedDrop();
                           },
@@ -1652,36 +1696,25 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
 
   void _onAutoApproveDrop() {
     _dropCountdownTimer?.cancel();
-    if (!mounted) return;
+    _staleTimer?.cancel();
+    if (!mounted || _hasNavigatedToComplete) return;
+    _hasNavigatedToComplete = true;
 
     final bookingId = _effectiveBookingId;
 
     if (sl.isRegistered<CustomerWSController>()) {
-      sl<CustomerWSController>().sendDropApproved(bookingId: bookingId);
+      sl<CustomerWSController>().sendDropApproved(
+        bookingId: bookingId,
+        lat: _currentVehiclePos.latitude,
+        lng: _currentVehiclePos.longitude,
+      );
     }
 
     if (sl.isRegistered<ActiveBookingService>()) {
       sl<ActiveBookingService>().clearActiveBooking();
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.flash_on_rounded, color: Colors.white, size: 18),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Auto-Approved Drop (30s timeout). Proceeding to pay & complete.',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: AppColors.primaryBlue,
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    ScaffoldMessenger.of(context).clearSnackBars();
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
