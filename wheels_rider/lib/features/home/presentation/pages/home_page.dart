@@ -24,6 +24,8 @@ import '../bloc/booking_state.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../chat/presentation/pages/ride_chat_page.dart';
 import '../../../trips/presentation/pages/active_trip_page.dart';
 import '../../domain/entities/ride_request_entity.dart';
 import '../../data/models/ride_request_model.dart';
@@ -655,7 +657,29 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         }
       }
     } catch (e) {
-      debugPrint("Error getting location: $e");
+      debugPrint('Error getting location: $e');
+    }
+  }
+
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final cleanNumber = phoneNumber.replaceAll(RegExp(r'[^0-9+]'), '');
+    final uri = Uri.parse('tel:$cleanNumber');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      debugPrint('Error launching phone call: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Dialing $phoneNumber...'),
+            backgroundColor: AppColors.primaryBlue,
+          ),
+        );
+      }
     }
   }
 
@@ -1221,6 +1245,19 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 onMainActionTap: () => _showActiveTripBottomSheet(context),
                 onRequestDrop: _isTripStarted ? () => _showDropRequestDialog(context) : null,
                 onCancelRide: () => _showRiderCancelDialog(context),
+                onCallTap: () => _makePhoneCall('6366557766'),
+                onChatTap: () {
+                  final bId = _currentRideRequest?.id ?? 0;
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => RideChatPage(
+                        bookingId: bId,
+                        currentUserId: 2,
+                        counterpartyName: 'Customer',
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
         ],

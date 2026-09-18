@@ -16,6 +16,8 @@ class NavigationBottomPanelWidget extends StatefulWidget {
   final VoidCallback onMainActionTap;
   final VoidCallback? onRequestDrop;
   final VoidCallback? onCancelRide;
+  final VoidCallback? onCallTap;
+  final VoidCallback? onChatTap;
 
   final bool isDropPending;
 
@@ -34,6 +36,8 @@ class NavigationBottomPanelWidget extends StatefulWidget {
     required this.onMainActionTap,
     this.onRequestDrop,
     this.onCancelRide,
+    this.onCallTap,
+    this.onChatTap,
   });
 
   @override
@@ -218,11 +222,11 @@ class _NavigationBottomPanelWidgetState extends State<NavigationBottomPanelWidge
                 ),
                 IconButton(
                   icon: const Icon(Icons.phone_rounded, color: AppColors.primaryBlue),
-                  onPressed: () {},
+                  onPressed: widget.onCallTap,
                 ),
                 IconButton(
                   icon: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.primaryBlue),
-                  onPressed: () {},
+                  onPressed: widget.onChatTap,
                 ),
               ],
             ),
