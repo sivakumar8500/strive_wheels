@@ -13,6 +13,7 @@ import '../../../../features/home/data/datasources/booking_websocket_data_source
 import '../../domain/usecases/start_trip_usecase.dart';
 import '../../domain/usecases/complete_trip_usecase.dart';
 import 'trip_payment_page.dart';
+import '../../../chat/presentation/pages/ride_chat_page.dart';
 
 enum TripStatus { arrived, inProgress, completed }
 
@@ -385,6 +386,233 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
         ],
       ),
     );
+  }
+
+  void _showEmergencyCallModal(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (modalCtx) {
+        return Container(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 12,
+            bottom: MediaQuery.of(modalCtx).padding.bottom + 16,
+          ),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.phone_in_talk_rounded, color: Colors.orange, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Emergency & Support Calls',
+                            style: GoogleFonts.inter(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          Text(
+                            'Select helpline or emergency contact:',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Divider(height: 1),
+                const SizedBox(height: 12),
+
+                // Option 1: Admin Helpline (63665 57766)
+                _buildCallOptionTile(
+                  context: modalCtx,
+                  isDark: isDark,
+                  icon: Icons.admin_panel_settings_rounded,
+                  iconBgColor: const Color(0xFF0D6EFD),
+                  title: 'StriveWheels Admin Support',
+                  subtitle: '24/7 Support: 63665 57766',
+                  phoneNumber: '63665 57766',
+                ),
+
+                // Option 2: Police (100)
+                _buildCallOptionTile(
+                  context: modalCtx,
+                  isDark: isDark,
+                  icon: Icons.local_police_rounded,
+                  iconBgColor: const Color(0xFFEF4444),
+                  title: 'Police Emergency (100)',
+                  subtitle: 'Immediate Police Assistance',
+                  phoneNumber: '100',
+                ),
+
+                // Option 3: Ambulance (108)
+                _buildCallOptionTile(
+                  context: modalCtx,
+                  isDark: isDark,
+                  icon: Icons.medical_services_rounded,
+                  iconBgColor: const Color(0xFFF97316),
+                  title: 'Ambulance & Medical (108)',
+                  subtitle: 'Medical Emergency Services',
+                  phoneNumber: '108',
+                ),
+
+                // Option 4: Health Helpline (104)
+                _buildCallOptionTile(
+                  context: modalCtx,
+                  isDark: isDark,
+                  icon: Icons.health_and_safety_rounded,
+                  iconBgColor: const Color(0xFF06B6D4),
+                  title: 'Health & Safety Helpline (104)',
+                  subtitle: 'Medical Advice & Safety',
+                  phoneNumber: '104',
+                ),
+
+                // Option 5: Call Customer
+                _buildCallOptionTile(
+                  context: modalCtx,
+                  isDark: isDark,
+                  icon: Icons.person_rounded,
+                  iconBgColor: const Color(0xFF0D6EFD),
+                  title: 'Call Customer',
+                  subtitle: 'Direct Passenger Contact',
+                  phoneNumber: '63665 57766',
+                ),
+
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCallOptionTile({
+    required BuildContext context,
+    required bool isDark,
+    required IconData icon,
+    required Color iconBgColor,
+    required String title,
+    required String subtitle,
+    required String phoneNumber,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).pop();
+          _makePhoneCall(phoneNumber);
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: iconBgColor.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: iconBgColor, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: iconBgColor,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.call_rounded, color: Colors.white, size: 16),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final cleanNumber = phoneNumber.replaceAll(RegExp(r'[^0-9+]'), '');
+    final uri = Uri.parse('tel:$cleanNumber');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      debugPrint('Error launching phone call: $e');
+    }
   }
 
   bool _isCustomerDropModalShowing = false;
@@ -1246,6 +1474,44 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                                 ),
                               ],
                             ),
+                          ),
+                          const SizedBox(width: 6),
+                          IconButton(
+                            constraints: const BoxConstraints(),
+                            padding: EdgeInsets.zero,
+                            icon: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: Colors.orange,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.phone_rounded, color: Colors.white, size: 16),
+                            ),
+                            onPressed: () => _showEmergencyCallModal(context),
+                          ),
+                          const SizedBox(width: 6),
+                          IconButton(
+                            constraints: const BoxConstraints(),
+                            padding: EdgeInsets.zero,
+                            icon: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF0D6EFD),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 16),
+                            ),
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => RideChatPage(
+                                    bookingId: widget.bookingId,
+                                    currentUserId: 2,
+                                    counterpartyName: 'Customer',
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),

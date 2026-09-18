@@ -84,6 +84,13 @@ import '../../features/earnings/data/repositories/earnings_repository_impl.dart'
 import '../../features/earnings/domain/repositories/earnings_repository.dart';
 import '../../features/earnings/domain/usecases/get_earnings_usecase.dart';
 import '../../features/earnings/presentation/bloc/earnings_bloc.dart';
+import '../../features/chat/data/datasources/chat_remote_datasource.dart';
+import '../../features/chat/data/repositories/chat_repository_impl.dart';
+import '../../features/chat/domain/repositories/chat_repository.dart';
+import '../../features/chat/domain/usecases/get_chat_history_usecase.dart';
+import '../../features/chat/domain/usecases/send_chat_message_usecase.dart';
+import '../../features/chat/domain/usecases/listen_chat_messages_usecase.dart';
+import '../../features/chat/presentation/bloc/chat_bloc.dart';
 
 import '../services/navigation_service.dart';
 
@@ -535,6 +542,43 @@ Future<void> initDependencyInjection() async {
   if (!sl.isRegistered<EarningsBloc>()) {
     sl.registerFactory<EarningsBloc>(
       () => EarningsBloc(getEarningsUseCase: sl()),
+    );
+  }
+
+  // Chat Dependencies
+  if (!sl.isRegistered<ChatRemoteDataSource>()) {
+    sl.registerLazySingleton<ChatRemoteDataSource>(
+      () => ChatRemoteDataSourceImpl(dio: sl(), webSocketClient: sl()),
+    );
+  }
+  if (!sl.isRegistered<ChatRepository>()) {
+    sl.registerLazySingleton<ChatRepository>(
+      () => ChatRepositoryImpl(remoteDataSource: sl()),
+    );
+  }
+  if (!sl.isRegistered<GetChatHistoryUseCase>()) {
+    sl.registerLazySingleton<GetChatHistoryUseCase>(
+      () => GetChatHistoryUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<SendChatMessageUseCase>()) {
+    sl.registerLazySingleton<SendChatMessageUseCase>(
+      () => SendChatMessageUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<ListenChatMessagesUseCase>()) {
+    sl.registerLazySingleton<ListenChatMessagesUseCase>(
+      () => ListenChatMessagesUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<ChatBloc>()) {
+    sl.registerFactoryParam<ChatBloc, int, dynamic>(
+      (bookingId, _) => ChatBloc(
+        getChatHistoryUseCase: sl(),
+        sendChatMessageUseCase: sl(),
+        listenChatMessagesUseCase: sl(),
+        bookingId: bookingId,
+      ),
     );
   }
 }
