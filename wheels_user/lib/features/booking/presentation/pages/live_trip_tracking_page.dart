@@ -72,6 +72,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
   double _currentVehicleRotation = 0.0;
 
   List<LatLng> _routePoints = [];
+  List<LatLng> _dropoffPreviewRoutePoints = [];
 
   BitmapDescriptor? _carMarkerIcon;
   BitmapDescriptor? _pickupMarkerIcon;
@@ -99,6 +100,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
   bool _isFetchingRoute = false;
   bool _isRouteUnavailable = false;
   DateTime? _lastRouteFetchTime;
+  LatLng? _lastRouteFetchPos;
   double _savedFareAmount = 0.0;
 
   late AnimationController _animController;
