@@ -6,10 +6,10 @@ class ChatBubble extends StatelessWidget {
   final bool isMe;
 
   const ChatBubble({
-    Key? key,
+    super.key,
     required this.message,
     required this.isMe,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

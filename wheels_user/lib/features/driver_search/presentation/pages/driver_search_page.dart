@@ -64,7 +64,6 @@ class _DriverSearchPageState extends State<DriverSearchPage>
   String? _startOtp;
   Map<String, dynamic>? _riderData;
   Map<String, dynamic>? _vehicleData;
-  final String _orderTime = '10:42 AM';
   late final AnimationController _progressController;
 
   @override

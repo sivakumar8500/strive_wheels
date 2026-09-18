@@ -17,7 +17,7 @@ void main() {
   final Map<String, dynamic> jsonMap = json.decode(jsonString);
   try {
     final model = FavoritePlaceModel.fromJson(jsonMap);
-    print("Success: \${model.title}, id: \${model.id}");
+    print('Success: ${model.title}, id: ${model.id}');
   } catch (e) {
     print("Error: \$e");
   }

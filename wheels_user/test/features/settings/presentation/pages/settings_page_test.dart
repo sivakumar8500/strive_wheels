@@ -22,6 +22,10 @@ void main() {
       membershipTier: 'DIAMOND MEMBER',
       totalRides: '48',
       rating: '4.98',
+      phone: '+91 98765 43210',
+      email: 'alexander@example.com',
+      gender: 'Male',
+      isCorporate: false,
     ),
     rideNotificationsEnabled: true,
     isDarkMode: false,
@@ -70,12 +74,9 @@ void main() {
     expect(find.text('Total Rides'), findsOneWidget);
     expect(find.text('4.98'), findsOneWidget);
     expect(find.text('Rating'), findsOneWidget);
-    expect(find.text('Personal details'), findsOneWidget);
-    expect(find.text('Wallet & payments'), findsOneWidget);
-    expect(find.text('Corporate profile'), findsOneWidget);
     expect(find.text('Ride notifications'), findsOneWidget);
     expect(find.text('Appearance'), findsOneWidget);
-    expect(find.text('Language'), findsOneWidget);
+    expect(find.text('Terms of Service'), findsOneWidget);
     expect(find.text('Logout'), findsOneWidget);
     expect(find.text('Version 2.4.12 (Build 4492)'), findsOneWidget);
   });

@@ -249,7 +249,6 @@ class _OtpVerificationView extends StatelessWidget {
   final VoidCallback onEditPhone;
 
   const _OtpVerificationView({
-    super.key,
     required this.onEditPhone,
   });
 

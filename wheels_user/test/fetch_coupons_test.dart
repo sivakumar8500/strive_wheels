@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dio/dio.dart';
-import 'package:wheels_user/core/network/api_constants.dart';
-import 'package:wheels_user/features/home/data/models/coupon_model.dart';
 import 'package:wheels_user/features/home/data/datasources/home_remote_data_source.dart';
 
 void main() {
@@ -16,9 +14,9 @@ void main() {
     
     try {
       final coupons = await dataSource.getActiveCoupons();
-      print('TEST SUCCESS! Fetched \${coupons.length} coupons.');
+      print('TEST SUCCESS! Fetched ${coupons.length} coupons.');
       for (var c in coupons) {
-        print('Coupon: \${c.code}, \${c.discountType}, \${c.discountValue}');
+        print('Coupon: ${c.code}, ${c.discountType}, ${c.discountValue}');
       }
     } catch (e, st) {
       print('TEST ERROR: $e');

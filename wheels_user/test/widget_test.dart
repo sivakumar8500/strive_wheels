@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:wheels_user/core/constants/app_strings.dart';
 import 'package:wheels_user/core/di/injection_container.dart';
 import 'package:wheels_user/main.dart';
 import 'package:wheels_user/features/splash/presentation/pages/splash_page.dart';

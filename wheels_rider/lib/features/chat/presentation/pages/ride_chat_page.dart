@@ -14,12 +14,12 @@ class RideChatPage extends StatefulWidget {
   final ChatBloc? chatBloc;
 
   const RideChatPage({
-    Key? key,
+    super.key,
     required this.bookingId,
     required this.currentUserId,
     required this.counterpartyName,
     this.chatBloc,
-  }) : super(key: key);
+  });
 
   @override
   State<RideChatPage> createState() => _RideChatPageState();
