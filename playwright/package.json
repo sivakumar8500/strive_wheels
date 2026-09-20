@@ -1,0 +1,20 @@
+{
+  "name": "strivewheels-e2e-automation",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-grade, reusable Playwright frontend E2E automation framework for StriveWheels Next.js application",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:smoke": "playwright test --grep @smoke",
+    "test:e2e:regression": "playwright test --grep @regression",
+    "test:e2e:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.53.0",
+    "@types/node": "^20.19.43",
+    "date-fns": "^4.4.0",
+    "typescript": "^5.9.3"
+  }
+}

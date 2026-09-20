@@ -7,7 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test:e2e": "npm --prefix ../playwright run test:e2e",
+    "test:e2e:headed": "npm --prefix ../playwright run test:e2e:headed",
+    "test:e2e:debug": "npm --prefix ../playwright run test:e2e:debug",
+    "test:e2e:smoke": "npm --prefix ../playwright run test:e2e:smoke",
+    "test:e2e:regression": "npm --prefix ../playwright run test:e2e:regression",
+    "test:e2e:report": "npm --prefix ../playwright run test:e2e:report"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -41,6 +47,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@tanstack/query-devtools": "^5.96.1",
     "@tanstack/react-query-devtools": "^5.101.2",

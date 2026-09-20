@@ -122,7 +122,6 @@ export function UsersTable({
       onRowClick={onRowClick}
       onItemsPerPageChange={onItemsPerPageChange}
       emptyMessage="No users found"
-      maxHeight="calc(95vh - 250px)"
     />
   );
 }
