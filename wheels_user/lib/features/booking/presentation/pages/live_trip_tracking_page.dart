@@ -1798,55 +1798,51 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
       body: Stack(
         children: [
           // 1. Full Screen Map View
-          Listener(
-            onPointerDown: (_) {
-              if (_isFollowingVehicle) {
+          AppMapWidget(
+            initialCameraPosition: CameraPosition(
+              target: widget.pickupLatLng,
+              zoom: 18.0,
+              tilt: 60.0,
+            ),
+            buildingsEnabled: true,
+            tiltGesturesEnabled: true,
+            rotateGesturesEnabled: true,
+            onMapCreated: (controller) {
+              _mapController = controller;
+              if (_isFollowingVehicle && mounted) {
+                final targetCamPos = _calculateHeadingCameraTarget(
+                  _currentVehiclePos,
+                  _currentVehicleRotation,
+                  25.0,
+                );
+                _isProgrammaticCameraMove = true;
+                try {
+                  _mapController?.animateCamera(
+                    CameraUpdate.newCameraPosition(
+                      CameraPosition(
+                        target: targetCamPos,
+                        zoom: 18.0,
+                        tilt: _is3DView ? 60.0 : 0.0,
+                        bearing: _currentVehicleRotation,
+                      ),
+                    ),
+                  );
+                } catch (e) {
+                  debugPrint('Error animating camera in onMapCreated: $e');
+                }
+              } else {
+                _fitMapBounds();
+              }
+            },
+            onCameraMoveStarted: () {
+              if (_isProgrammaticCameraMove) {
+                _isProgrammaticCameraMove = false;
+              } else if (_isFollowingVehicle) {
                 setState(() {
                   _isFollowingVehicle = false;
                 });
               }
             },
-            child: AppMapWidget(
-              initialCameraPosition: CameraPosition(
-                target: widget.pickupLatLng,
-                zoom: 18.0,
-                tilt: 60.0,
-              ),
-              buildingsEnabled: true,
-              tiltGesturesEnabled: true,
-              rotateGesturesEnabled: true,
-              onMapCreated: (controller) {
-                _mapController = controller;
-                if (_isFollowingVehicle && mounted) {
-                  final targetCamPos = _calculateHeadingCameraTarget(
-                    _currentVehiclePos,
-                    _currentVehicleRotation,
-                    25.0,
-                  );
-                  _isProgrammaticCameraMove = true;
-                  try {
-                    _mapController?.animateCamera(
-                      CameraUpdate.newCameraPosition(
-                        CameraPosition(
-                          target: targetCamPos,
-                          zoom: 18.0,
-                          tilt: _is3DView ? 60.0 : 0.0,
-                          bearing: _currentVehicleRotation,
-                        ),
-                      ),
-                    );
-                  } catch (e) {
-                    debugPrint('Error animating camera in onMapCreated: $e');
-                  }
-                } else {
-                  _fitMapBounds();
-                }
-              },
-              onCameraMoveStarted: () {
-                if (_isProgrammaticCameraMove) {
-                  _isProgrammaticCameraMove = false;
-                }
-              },
             zoomControlsEnabled: false,
             myLocationButtonEnabled: false,
             polylines: {
@@ -1912,7 +1908,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
               ),
             },
           ),
-        ),
 
           // 2. Next-Turn Maneuver Guidance Top Banner (Compact Dark Green Card)
           Positioned(
