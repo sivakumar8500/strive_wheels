@@ -15,6 +15,8 @@ abstract class ProfileModel with _$ProfileModel {
     @JsonKey(name: 'wallet_balance') double? walletBalance,
     @JsonKey(name: 'user') Map<String, dynamic>? user,
     @JsonKey(name: 'vehicle_detail') Map<String, dynamic>? vehicleDetail,
+    @JsonKey(name: 'corporate_detail') Map<String, dynamic>? corporateDetail,
+    @JsonKey(name: 'active_company') Map<String, dynamic>? activeCompany,
   }) = _ProfileModel;
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) {
@@ -50,13 +52,27 @@ abstract class ProfileModel with _$ProfileModel {
       userMap = Map<String, dynamic>.from(json);
     }
 
-    Map<String, dynamic> vMap = {};
+    Map<String, dynamic>? vMap;
     if (json['vehicle_detail'] is Map) {
       vMap = Map<String, dynamic>.from(json['vehicle_detail'] as Map);
     } else if (json['vehicle'] is Map) {
       vMap = Map<String, dynamic>.from(json['vehicle'] as Map);
     } else if (json['driver_registration'] is Map && json['driver_registration']['vehicle_detail'] is Map) {
       vMap = Map<String, dynamic>.from(json['driver_registration']['vehicle_detail'] as Map);
+    }
+
+    Map<String, dynamic>? corpMap;
+    if (json['corporate_detail'] is Map) {
+      corpMap = Map<String, dynamic>.from(json['corporate_detail'] as Map);
+    } else if (json['corporate'] is Map) {
+      corpMap = Map<String, dynamic>.from(json['corporate'] as Map);
+    }
+
+    Map<String, dynamic>? compMap;
+    if (json['active_company'] is Map) {
+      compMap = Map<String, dynamic>.from(json['active_company'] as Map);
+    } else if (json['company'] is Map) {
+      compMap = Map<String, dynamic>.from(json['company'] as Map);
     }
 
     return ProfileModel(
@@ -66,21 +82,30 @@ abstract class ProfileModel with _$ProfileModel {
       walletBalance: walletVal,
       user: userMap,
       vehicleDetail: vMap,
+      corporateDetail: corpMap,
+      activeCompany: compMap,
     );
   }
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'rating_avg': rating,
-    'total_earnings': totalEarnings,
-    'wallet_balance': walletBalance,
-    'user': user,
-    'vehicle_detail': vehicleDetail,
-  };
+  Map<String, dynamic> toJson() {
+    final map = <String, dynamic>{
+      'id': id,
+      'rating_avg': rating,
+      'total_earnings': totalEarnings,
+      'wallet_balance': walletBalance,
+      'user': user,
+    };
+    if (vehicleDetail != null) map['vehicle_detail'] = vehicleDetail;
+    if (corporateDetail != null) map['corporate_detail'] = corporateDetail;
+    if (activeCompany != null) map['active_company'] = activeCompany;
+    return map;
+  }
 
   ProfileEntity toEntity() {
     final userData = user ?? {};
     final vData = vehicleDetail ?? {};
+    final corpData = corporateDetail;
+    final compData = activeCompany;
 
     String fullName = 'Puja Sri';
     if (userData['full_name'] != null && userData['full_name'].toString().isNotEmpty) {
@@ -94,7 +119,10 @@ abstract class ProfileModel with _$ProfileModel {
     String imageUrl = '';
     final imgRaw = userData['profile_image_url'] ?? userData['profile_photo_url'] ?? userData['avatar_url'] ?? userData['image_url'];
     if (imgRaw != null && imgRaw.toString().isNotEmpty) {
-      imageUrl = ApiEndpoints.getImageUrl(imgRaw.toString());
+      final imgStr = imgRaw.toString();
+      imageUrl = (imgStr.contains('/') || imgStr.contains('\\'))
+          ? ApiEndpoints.getImageUrl(imgStr)
+          : imgStr;
     }
 
     double r = 5.0;
@@ -112,6 +140,17 @@ abstract class ProfileModel with _$ProfileModel {
     String vColor = (vData['registrationcolor'] ?? vData['color'] ?? vData['vehicle_color'] ?? 'Pearl White').toString();
     String vYear = (vData['registrationyear'] ?? vData['year'] ?? vData['vehicle_year'] ?? '2023').toString();
     String vFuel = (vData['fuel_type'] ?? vData['fuelType'] ?? 'Diesel').toString();
+
+    // Corporate fields parsing
+    final String? compName = compData?['name'] ?? corpData?['company_name'] ?? corpData?['name'];
+    final bool isCorp = compName != null && compName.trim().isNotEmpty;
+    final String? compRoute = (corpData?['route_from'] != null && corpData?['route_to'] != null)
+        ? "${corpData!['route_from']} ➔ ${corpData!['route_to']}"
+        : null;
+    final String? compStatus = (corpData?['approval_status'] ?? (isCorp ? 'APPROVED' : null))?.toString();
+    final String? compLoc = compData?['company_location']?.toString();
+    final String? compEmail = compData?['contact_email']?.toString();
+    final String? compPhone = compData?['contact_phone']?.toString();
 
     return ProfileEntity(
       id: id ?? 0,
@@ -132,6 +171,13 @@ abstract class ProfileModel with _$ProfileModel {
       vehicleColor: vColor,
       vehicleYear: vYear,
       fuelType: vFuel,
+      isCorporate: isCorp,
+      companyName: compName,
+      corporateRoute: compRoute,
+      corporateApprovalStatus: compStatus,
+      companyLocation: compLoc,
+      companyEmail: compEmail,
+      companyPhone: compPhone,
     );
   }
 }

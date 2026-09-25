@@ -3,7 +3,6 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import '../../domain/entities/vehicle_type_entity.dart';
 
 part 'vehicle_type_model.freezed.dart';
-part 'vehicle_type_model.g.dart';
 
 double _toDouble(dynamic val) => (val as num?)?.toDouble() ?? 0.0;
 
@@ -14,17 +13,14 @@ abstract class VehicleTypeModel with _$VehicleTypeModel {
     required String code,
     required String name,
     String? description,
-    @JsonKey(name: 'icon_url') String? iconUrl,
-    @JsonKey(name: 'max_passengers') @Default(1) int maxPassengers,
-    @JsonKey(name: 'max_weight_kg', fromJson: _toDouble)
-    @Default(0.0)
-    double maxWeightKg,
-    @JsonKey(name: 'is_active') @Default(true) bool isActive,
-    @JsonKey(name: 'created_at') String? createdAt,
+    String? iconUrl,
+    @Default(1) int maxPassengers,
+    @Default(0.0) double maxWeightKg,
+    @Default(true) bool isActive,
+    String? createdAt,
   }) = _VehicleTypeModel;
 
   factory VehicleTypeModel.fromJson(Map<String, dynamic> json) {
-    final model = _$VehicleTypeModelFromJson(json);
     final String? image = (json['icon_url'] ??
             json['image_url'] ??
             json['icon'] ??
@@ -32,10 +28,22 @@ abstract class VehicleTypeModel with _$VehicleTypeModel {
             json['vehicle_image'] ??
             json['photo_url'])
         ?.toString();
-    if (image != null && image.isNotEmpty && (model.iconUrl == null || model.iconUrl!.isEmpty)) {
-      return model.copyWith(iconUrl: image);
-    }
-    return model;
+
+    return VehicleTypeModel(
+      id: (json['id'] is num)
+          ? (json['id'] as num).toInt()
+          : (int.tryParse(json['id']?.toString() ?? '0') ?? 0),
+      code: json['code']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      description: json['description']?.toString(),
+      iconUrl: image,
+      maxPassengers: (json['max_passengers'] is num)
+          ? (json['max_passengers'] as num).toInt()
+          : (int.tryParse(json['max_passengers']?.toString() ?? '1') ?? 1),
+      maxWeightKg: _toDouble(json['max_weight_kg']),
+      isActive: json['is_active'] ?? true,
+      createdAt: json['created_at']?.toString(),
+    );
   }
 }
 

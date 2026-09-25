@@ -34,6 +34,13 @@ class DriverSearchPage extends StatefulWidget {
   final String bookingMode;
   final String tripType;
   final String paymentMethod;
+  final int? companyId;
+  final int? riderId;
+  final int? vehicleId;
+  final String? driverName;
+  final String? vehicleInfo;
+  final String? licensePlate;
+  final String? routeAlignment;
 
   const DriverSearchPage({
     super.key,
@@ -48,6 +55,13 @@ class DriverSearchPage extends StatefulWidget {
     this.bookingMode = 'INSTANT',
     this.tripType = 'ONE_WAY',
     this.paymentMethod = 'CASH',
+    this.companyId,
+    this.riderId,
+    this.vehicleId,
+    this.driverName,
+    this.vehicleInfo,
+    this.licensePlate,
+    this.routeAlignment,
   });
 
   @override
@@ -73,6 +87,11 @@ class _DriverSearchPageState extends State<DriverSearchPage>
       vsync: this,
       duration: const Duration(milliseconds: 2400),
     )..repeat();
+    if (widget.riderId != null) {
+      _notificationText = 'Assigning corporate vehicle (${widget.driverName ?? "Corporate Driver"})...';
+    } else if (widget.serviceMode == 'CORPORATE') {
+      _notificationText = 'Connecting with dedicated corporate partner drivers...';
+    }
     context.read<DriverSearchBloc>().add(const LoadDriverSearchEvent());
     _setupWebSocket();
   }
@@ -108,6 +127,9 @@ class _DriverSearchPageState extends State<DriverSearchPage>
         bookingMode: widget.bookingMode,
         tripType: widget.tripType,
         paymentMethod: widget.paymentMethod,
+        companyId: widget.companyId,
+        riderId: widget.riderId,
+        vehicleId: widget.vehicleId,
       );
 
       // Listen for server events
@@ -181,28 +203,37 @@ class _DriverSearchPageState extends State<DriverSearchPage>
           final booking = data['booking'] ?? {};
           setState(() {
             _bookingId = booking['id'];
+            if (booking['start_otp'] != null) {
+              _startOtp = booking['start_otp'].toString();
+            }
             _currentStep = 2;
-            _notificationText = 'Booking #${_bookingId ?? ''} created! Scanning for nearby drivers...';
+            _notificationText = widget.riderId != null
+                ? 'Corporate route vehicle assigned! Preparing trip...'
+                : 'Booking #${_bookingId ?? ''} created! Scanning for nearby drivers...';
           });
-        } else if (event == 'booking.rider_accepted') {
+        } else if (event == 'booking.rider_accepted' ||
+            event == 'booking.assigned' ||
+            event == 'corporate.booking_assigned') {
           final booking = data['booking'] ?? {};
-          final rider = booking['rider'] as Map<String, dynamic>?;
-          final vehicle = booking['vehicle'] as Map<String, dynamic>?;
-          final bId = booking['id']?.toString() ?? '9921-X4B';
-          final dName = rider?['full_name']?.toString() ?? 'Marcus Thorne';
+          final rider = (booking['rider'] as Map<String, dynamic>?) ?? (data['rider'] as Map<String, dynamic>?);
+          final vehicle = (booking['vehicle'] as Map<String, dynamic>?) ?? (data['vehicle'] as Map<String, dynamic>?);
+          final bId = booking['id']?.toString() ?? _bookingId?.toString() ?? '9921-X4B';
+          final dName = rider?['full_name']?.toString() ?? widget.driverName ?? 'Marcus Thorne';
           final dRating = (rider?['rating'] is num) ? (rider!['rating'] as num).toDouble() : 4.9;
-          final vMake = vehicle?['make']?.toString() ?? 'BMW';
-          final vModel = vehicle?['model']?.toString() ?? 'i7 xDrive60';
-          final lPlate = vehicle?['license_plate']?.toString() ?? '7396';
-          final estFare = (booking['estimated_fare'] != null) ? '₹${booking['estimated_fare']}' : '₹124.00';
+          final vMake = vehicle?['make']?.toString() ?? '';
+          final vModel = vehicle?['model']?.toString() ?? widget.vehicleInfo ?? 'Cab';
+          final lPlate = vehicle?['license_plate']?.toString() ?? widget.licensePlate ?? 'TS09CORP';
+          final estFare = (booking['estimated_fare'] != null)
+              ? '₹${booking['estimated_fare']}'
+              : (widget.serviceMode == 'CORPORATE' ? 'Corporate Account' : '₹124.00');
 
           setState(() {
-            _bookingId = booking['id'];
-            _startOtp = booking['start_otp']?.toString();
+            _bookingId = booking['id'] ?? _bookingId;
+            _startOtp = booking['start_otp']?.toString() ?? _startOtp;
             _riderData = rider;
             _vehicleData = vehicle;
             _currentStep = 4;
-            _notificationText = 'Driver accepted! $dName is on the way.';
+            _notificationText = 'Vehicle assigned! $dName is ready.';
           });
 
           // Navigate to BookingConfirmedPage
@@ -212,7 +243,7 @@ class _DriverSearchPageState extends State<DriverSearchPage>
                 bookingId: 'ER-$bId',
                 driverName: dName,
                 driverRating: dRating,
-                vehicleModel: '$vMake $vModel',
+                vehicleModel: ('$vMake $vModel').trim().isEmpty ? 'Corporate Vehicle' : ('$vMake $vModel').trim(),
                 licensePlate: lPlate,
                 pickupAddress: widget.pickupAddress,
                 dropAddress: widget.dropAddress,
@@ -471,6 +502,33 @@ class _DriverSearchPageState extends State<DriverSearchPage>
             padding: const EdgeInsets.all(20.0),
             child: Column(
               children: [
+                if (widget.serviceMode == 'CORPORATE') ...[
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryBlue.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.business_rounded, color: AppColors.primaryBlue, size: 14),
+                        const SizedBox(width: 6),
+                        Text(
+                          'CORPORATE TRIP MATCHING',
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryBlue,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 Text(
                   _currentStep >= 3
                       ? 'Driver Found!'

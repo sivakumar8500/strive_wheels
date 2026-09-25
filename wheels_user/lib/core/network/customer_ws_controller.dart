@@ -153,8 +153,11 @@ class CustomerWSController {
     String bookingMode = 'INSTANT',
     String tripType = 'ONE_WAY',
     String paymentMethod = 'CASH',
+    int? companyId,
+    int? riderId,
+    int? vehicleId,
   }) {
-    _ws.send('booking.create', {
+    final payload = <String, dynamic>{
       'service_mode': serviceMode,
       'booking_mode': bookingMode,
       'trip_type': tripType,
@@ -166,7 +169,17 @@ class CustomerWSController {
       'drop_lng': dropLng,
       'drop_address': dropAddress,
       'payment_method': paymentMethod,
-    });
+    };
+    if (companyId != null) {
+      payload['company_id'] = companyId;
+    }
+    if (riderId != null) {
+      payload['rider_id'] = riderId;
+    }
+    if (vehicleId != null) {
+      payload['vehicle_id'] = vehicleId;
+    }
+    _ws.send('booking.create', payload);
   }
 
   /// Cancel existing active ride booking via WS and HTTP REST

@@ -14,6 +14,11 @@ abstract class HomeDashboardModel with _$HomeDashboardModel {
     required String recentRideTitle,
     required String recentRideDetails,
     @Default(0) int selectedNavIndex,
+    @Default(false) bool isCorporate,
+    String? companyName,
+    String? employeeCode,
+    String? spendingLimit,
+    String? companyLocation,
   }) = _HomeDashboardModel;
 
   factory HomeDashboardModel.fromJson(Map<String, dynamic> json) =>
@@ -28,5 +33,10 @@ extension HomeDashboardModelX on HomeDashboardModel {
         recentRideTitle: recentRideTitle,
         recentRideDetails: recentRideDetails,
         selectedNavIndex: selectedNavIndex,
+        isCorporate: isCorporate,
+        companyName: companyName,
+        employeeCode: employeeCode,
+        spendingLimit: spendingLimit,
+        companyLocation: companyLocation,
       );
 }

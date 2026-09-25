@@ -93,7 +93,7 @@ void main() {
     expect(find.text('Office'), findsOneWidget);
     expect(find.text('Home'), findsOneWidget);
     expect(find.text('~18 min'), findsOneWidget);
-    expect(find.byKey(const Key('map_add_stop_button')), findsOneWidget);
+    expect(find.byKey(const Key('street_view_mode_button')), findsOneWidget);
     expect(find.byKey(const Key('map_recenter_button')), findsOneWidget);
     expect(find.text('Saving ₹15 with special discount'), findsOneWidget);
 

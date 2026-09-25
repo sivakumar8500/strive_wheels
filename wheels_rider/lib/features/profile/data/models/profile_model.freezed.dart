@@ -26,6 +26,10 @@ mixin _$ProfileModel {
   Map<String, dynamic>? get user;
   @JsonKey(name: 'vehicle_detail')
   Map<String, dynamic>? get vehicleDetail;
+  @JsonKey(name: 'corporate_detail')
+  Map<String, dynamic>? get corporateDetail;
+  @JsonKey(name: 'active_company')
+  Map<String, dynamic>? get activeCompany;
 
   /// Create a copy of ProfileModel
   /// with the given fields replaced by the non-null parameter values.
@@ -48,7 +52,11 @@ mixin _$ProfileModel {
                 other.walletBalance == walletBalance) &&
             const DeepCollectionEquality().equals(other.user, user) &&
             const DeepCollectionEquality()
-                .equals(other.vehicleDetail, vehicleDetail));
+                .equals(other.vehicleDetail, vehicleDetail) &&
+            const DeepCollectionEquality()
+                .equals(other.corporateDetail, corporateDetail) &&
+            const DeepCollectionEquality()
+                .equals(other.activeCompany, activeCompany));
   }
 
   @override
@@ -59,11 +67,13 @@ mixin _$ProfileModel {
       totalEarnings,
       walletBalance,
       const DeepCollectionEquality().hash(user),
-      const DeepCollectionEquality().hash(vehicleDetail));
+      const DeepCollectionEquality().hash(vehicleDetail),
+      const DeepCollectionEquality().hash(corporateDetail),
+      const DeepCollectionEquality().hash(activeCompany));
 
   @override
   String toString() {
-    return 'ProfileModel(id: $id, rating: $rating, totalEarnings: $totalEarnings, walletBalance: $walletBalance, user: $user, vehicleDetail: $vehicleDetail)';
+    return 'ProfileModel(id: $id, rating: $rating, totalEarnings: $totalEarnings, walletBalance: $walletBalance, user: $user, vehicleDetail: $vehicleDetail, corporateDetail: $corporateDetail, activeCompany: $activeCompany)';
   }
 }
 
@@ -79,7 +89,9 @@ abstract mixin class $ProfileModelCopyWith<$Res> {
       @JsonKey(name: 'total_earnings') double? totalEarnings,
       @JsonKey(name: 'wallet_balance') double? walletBalance,
       @JsonKey(name: 'user') Map<String, dynamic>? user,
-      @JsonKey(name: 'vehicle_detail') Map<String, dynamic>? vehicleDetail});
+      @JsonKey(name: 'vehicle_detail') Map<String, dynamic>? vehicleDetail,
+      @JsonKey(name: 'corporate_detail') Map<String, dynamic>? corporateDetail,
+      @JsonKey(name: 'active_company') Map<String, dynamic>? activeCompany});
 }
 
 /// @nodoc
@@ -100,6 +112,8 @@ class _$ProfileModelCopyWithImpl<$Res> implements $ProfileModelCopyWith<$Res> {
     Object? walletBalance = freezed,
     Object? user = freezed,
     Object? vehicleDetail = freezed,
+    Object? corporateDetail = freezed,
+    Object? activeCompany = freezed,
   }) {
     return _then(_self.copyWith(
       id: freezed == id
@@ -125,6 +139,14 @@ class _$ProfileModelCopyWithImpl<$Res> implements $ProfileModelCopyWith<$Res> {
       vehicleDetail: freezed == vehicleDetail
           ? _self.vehicleDetail
           : vehicleDetail // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>?,
+      corporateDetail: freezed == corporateDetail
+          ? _self.corporateDetail
+          : corporateDetail // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>?,
+      activeCompany: freezed == activeCompany
+          ? _self.activeCompany
+          : activeCompany // ignore: cast_nullable_to_non_nullable
               as Map<String, dynamic>?,
     ));
   }
@@ -230,15 +252,26 @@ extension ProfileModelPatterns on ProfileModel {
             @JsonKey(name: 'wallet_balance') double? walletBalance,
             @JsonKey(name: 'user') Map<String, dynamic>? user,
             @JsonKey(name: 'vehicle_detail')
-            Map<String, dynamic>? vehicleDetail)?
+            Map<String, dynamic>? vehicleDetail,
+            @JsonKey(name: 'corporate_detail')
+            Map<String, dynamic>? corporateDetail,
+            @JsonKey(name: 'active_company')
+            Map<String, dynamic>? activeCompany)?
         $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _ProfileModel() when $default != null:
-        return $default(_that.id, _that.rating, _that.totalEarnings,
-            _that.walletBalance, _that.user, _that.vehicleDetail);
+        return $default(
+            _that.id,
+            _that.rating,
+            _that.totalEarnings,
+            _that.walletBalance,
+            _that.user,
+            _that.vehicleDetail,
+            _that.corporateDetail,
+            _that.activeCompany);
       case _:
         return orElse();
     }
@@ -266,14 +299,25 @@ extension ProfileModelPatterns on ProfileModel {
             @JsonKey(name: 'wallet_balance') double? walletBalance,
             @JsonKey(name: 'user') Map<String, dynamic>? user,
             @JsonKey(name: 'vehicle_detail')
-            Map<String, dynamic>? vehicleDetail)
+            Map<String, dynamic>? vehicleDetail,
+            @JsonKey(name: 'corporate_detail')
+            Map<String, dynamic>? corporateDetail,
+            @JsonKey(name: 'active_company')
+            Map<String, dynamic>? activeCompany)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _ProfileModel():
-        return $default(_that.id, _that.rating, _that.totalEarnings,
-            _that.walletBalance, _that.user, _that.vehicleDetail);
+        return $default(
+            _that.id,
+            _that.rating,
+            _that.totalEarnings,
+            _that.walletBalance,
+            _that.user,
+            _that.vehicleDetail,
+            _that.corporateDetail,
+            _that.activeCompany);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -300,14 +344,25 @@ extension ProfileModelPatterns on ProfileModel {
             @JsonKey(name: 'wallet_balance') double? walletBalance,
             @JsonKey(name: 'user') Map<String, dynamic>? user,
             @JsonKey(name: 'vehicle_detail')
-            Map<String, dynamic>? vehicleDetail)?
+            Map<String, dynamic>? vehicleDetail,
+            @JsonKey(name: 'corporate_detail')
+            Map<String, dynamic>? corporateDetail,
+            @JsonKey(name: 'active_company')
+            Map<String, dynamic>? activeCompany)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _ProfileModel() when $default != null:
-        return $default(_that.id, _that.rating, _that.totalEarnings,
-            _that.walletBalance, _that.user, _that.vehicleDetail);
+        return $default(
+            _that.id,
+            _that.rating,
+            _that.totalEarnings,
+            _that.walletBalance,
+            _that.user,
+            _that.vehicleDetail,
+            _that.corporateDetail,
+            _that.activeCompany);
       case _:
         return null;
     }
@@ -324,9 +379,15 @@ class _ProfileModel extends ProfileModel {
       @JsonKey(name: 'wallet_balance') this.walletBalance,
       @JsonKey(name: 'user') final Map<String, dynamic>? user,
       @JsonKey(name: 'vehicle_detail')
-      final Map<String, dynamic>? vehicleDetail})
+      final Map<String, dynamic>? vehicleDetail,
+      @JsonKey(name: 'corporate_detail')
+      final Map<String, dynamic>? corporateDetail,
+      @JsonKey(name: 'active_company')
+      final Map<String, dynamic>? activeCompany})
       : _user = user,
         _vehicleDetail = vehicleDetail,
+        _corporateDetail = corporateDetail,
+        _activeCompany = activeCompany,
         super._();
 
   @override
@@ -363,6 +424,28 @@ class _ProfileModel extends ProfileModel {
     return EqualUnmodifiableMapView(value);
   }
 
+  final Map<String, dynamic>? _corporateDetail;
+  @override
+  @JsonKey(name: 'corporate_detail')
+  Map<String, dynamic>? get corporateDetail {
+    final value = _corporateDetail;
+    if (value == null) return null;
+    if (_corporateDetail is EqualUnmodifiableMapView) return _corporateDetail;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(value);
+  }
+
+  final Map<String, dynamic>? _activeCompany;
+  @override
+  @JsonKey(name: 'active_company')
+  Map<String, dynamic>? get activeCompany {
+    final value = _activeCompany;
+    if (value == null) return null;
+    if (_activeCompany is EqualUnmodifiableMapView) return _activeCompany;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(value);
+  }
+
   /// Create a copy of ProfileModel
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -384,7 +467,11 @@ class _ProfileModel extends ProfileModel {
                 other.walletBalance == walletBalance) &&
             const DeepCollectionEquality().equals(other._user, _user) &&
             const DeepCollectionEquality()
-                .equals(other._vehicleDetail, _vehicleDetail));
+                .equals(other._vehicleDetail, _vehicleDetail) &&
+            const DeepCollectionEquality()
+                .equals(other._corporateDetail, _corporateDetail) &&
+            const DeepCollectionEquality()
+                .equals(other._activeCompany, _activeCompany));
   }
 
   @override
@@ -395,11 +482,13 @@ class _ProfileModel extends ProfileModel {
       totalEarnings,
       walletBalance,
       const DeepCollectionEquality().hash(_user),
-      const DeepCollectionEquality().hash(_vehicleDetail));
+      const DeepCollectionEquality().hash(_vehicleDetail),
+      const DeepCollectionEquality().hash(_corporateDetail),
+      const DeepCollectionEquality().hash(_activeCompany));
 
   @override
   String toString() {
-    return 'ProfileModel(id: $id, rating: $rating, totalEarnings: $totalEarnings, walletBalance: $walletBalance, user: $user, vehicleDetail: $vehicleDetail)';
+    return 'ProfileModel(id: $id, rating: $rating, totalEarnings: $totalEarnings, walletBalance: $walletBalance, user: $user, vehicleDetail: $vehicleDetail, corporateDetail: $corporateDetail, activeCompany: $activeCompany)';
   }
 }
 
@@ -417,7 +506,9 @@ abstract mixin class _$ProfileModelCopyWith<$Res>
       @JsonKey(name: 'total_earnings') double? totalEarnings,
       @JsonKey(name: 'wallet_balance') double? walletBalance,
       @JsonKey(name: 'user') Map<String, dynamic>? user,
-      @JsonKey(name: 'vehicle_detail') Map<String, dynamic>? vehicleDetail});
+      @JsonKey(name: 'vehicle_detail') Map<String, dynamic>? vehicleDetail,
+      @JsonKey(name: 'corporate_detail') Map<String, dynamic>? corporateDetail,
+      @JsonKey(name: 'active_company') Map<String, dynamic>? activeCompany});
 }
 
 /// @nodoc
@@ -439,6 +530,8 @@ class __$ProfileModelCopyWithImpl<$Res>
     Object? walletBalance = freezed,
     Object? user = freezed,
     Object? vehicleDetail = freezed,
+    Object? corporateDetail = freezed,
+    Object? activeCompany = freezed,
   }) {
     return _then(_ProfileModel(
       id: freezed == id
@@ -464,6 +557,14 @@ class __$ProfileModelCopyWithImpl<$Res>
       vehicleDetail: freezed == vehicleDetail
           ? _self._vehicleDetail
           : vehicleDetail // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>?,
+      corporateDetail: freezed == corporateDetail
+          ? _self._corporateDetail
+          : corporateDetail // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>?,
+      activeCompany: freezed == activeCompany
+          ? _self._activeCompany
+          : activeCompany // ignore: cast_nullable_to_non_nullable
               as Map<String, dynamic>?,
     ));
   }

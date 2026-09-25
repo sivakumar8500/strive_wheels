@@ -18,6 +18,7 @@ import '../../features/booking/data/datasources/booking_remote_datasource.dart';
 import '../../features/booking/data/repositories/booking_repository_impl.dart';
 import '../../features/booking/domain/repositories/booking_repository.dart';
 import '../../features/booking/domain/usecases/get_available_vehicles_usecase.dart';
+import '../../features/booking/domain/usecases/get_corporate_aligned_vehicles_usecase.dart';
 import '../../features/booking/domain/usecases/get_fare_estimate_usecase.dart';
 import '../../features/booking/domain/usecases/get_recent_journeys_usecase.dart';
 import '../../features/booking/domain/usecases/get_vehicle_types_usecase.dart';
@@ -241,7 +242,7 @@ Future<void> initDependencyInjection() async {
   }
   if (!sl.isRegistered<HomeLocalDataSource>()) {
     sl.registerLazySingleton<HomeLocalDataSource>(
-      () => const HomeLocalDataSourceImpl(),
+      () => HomeLocalDataSourceImpl(sharedPreferences: sl()),
     );
   }
   if (!sl.isRegistered<HomeRemoteDataSource>()) {
@@ -266,7 +267,7 @@ Future<void> initDependencyInjection() async {
   }
   if (!sl.isRegistered<SettingsLocalDataSource>()) {
     sl.registerLazySingleton<SettingsLocalDataSource>(
-      () => const SettingsLocalDataSourceImpl(),
+      () => SettingsLocalDataSourceImpl(sharedPreferences: sl()),
     );
   }
   if (!sl.isRegistered<SettingsRemoteDataSource>()) {
@@ -457,6 +458,12 @@ Future<void> initDependencyInjection() async {
   if (!sl.isRegistered<GetVehicleTypesUseCase>()) {
     sl.registerLazySingleton<GetVehicleTypesUseCase>(
       () => GetVehicleTypesUseCase(sl()),
+    );
+  }
+
+  if (!sl.isRegistered<GetCorporateAlignedVehiclesUseCase>()) {
+    sl.registerLazySingleton<GetCorporateAlignedVehiclesUseCase>(
+      () => GetCorporateAlignedVehiclesUseCase(sl()),
     );
   }
 

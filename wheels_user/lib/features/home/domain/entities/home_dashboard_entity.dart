@@ -50,6 +50,11 @@ class HomeDashboardEntity {
   final String recentRideTitle;
   final String recentRideDetails;
   final int selectedNavIndex;
+  final bool isCorporate;
+  final String? companyName;
+  final String? employeeCode;
+  final String? spendingLimit;
+  final String? companyLocation;
   final List<QuickServiceEntity> quickServices;
   final List<PopularLocationEntity> popularLocations;
   final List<CouponEntity> coupons;
@@ -61,6 +66,11 @@ class HomeDashboardEntity {
     required this.recentRideTitle,
     required this.recentRideDetails,
     this.selectedNavIndex = 0,
+    this.isCorporate = false,
+    this.companyName,
+    this.employeeCode,
+    this.spendingLimit,
+    this.companyLocation,
     this.quickServices = const [],
     this.popularLocations = const [],
     this.coupons = const [],

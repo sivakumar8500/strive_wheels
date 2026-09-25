@@ -1,3 +1,4 @@
+import 'dart:convert';
 import '../models/otp_verification_model.dart';
 
 import 'package:dio/dio.dart';
@@ -48,6 +49,61 @@ class OtpRemoteDataSourceImpl implements OtpRemoteDataSource {
             await sharedPreferences.setInt('user_id', userId);
             await sharedPreferences.setInt('customer_id', userId);
             debugPrint('====== SAVED USER ID: $userId ======');
+          }
+
+          // Extract and store user and corporate company details
+          final customerProfile = data['customer_profile'] is Map ? Map<String, dynamic>.from(data['customer_profile']) : null;
+          final userObj = (customerProfile?['user'] is Map)
+              ? Map<String, dynamic>.from(customerProfile!['user'])
+              : ((data['user'] is Map) ? Map<String, dynamic>.from(data['user']) : null);
+          final activeCompany = (customerProfile?['active_company'] is Map)
+              ? Map<String, dynamic>.from(customerProfile!['active_company'])
+              : null;
+          final associations = customerProfile?['company_associations'] as List?;
+          final firstAssoc = (associations != null && associations.isNotEmpty && associations.first is Map)
+              ? Map<String, dynamic>.from(associations.first)
+              : null;
+          final companyObj = activeCompany ?? (firstAssoc?['company'] is Map ? Map<String, dynamic>.from(firstAssoc!['company']) : null);
+
+          final userName = userObj?['full_name'] ?? data['full_name'] ?? model.fullPhoneNumber;
+          final userPhone = userObj?['phone'] ?? data['phone'] ?? model.fullPhoneNumber;
+          final userEmail = userObj?['email'] ?? data['email'] ?? companyObj?['contact_email'];
+
+          await sharedPreferences.setString('user_name', userName.toString());
+          await sharedPreferences.setString('user_phone', userPhone.toString());
+          if (userEmail != null) {
+            await sharedPreferences.setString('user_email', userEmail.toString());
+          }
+
+          final bool isCorporate = companyObj != null;
+          await sharedPreferences.setBool('is_corporate_user', isCorporate);
+
+          if (isCorporate) {
+            final compId = int.tryParse(companyObj['id']?.toString() ?? '') ?? 1;
+            final compName = companyObj['name']?.toString() ?? '';
+            final empCode = firstAssoc?['employee_code']?.toString() ?? '';
+            final limit = firstAssoc?['spending_limit']?.toString() ?? '';
+            final compEmail = companyObj['contact_email']?.toString() ?? '';
+            final compLoc = companyObj['company_location']?.toString() ?? '';
+
+            await sharedPreferences.setInt('corporate_company_id', compId);
+            await sharedPreferences.setString('corporate_company_name', compName);
+            await sharedPreferences.setString('corporate_employee_code', empCode);
+            await sharedPreferences.setString('corporate_spending_limit', limit);
+            await sharedPreferences.setString('corporate_email', compEmail);
+            await sharedPreferences.setString('corporate_location', compLoc);
+            debugPrint('====== SAVED CORPORATE USER: $compName ($empCode, ID: $compId) ======');
+          } else {
+            await sharedPreferences.remove('corporate_company_id');
+            await sharedPreferences.remove('corporate_company_name');
+            await sharedPreferences.remove('corporate_employee_code');
+            await sharedPreferences.remove('corporate_spending_limit');
+            await sharedPreferences.remove('corporate_email');
+            await sharedPreferences.remove('corporate_location');
+          }
+
+          if (customerProfile != null) {
+            await sharedPreferences.setString('saved_customer_profile', jsonEncode(customerProfile));
           }
         } else {
           debugPrint('====== WARNING: NO TOKEN FOUND IN RESPONSE ======');

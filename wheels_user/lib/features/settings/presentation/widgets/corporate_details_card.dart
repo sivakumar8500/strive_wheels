@@ -9,6 +9,8 @@ class CorporateDetailsCard extends StatelessWidget {
   final String? corporateId;
   final String? department;
   final String? designation;
+  final String? spendingLimit;
+  final String? location;
 
   const CorporateDetailsCard({
     super.key,
@@ -17,6 +19,8 @@ class CorporateDetailsCard extends StatelessWidget {
     this.corporateId,
     this.department,
     this.designation,
+    this.spendingLimit,
+    this.location,
   });
 
   @override
@@ -136,6 +140,24 @@ class CorporateDetailsCard extends StatelessWidget {
               icon: Icons.account_tree_outlined,
               label: 'Department',
               value: department!,
+              isDark: isDark,
+            ),
+          ],
+          if (spendingLimit != null && spendingLimit!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _CorporateRow(
+              icon: Icons.account_balance_wallet_outlined,
+              label: 'Spending Limit',
+              value: '₹$spendingLimit',
+              isDark: isDark,
+            ),
+          ],
+          if (location != null && location!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _CorporateRow(
+              icon: Icons.location_on_outlined,
+              label: 'Office Location',
+              value: location!,
               isDark: isDark,
             ),
           ],

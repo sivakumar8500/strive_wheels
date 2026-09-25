@@ -32,6 +32,13 @@ mixin _$ProfileEntity {
   String get vehicleColor;
   String get vehicleYear;
   String get fuelType;
+  bool get isCorporate;
+  String? get companyName;
+  String? get corporateRoute;
+  String? get corporateApprovalStatus;
+  String? get companyLocation;
+  String? get companyEmail;
+  String? get companyPhone;
 
   /// Create a copy of ProfileEntity
   /// with the given fields replaced by the non-null parameter values.
@@ -73,34 +80,57 @@ mixin _$ProfileEntity {
             (identical(other.vehicleYear, vehicleYear) ||
                 other.vehicleYear == vehicleYear) &&
             (identical(other.fuelType, fuelType) ||
-                other.fuelType == fuelType));
+                other.fuelType == fuelType) &&
+            (identical(other.isCorporate, isCorporate) ||
+                other.isCorporate == isCorporate) &&
+            (identical(other.companyName, companyName) ||
+                other.companyName == companyName) &&
+            (identical(other.corporateRoute, corporateRoute) ||
+                other.corporateRoute == corporateRoute) &&
+            (identical(
+                    other.corporateApprovalStatus, corporateApprovalStatus) ||
+                other.corporateApprovalStatus == corporateApprovalStatus) &&
+            (identical(other.companyLocation, companyLocation) ||
+                other.companyLocation == companyLocation) &&
+            (identical(other.companyEmail, companyEmail) ||
+                other.companyEmail == companyEmail) &&
+            (identical(other.companyPhone, companyPhone) ||
+                other.companyPhone == companyPhone));
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      id,
-      name,
-      rating,
-      profileImageUrl,
-      totalEarnings,
-      walletBalance,
-      phone,
-      email,
-      dob,
-      gender,
-      status,
-      vehicleMake,
-      vehicleModel,
-      vehicleNumber,
-      vehicleType,
-      vehicleColor,
-      vehicleYear,
-      fuelType);
+  int get hashCode => Object.hashAll([
+        runtimeType,
+        id,
+        name,
+        rating,
+        profileImageUrl,
+        totalEarnings,
+        walletBalance,
+        phone,
+        email,
+        dob,
+        gender,
+        status,
+        vehicleMake,
+        vehicleModel,
+        vehicleNumber,
+        vehicleType,
+        vehicleColor,
+        vehicleYear,
+        fuelType,
+        isCorporate,
+        companyName,
+        corporateRoute,
+        corporateApprovalStatus,
+        companyLocation,
+        companyEmail,
+        companyPhone
+      ]);
 
   @override
   String toString() {
-    return 'ProfileEntity(id: $id, name: $name, rating: $rating, profileImageUrl: $profileImageUrl, totalEarnings: $totalEarnings, walletBalance: $walletBalance, phone: $phone, email: $email, dob: $dob, gender: $gender, status: $status, vehicleMake: $vehicleMake, vehicleModel: $vehicleModel, vehicleNumber: $vehicleNumber, vehicleType: $vehicleType, vehicleColor: $vehicleColor, vehicleYear: $vehicleYear, fuelType: $fuelType)';
+    return 'ProfileEntity(id: $id, name: $name, rating: $rating, profileImageUrl: $profileImageUrl, totalEarnings: $totalEarnings, walletBalance: $walletBalance, phone: $phone, email: $email, dob: $dob, gender: $gender, status: $status, vehicleMake: $vehicleMake, vehicleModel: $vehicleModel, vehicleNumber: $vehicleNumber, vehicleType: $vehicleType, vehicleColor: $vehicleColor, vehicleYear: $vehicleYear, fuelType: $fuelType, isCorporate: $isCorporate, companyName: $companyName, corporateRoute: $corporateRoute, corporateApprovalStatus: $corporateApprovalStatus, companyLocation: $companyLocation, companyEmail: $companyEmail, companyPhone: $companyPhone)';
   }
 }
 
@@ -128,7 +158,14 @@ abstract mixin class $ProfileEntityCopyWith<$Res> {
       String vehicleType,
       String vehicleColor,
       String vehicleYear,
-      String fuelType});
+      String fuelType,
+      bool isCorporate,
+      String? companyName,
+      String? corporateRoute,
+      String? corporateApprovalStatus,
+      String? companyLocation,
+      String? companyEmail,
+      String? companyPhone});
 }
 
 /// @nodoc
@@ -162,6 +199,13 @@ class _$ProfileEntityCopyWithImpl<$Res>
     Object? vehicleColor = null,
     Object? vehicleYear = null,
     Object? fuelType = null,
+    Object? isCorporate = null,
+    Object? companyName = freezed,
+    Object? corporateRoute = freezed,
+    Object? corporateApprovalStatus = freezed,
+    Object? companyLocation = freezed,
+    Object? companyEmail = freezed,
+    Object? companyPhone = freezed,
   }) {
     return _then(_self.copyWith(
       id: null == id
@@ -236,6 +280,34 @@ class _$ProfileEntityCopyWithImpl<$Res>
           ? _self.fuelType
           : fuelType // ignore: cast_nullable_to_non_nullable
               as String,
+      isCorporate: null == isCorporate
+          ? _self.isCorporate
+          : isCorporate // ignore: cast_nullable_to_non_nullable
+              as bool,
+      companyName: freezed == companyName
+          ? _self.companyName
+          : companyName // ignore: cast_nullable_to_non_nullable
+              as String?,
+      corporateRoute: freezed == corporateRoute
+          ? _self.corporateRoute
+          : corporateRoute // ignore: cast_nullable_to_non_nullable
+              as String?,
+      corporateApprovalStatus: freezed == corporateApprovalStatus
+          ? _self.corporateApprovalStatus
+          : corporateApprovalStatus // ignore: cast_nullable_to_non_nullable
+              as String?,
+      companyLocation: freezed == companyLocation
+          ? _self.companyLocation
+          : companyLocation // ignore: cast_nullable_to_non_nullable
+              as String?,
+      companyEmail: freezed == companyEmail
+          ? _self.companyEmail
+          : companyEmail // ignore: cast_nullable_to_non_nullable
+              as String?,
+      companyPhone: freezed == companyPhone
+          ? _self.companyPhone
+          : companyPhone // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -351,7 +423,14 @@ extension ProfileEntityPatterns on ProfileEntity {
             String vehicleType,
             String vehicleColor,
             String vehicleYear,
-            String fuelType)?
+            String fuelType,
+            bool isCorporate,
+            String? companyName,
+            String? corporateRoute,
+            String? corporateApprovalStatus,
+            String? companyLocation,
+            String? companyEmail,
+            String? companyPhone)?
         $default, {
     required TResult orElse(),
   }) {
@@ -376,7 +455,14 @@ extension ProfileEntityPatterns on ProfileEntity {
             _that.vehicleType,
             _that.vehicleColor,
             _that.vehicleYear,
-            _that.fuelType);
+            _that.fuelType,
+            _that.isCorporate,
+            _that.companyName,
+            _that.corporateRoute,
+            _that.corporateApprovalStatus,
+            _that.companyLocation,
+            _that.companyEmail,
+            _that.companyPhone);
       case _:
         return orElse();
     }
@@ -415,7 +501,14 @@ extension ProfileEntityPatterns on ProfileEntity {
             String vehicleType,
             String vehicleColor,
             String vehicleYear,
-            String fuelType)
+            String fuelType,
+            bool isCorporate,
+            String? companyName,
+            String? corporateRoute,
+            String? corporateApprovalStatus,
+            String? companyLocation,
+            String? companyEmail,
+            String? companyPhone)
         $default,
   ) {
     final _that = this;
@@ -439,7 +532,14 @@ extension ProfileEntityPatterns on ProfileEntity {
             _that.vehicleType,
             _that.vehicleColor,
             _that.vehicleYear,
-            _that.fuelType);
+            _that.fuelType,
+            _that.isCorporate,
+            _that.companyName,
+            _that.corporateRoute,
+            _that.corporateApprovalStatus,
+            _that.companyLocation,
+            _that.companyEmail,
+            _that.companyPhone);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -477,7 +577,14 @@ extension ProfileEntityPatterns on ProfileEntity {
             String vehicleType,
             String vehicleColor,
             String vehicleYear,
-            String fuelType)?
+            String fuelType,
+            bool isCorporate,
+            String? companyName,
+            String? corporateRoute,
+            String? corporateApprovalStatus,
+            String? companyLocation,
+            String? companyEmail,
+            String? companyPhone)?
         $default,
   ) {
     final _that = this;
@@ -501,7 +608,14 @@ extension ProfileEntityPatterns on ProfileEntity {
             _that.vehicleType,
             _that.vehicleColor,
             _that.vehicleYear,
-            _that.fuelType);
+            _that.fuelType,
+            _that.isCorporate,
+            _that.companyName,
+            _that.corporateRoute,
+            _that.corporateApprovalStatus,
+            _that.companyLocation,
+            _that.companyEmail,
+            _that.companyPhone);
       case _:
         return null;
     }
@@ -529,7 +643,14 @@ class _ProfileEntity extends ProfileEntity {
       this.vehicleType = 'SUV',
       this.vehicleColor = 'Pearl White',
       this.vehicleYear = '2023',
-      this.fuelType = 'Diesel'})
+      this.fuelType = 'Diesel',
+      this.isCorporate = false,
+      this.companyName,
+      this.corporateRoute,
+      this.corporateApprovalStatus,
+      this.companyLocation,
+      this.companyEmail,
+      this.companyPhone})
       : super._();
 
   @override
@@ -575,6 +696,21 @@ class _ProfileEntity extends ProfileEntity {
   @override
   @JsonKey()
   final String fuelType;
+  @override
+  @JsonKey()
+  final bool isCorporate;
+  @override
+  final String? companyName;
+  @override
+  final String? corporateRoute;
+  @override
+  final String? corporateApprovalStatus;
+  @override
+  final String? companyLocation;
+  @override
+  final String? companyEmail;
+  @override
+  final String? companyPhone;
 
   /// Create a copy of ProfileEntity
   /// with the given fields replaced by the non-null parameter values.
@@ -616,34 +752,57 @@ class _ProfileEntity extends ProfileEntity {
             (identical(other.vehicleYear, vehicleYear) ||
                 other.vehicleYear == vehicleYear) &&
             (identical(other.fuelType, fuelType) ||
-                other.fuelType == fuelType));
+                other.fuelType == fuelType) &&
+            (identical(other.isCorporate, isCorporate) ||
+                other.isCorporate == isCorporate) &&
+            (identical(other.companyName, companyName) ||
+                other.companyName == companyName) &&
+            (identical(other.corporateRoute, corporateRoute) ||
+                other.corporateRoute == corporateRoute) &&
+            (identical(
+                    other.corporateApprovalStatus, corporateApprovalStatus) ||
+                other.corporateApprovalStatus == corporateApprovalStatus) &&
+            (identical(other.companyLocation, companyLocation) ||
+                other.companyLocation == companyLocation) &&
+            (identical(other.companyEmail, companyEmail) ||
+                other.companyEmail == companyEmail) &&
+            (identical(other.companyPhone, companyPhone) ||
+                other.companyPhone == companyPhone));
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      id,
-      name,
-      rating,
-      profileImageUrl,
-      totalEarnings,
-      walletBalance,
-      phone,
-      email,
-      dob,
-      gender,
-      status,
-      vehicleMake,
-      vehicleModel,
-      vehicleNumber,
-      vehicleType,
-      vehicleColor,
-      vehicleYear,
-      fuelType);
+  int get hashCode => Object.hashAll([
+        runtimeType,
+        id,
+        name,
+        rating,
+        profileImageUrl,
+        totalEarnings,
+        walletBalance,
+        phone,
+        email,
+        dob,
+        gender,
+        status,
+        vehicleMake,
+        vehicleModel,
+        vehicleNumber,
+        vehicleType,
+        vehicleColor,
+        vehicleYear,
+        fuelType,
+        isCorporate,
+        companyName,
+        corporateRoute,
+        corporateApprovalStatus,
+        companyLocation,
+        companyEmail,
+        companyPhone
+      ]);
 
   @override
   String toString() {
-    return 'ProfileEntity(id: $id, name: $name, rating: $rating, profileImageUrl: $profileImageUrl, totalEarnings: $totalEarnings, walletBalance: $walletBalance, phone: $phone, email: $email, dob: $dob, gender: $gender, status: $status, vehicleMake: $vehicleMake, vehicleModel: $vehicleModel, vehicleNumber: $vehicleNumber, vehicleType: $vehicleType, vehicleColor: $vehicleColor, vehicleYear: $vehicleYear, fuelType: $fuelType)';
+    return 'ProfileEntity(id: $id, name: $name, rating: $rating, profileImageUrl: $profileImageUrl, totalEarnings: $totalEarnings, walletBalance: $walletBalance, phone: $phone, email: $email, dob: $dob, gender: $gender, status: $status, vehicleMake: $vehicleMake, vehicleModel: $vehicleModel, vehicleNumber: $vehicleNumber, vehicleType: $vehicleType, vehicleColor: $vehicleColor, vehicleYear: $vehicleYear, fuelType: $fuelType, isCorporate: $isCorporate, companyName: $companyName, corporateRoute: $corporateRoute, corporateApprovalStatus: $corporateApprovalStatus, companyLocation: $companyLocation, companyEmail: $companyEmail, companyPhone: $companyPhone)';
   }
 }
 
@@ -673,7 +832,14 @@ abstract mixin class _$ProfileEntityCopyWith<$Res>
       String vehicleType,
       String vehicleColor,
       String vehicleYear,
-      String fuelType});
+      String fuelType,
+      bool isCorporate,
+      String? companyName,
+      String? corporateRoute,
+      String? corporateApprovalStatus,
+      String? companyLocation,
+      String? companyEmail,
+      String? companyPhone});
 }
 
 /// @nodoc
@@ -707,6 +873,13 @@ class __$ProfileEntityCopyWithImpl<$Res>
     Object? vehicleColor = null,
     Object? vehicleYear = null,
     Object? fuelType = null,
+    Object? isCorporate = null,
+    Object? companyName = freezed,
+    Object? corporateRoute = freezed,
+    Object? corporateApprovalStatus = freezed,
+    Object? companyLocation = freezed,
+    Object? companyEmail = freezed,
+    Object? companyPhone = freezed,
   }) {
     return _then(_ProfileEntity(
       id: null == id
@@ -781,6 +954,34 @@ class __$ProfileEntityCopyWithImpl<$Res>
           ? _self.fuelType
           : fuelType // ignore: cast_nullable_to_non_nullable
               as String,
+      isCorporate: null == isCorporate
+          ? _self.isCorporate
+          : isCorporate // ignore: cast_nullable_to_non_nullable
+              as bool,
+      companyName: freezed == companyName
+          ? _self.companyName
+          : companyName // ignore: cast_nullable_to_non_nullable
+              as String?,
+      corporateRoute: freezed == corporateRoute
+          ? _self.corporateRoute
+          : corporateRoute // ignore: cast_nullable_to_non_nullable
+              as String?,
+      corporateApprovalStatus: freezed == corporateApprovalStatus
+          ? _self.corporateApprovalStatus
+          : corporateApprovalStatus // ignore: cast_nullable_to_non_nullable
+              as String?,
+      companyLocation: freezed == companyLocation
+          ? _self.companyLocation
+          : companyLocation // ignore: cast_nullable_to_non_nullable
+              as String?,
+      companyEmail: freezed == companyEmail
+          ? _self.companyEmail
+          : companyEmail // ignore: cast_nullable_to_non_nullable
+              as String?,
+      companyPhone: freezed == companyPhone
+          ? _self.companyPhone
+          : companyPhone // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }

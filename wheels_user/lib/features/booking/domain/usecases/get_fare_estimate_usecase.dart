@@ -23,6 +23,7 @@ class GetFareEstimateUseCase {
     int vehicleAgeYears = 2,
     String weather = 'CLEAR',
     String trafficLevel = 'LOW',
+    int? companyId,
   }) =>
       repository.getFareEstimate(
         vehicleTypeId: vehicleTypeId,
@@ -41,5 +42,6 @@ class GetFareEstimateUseCase {
         vehicleAgeYears: vehicleAgeYears,
         weather: weather,
         trafficLevel: trafficLevel,
+        companyId: companyId,
       );
 }

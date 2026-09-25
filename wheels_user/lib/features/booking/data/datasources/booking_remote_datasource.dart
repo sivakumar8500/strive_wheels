@@ -2,11 +2,17 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/network/api_constants.dart';
+import '../models/corporate_aligned_vehicle_model.dart';
 import '../models/fare_estimate_model.dart';
 import '../models/vehicle_type_model.dart';
 
 abstract class BookingRemoteDataSource {
   Future<List<VehicleTypeModel>> getVehicleTypes();
+  Future<List<CorporateAlignedVehicleModel>> getCorporateAlignedVehicles({
+    double? pickupLat,
+    double? pickupLng,
+    String? dropAddress,
+  });
   Future<FareEstimateModel> getFareEstimate({
     required int vehicleTypeId,
     required double pickupLat,
@@ -24,6 +30,7 @@ abstract class BookingRemoteDataSource {
     int vehicleAgeYears = 2,
     String weather = 'CLEAR',
     String trafficLevel = 'LOW',
+    int? companyId,
   });
 }
 
@@ -59,6 +66,45 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
   }
 
   @override
+  Future<List<CorporateAlignedVehicleModel>> getCorporateAlignedVehicles({
+    double? pickupLat,
+    double? pickupLng,
+    String? dropAddress,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (pickupLat != null) queryParams['pickup_lat'] = pickupLat;
+      if (pickupLng != null) queryParams['pickup_lng'] = pickupLng;
+      if (dropAddress != null && dropAddress.isNotEmpty) {
+        queryParams['drop_address'] = dropAddress;
+      }
+
+      final response = await dio.get(
+        '${ApiConstants.baseUrl}/customer/corporate-aligned-vehicles',
+        queryParameters: queryParams,
+        options: Options(
+          headers: {'accept': 'application/json'},
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final data = response.data is Map ? response.data : {};
+        final List<dynamic> list = data['data'] ?? [];
+        return list
+            .map((item) => CorporateAlignedVehicleModel.fromJson(
+                Map<String, dynamic>.from(item as Map)))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('[BookingRemoteDataSource] Error fetching aligned vehicles: $e');
+      return [];
+    }
+  }
+
+  @override
   Future<FareEstimateModel> getFareEstimate({
     required int vehicleTypeId,
     required double pickupLat,
@@ -76,10 +122,11 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
     int vehicleAgeYears = 2,
     String weather = 'CLEAR',
     String trafficLevel = 'LOW',
+    int? companyId,
   }) async {
     final requestBody = {
       'service_mode': serviceMode,
-      'company_id': 1,
+      'company_id': companyId ?? 1,
       'booking_mode': bookingMode,
       'trip_type': tripType,
       'vehicle_type_id': vehicleTypeId,

@@ -120,6 +120,9 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     OpenProfileEvent event,
     Emitter<HomeState> emit,
   ) {
-    emit(state.copyWith(actionMessage: 'User profile JW opened'));
+    emit(state.copyWith(
+      selectedNavIndex: 3,
+      actionMessage: 'User profile opened',
+    ));
   }
 }

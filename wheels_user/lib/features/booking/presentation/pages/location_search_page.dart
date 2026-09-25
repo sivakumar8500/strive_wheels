@@ -6,8 +6,11 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_constants.dart';
 import '../../../favourites/presentation/bloc/favourites_bloc.dart';
 import '../../../favourites/presentation/bloc/favourites_event.dart';
@@ -26,11 +29,13 @@ import 'ride_route_map_page.dart';
 class LocationSearchPage extends StatefulWidget {
   final VoidCallback? onMenuTap;
   final VoidCallback? onNotificationTap;
+  final bool initialIsCorporate;
 
   const LocationSearchPage({
     super.key,
     this.onMenuTap,
     this.onNotificationTap,
+    this.initialIsCorporate = false,
   });
 
   @override
@@ -83,12 +88,20 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
   @override
   void initState() {
     super.initState();
+    final prefs = sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : null;
+    final isCorp = prefs?.getBool('is_corporate_user') ?? false;
+    final corpLoc = prefs?.getString('corporate_location') ?? prefs?.getString('company_location') ?? '';
+    if (widget.initialIsCorporate && isCorp) {
+      _isCorporateRide = true;
+    }
     final initialPickup = context.read<BookingBloc>().state.pickupLocation;
-    _pickupController = TextEditingController(
-      text: initialPickup.trim().isNotEmpty
-          ? initialPickup
-          : 'Fetching current location...',
-    );
+    String initialText = initialPickup.trim().isNotEmpty
+        ? initialPickup
+        : 'Fetching current location...';
+    if (_isCorporateRide && corpLoc.trim().isNotEmpty) {
+      initialText = corpLoc.trim();
+    }
+    _pickupController = TextEditingController(text: initialText);
     _dropController = TextEditingController();
     _pickupController.addListener(_onControllersChanged);
     _dropController.addListener(_onControllersChanged);
@@ -198,19 +211,23 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
                 : (data['display_name'] as String? ?? 'Current Location');
 
             if (mounted) {
-              setState(() {
-                _pickupController.text = formattedAddress;
-              });
-              context.read<BookingBloc>().add(ChangePickupLocationEvent(formattedAddress));
+              if (!_isCorporateRide || _pickupController.text == 'Fetching current location...') {
+                setState(() {
+                  _pickupController.text = formattedAddress;
+                });
+                context.read<BookingBloc>().add(ChangePickupLocationEvent(formattedAddress));
+              }
             }
             return;
           } else if (data['display_name'] != null) {
             final formatted = data['display_name'].toString();
             if (mounted) {
-              setState(() {
-                _pickupController.text = formatted;
-              });
-              context.read<BookingBloc>().add(ChangePickupLocationEvent(formatted));
+              if (!_isCorporateRide || _pickupController.text == 'Fetching current location...') {
+                setState(() {
+                  _pickupController.text = formatted;
+                });
+                context.read<BookingBloc>().add(ChangePickupLocationEvent(formatted));
+              }
             }
             return;
           }
@@ -221,17 +238,21 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
 
       if (mounted) {
         const fallback = 'Current Location';
-        setState(() {
-          _pickupController.text = fallback;
-        });
-        context.read<BookingBloc>().add(const ChangePickupLocationEvent(fallback));
+        if (!_isCorporateRide || _pickupController.text == 'Fetching current location...') {
+          setState(() {
+            _pickupController.text = fallback;
+          });
+          context.read<BookingBloc>().add(const ChangePickupLocationEvent(fallback));
+        }
       }
     } catch (e) {
       debugPrint('Error getting current location: $e');
       if (mounted) {
-        setState(() {
-          _pickupController.text = 'Current Location';
-        });
+        if (!_isCorporateRide || _pickupController.text == 'Fetching current location...') {
+          setState(() {
+            _pickupController.text = 'Current Location';
+          });
+        }
       }
     }
   }
@@ -459,6 +480,7 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
           pickupLatLng: _pickupLatLng ?? const LatLng(17.4483, 78.3915),
           dropLatLng: _dropLatLng ?? const LatLng(17.4938, 78.3995),
           bookingMode: _selectedTripMode,
+          isCorporate: _isCorporateRide,
         ),
       ),
     );
@@ -515,6 +537,7 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
                       setState(() {
                         _isCorporateRide = false;
                       });
+                      _fetchCurrentLocation();
                     },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
@@ -550,9 +573,26 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
                   GestureDetector(
                     key: const Key('corporate_ride_toggle_button'),
                     onTap: () {
+                      final prefs = sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : null;
+                      final isCorp = prefs?.getBool('is_corporate_user') ?? false;
+                      if (!isCorp) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Your account is not linked to an active corporate company.'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                        return;
+                      }
+                      final corpLocation = prefs?.getString('corporate_location') ?? prefs?.getString('company_location') ?? '';
                       setState(() {
                         _isCorporateRide = true;
+                        if (corpLocation.trim().isNotEmpty) {
+                          _pickupController.text = corpLocation.trim();
+                          context.read<BookingBloc>().add(ChangePickupLocationEvent(corpLocation.trim()));
+                        }
                       });
+                      _checkCorporateDistanceAutoSelect();
                     },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),

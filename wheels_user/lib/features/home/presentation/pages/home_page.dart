@@ -33,6 +33,7 @@ import '../widgets/offers_carousel.dart';
 import '../widgets/popular_locations_grid.dart';
 import '../widgets/quick_services_grid.dart';
 import '../widgets/recent_ride_card.dart';
+import '../widgets/corporate_home_banner.dart';
 import '../../../../core/widgets/app_map_widget.dart';
 
 /// Main Home Dashboard Page matching exact reference UI design.
@@ -244,7 +245,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     }
   }
 
-  void _navigateToLocationSearch(BuildContext context) {
+  void _navigateToLocationSearch(BuildContext context, {bool initialIsCorporate = false}) {
     if (sl.isRegistered<ActiveBookingService>() && sl<ActiveBookingService>().hasActiveBooking) {
       _showActiveBookingWarningDialog(context);
       return;
@@ -267,6 +268,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               ),
           ],
           child: LocationSearchPage(
+            initialIsCorporate: initialIsCorporate,
             onMenuTap: () {
               context.read<HomeBloc>().add(const OpenMenuEvent());
             },
@@ -566,7 +568,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   right: 0,
                   child: HomeSearchBar(
                     readOnly: true,
-                    userName: entity?.userName ?? 'Nikhil',
+                    userName: entity?.userName ?? 'User',
                     onTap: () => _navigateToLocationSearch(context),
                     onMenuTap: () {
                       context.read<HomeBloc>().add(const OpenMenuEvent());
@@ -722,6 +724,18 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                           ),
 
                           const SizedBox(height: 20),
+
+                          // Corporate Account Banner (if corporate user)
+                          if (entity?.isCorporate == true && entity?.companyName != null)
+                            CorporateHomeBanner(
+                              companyName: entity!.companyName!,
+                              employeeCode: entity.employeeCode,
+                              spendingLimit: entity.spendingLimit,
+                              location: entity.companyLocation,
+                              onTap: () {
+                                _navigateToLocationSearch(context, initialIsCorporate: true);
+                              },
+                            ),
 
                           // Recent / Quick Repeat Ride Card
                           RecentRideCard(

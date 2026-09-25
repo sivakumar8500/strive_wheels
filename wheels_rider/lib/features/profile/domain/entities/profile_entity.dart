@@ -25,5 +25,12 @@ abstract class ProfileEntity with _$ProfileEntity {
     @Default('Pearl White') String vehicleColor,
     @Default('2023') String vehicleYear,
     @Default('Diesel') String fuelType,
+    @Default(false) bool isCorporate,
+    String? companyName,
+    String? corporateRoute,
+    String? corporateApprovalStatus,
+    String? companyLocation,
+    String? companyEmail,
+    String? companyPhone,
   }) = _ProfileEntity;
 }

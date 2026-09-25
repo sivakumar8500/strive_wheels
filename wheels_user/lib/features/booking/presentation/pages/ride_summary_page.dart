@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/di/injection_container.dart';
@@ -15,6 +16,7 @@ import '../../../../core/services/route_condition_service.dart';
 import '../../../driver_search/presentation/bloc/driver_search_bloc.dart';
 import '../../../driver_search/presentation/pages/driver_search_page.dart';
 import '../../data/models/fare_estimate_model.dart';
+import '../../domain/entities/corporate_aligned_vehicle_entity.dart';
 import '../../domain/entities/fare_estimate_entity.dart';
 import '../../domain/entities/vehicle_type_entity.dart';
 import '../../domain/usecases/get_fare_estimate_usecase.dart';
@@ -45,6 +47,10 @@ class RideSummaryPage extends StatefulWidget {
   final String routeDuration;
   final List<LatLng> routePoints;
   final String bookingMode;
+  final bool isCorporate;
+  final int? riderId;
+  final int? vehicleId;
+  final CorporateAlignedVehicleEntity? corporateVehicle;
 
   const RideSummaryPage({
     super.key,
@@ -59,6 +65,10 @@ class RideSummaryPage extends StatefulWidget {
     this.routeDuration = '—',
     this.routePoints = const [],
     this.bookingMode = 'INSTANT',
+    this.isCorporate = false,
+    this.riderId,
+    this.vehicleId,
+    this.corporateVehicle,
   });
 
   @override
@@ -72,6 +82,11 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
   bool _isScheduledRide = false;
   TimeOfDay _selectedTime = TimeOfDay.now();
   bool _instantNotification = true;
+
+  String? _corporateCompanyName;
+  String? _corporateEmployeeCode;
+  String? _corporateSpendingLimit;
+  int? _corporateCompanyId;
 
   // Fare & Route condition state
   FareEstimateEntity? _fareEstimate;
@@ -115,8 +130,20 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
   void initState() {
     super.initState();
     _selectedDate = DateTime.now();
+    _loadCorporateInfo();
     _fetchFareEstimate();
     _initDynamicVehicleMarkers();
+  }
+
+  void _loadCorporateInfo() {
+    if (!widget.isCorporate) return;
+    final prefs = sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : null;
+    if (prefs != null) {
+      _corporateCompanyName = prefs.getString('corporate_company_name');
+      _corporateEmployeeCode = prefs.getString('corporate_employee_code');
+      _corporateSpendingLimit = prefs.getString('corporate_spending_limit');
+      _corporateCompanyId = prefs.getInt('corporate_company_id');
+    }
   }
 
   @override
@@ -354,6 +381,7 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
     final weatherStr = conditions?.weather.apiKey ?? 'CLEAR';
     final trafficLevelStr = conditions?.traffic.apiKey ?? 'LOW';
     final effectiveBookingMode = distanceKm > 80.0 ? 'ONE_WAY' : widget.bookingMode;
+    final serviceModeStr = widget.isCorporate ? 'CORPORATE' : 'NORMAL';
 
     try {
       // Try injected use case first
@@ -366,7 +394,7 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
           dropLng: widget.dropLatLng.longitude,
           distanceKm: distanceKm,
           durationMins: durationMins,
-          serviceMode: 'NORMAL',
+          serviceMode: serviceModeStr,
           bookingMode: effectiveBookingMode,
           tripType: 'ONE_WAY',
           couponCode: 'string',
@@ -375,6 +403,7 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
           vehicleAgeYears: 2,
           weather: weatherStr,
           trafficLevel: trafficLevelStr,
+          companyId: widget.isCorporate ? _corporateCompanyId : null,
         );
         if (mounted) {
           setState(() {
@@ -392,8 +421,8 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
       final response = await dio.post(
         '${ApiConstants.baseUrl}${ApiConstants.fareEstimate}',
         data: {
-          'service_mode': 'NORMAL',
-          'company_id': 1,
+          'service_mode': serviceModeStr,
+          'company_id': widget.isCorporate ? (_corporateCompanyId ?? 1) : 1,
           'booking_mode': effectiveBookingMode,
           'trip_type': 'ONE_WAY',
           'vehicle_type_id': widget.selectedVehicle.id,
@@ -496,10 +525,17 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
             dropLat: widget.dropLatLng.latitude,
             dropLng: widget.dropLatLng.longitude,
             dropAddress: widget.dropAddress.isNotEmpty ? widget.dropAddress : widget.dropTitle,
-            serviceMode: 'NORMAL',
+            serviceMode: widget.isCorporate ? 'CORPORATE' : 'NORMAL',
             bookingMode: effectiveBookingMode,
             tripType: 'ONE_WAY',
-            paymentMethod: 'CASH',
+            paymentMethod: widget.isCorporate ? 'CORPORATE_BILLING' : 'CASH',
+            companyId: widget.isCorporate ? _corporateCompanyId : null,
+            riderId: widget.riderId ?? widget.corporateVehicle?.riderId,
+            vehicleId: widget.vehicleId ?? widget.corporateVehicle?.vehicleId,
+            driverName: widget.corporateVehicle?.driverName,
+            vehicleInfo: widget.corporateVehicle?.vehicleName,
+            licensePlate: widget.corporateVehicle?.licensePlate,
+            routeAlignment: widget.corporateVehicle?.alignmentLabel,
           ),
         ),
       ),
@@ -1093,6 +1129,240 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
                       ),
                     ),
                   const SizedBox(height: 12),
+
+                  // ── Corporate Account & Direct Billing Card ──
+                  if (widget.isCorporate) ...[
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF334155) : const Color(0xFFBFDBFE),
+                          width: 1.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (isDark ? Colors.black : AppColors.primaryBlue).withValues(alpha: 0.06),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryBlue.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.business_rounded,
+                                  color: AppColors.primaryBlue,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _corporateCompanyName ?? 'Corporate Company',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: textPrimary,
+                                      ),
+                                    ),
+                                    if (_corporateEmployeeCode != null && _corporateEmployeeCode!.isNotEmpty)
+                                      Text(
+                                        'Employee ID: $_corporateEmployeeCode',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: textSecondary,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFDCFCE7),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'VERIFIED',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: const Color(0xFF15803D),
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          const Divider(height: 1),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.account_balance_rounded, size: 16, color: AppColors.primaryBlue),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Payment Method:',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      color: textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                'Corporate Direct Billing',
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF0038A8),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_corporateSpendingLimit != null && _corporateSpendingLimit!.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Monthly Limit Allowance:',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: textSecondary,
+                                  ),
+                                ),
+                                Text(
+                                  '₹$_corporateSpendingLimit',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF16A34A),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (widget.corporateVehicle != null) ...[
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: cardBg,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: const Color(0xFF10B981),
+                            width: 1.4,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.08),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.route_rounded, size: 14, color: Color(0xFF10B981)),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        widget.corporateVehicle!.alignmentLabel,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: const Color(0xFF10B981),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryBlue.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '${widget.corporateVehicle!.seats} Seats',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.primaryBlue,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              '${widget.corporateVehicle!.vehicleName} • ${widget.corporateVehicle!.licensePlate}',
+                              style: GoogleFonts.inter(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(Icons.person, size: 14, color: Color(0xFF64748B)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Driver: ${widget.corporateVehicle!.driverName}',
+                                  style: GoogleFonts.inter(fontSize: 12, color: textSecondary),
+                                ),
+                                const SizedBox(width: 10),
+                                const Icon(Icons.star_rounded, size: 14, color: Color(0xFFF59E0B)),
+                                const SizedBox(width: 2),
+                                Text(
+                                  widget.corporateVehicle!.driverRating.toStringAsFixed(1),
+                                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: textSecondary),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ],
 
                   // ── Pick Date & Time (shown for ONE_WAY and ROUND_TRIP) ────
                   if (_showScheduleOptions) ...[

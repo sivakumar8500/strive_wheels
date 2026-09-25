@@ -14,6 +14,11 @@ _HomeDashboardModel _$HomeDashboardModelFromJson(Map<String, dynamic> json) =>
       recentRideTitle: json['recentRideTitle'] as String,
       recentRideDetails: json['recentRideDetails'] as String,
       selectedNavIndex: (json['selectedNavIndex'] as num?)?.toInt() ?? 0,
+      isCorporate: json['isCorporate'] as bool? ?? false,
+      companyName: json['companyName'] as String?,
+      employeeCode: json['employeeCode'] as String?,
+      spendingLimit: json['spendingLimit'] as String?,
+      companyLocation: json['companyLocation'] as String?,
     );
 
 Map<String, dynamic> _$HomeDashboardModelToJson(_HomeDashboardModel instance) =>
@@ -24,4 +29,9 @@ Map<String, dynamic> _$HomeDashboardModelToJson(_HomeDashboardModel instance) =>
       'recentRideTitle': instance.recentRideTitle,
       'recentRideDetails': instance.recentRideDetails,
       'selectedNavIndex': instance.selectedNavIndex,
+      'isCorporate': instance.isCorporate,
+      'companyName': instance.companyName,
+      'employeeCode': instance.employeeCode,
+      'spendingLimit': instance.spendingLimit,
+      'companyLocation': instance.companyLocation,
     };

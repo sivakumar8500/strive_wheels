@@ -565,7 +565,7 @@ class _SettingsPageState extends State<SettingsPage> {
               children: [
                 // 1. Profile Avatar & Info Card
                 ProfileHeaderCard(
-                  name: profile?.name ?? 'Puja Sri',
+                  name: (profile?.name != null && profile!.name.trim().isNotEmpty) ? profile.name : 'User',
                   membershipTier: profile?.membershipTier ?? AppStrings.diamondMember,
                   onEditProfileTap: () => _showEditProfileBottomSheet(context, profile),
                 ),
@@ -574,17 +574,19 @@ class _SettingsPageState extends State<SettingsPage> {
 
                 // 2. User Stats Row (Total Rides & Rating)
                 UserStatsRow(
-                  totalRides: profile?.totalRides ?? AppStrings.totalRidesCount,
-                  rating: profile?.rating ?? AppStrings.ratingValue,
+                  totalRides: profile?.totalRides ?? '0',
+                  rating: profile?.rating ?? '5.0',
                 ),
 
                 const SizedBox(height: 20),
 
                 // 3. Direct Personal Details Card
                 PersonalDetailsCard(
-                  phone: profile?.phone ?? '+91 98765 43210',
-                  email: profile?.email ?? 'pujasri@strive.com',
-                  gender: profile?.gender ?? 'Female',
+                  phone: profile?.phone ?? '',
+                  email: (profile?.email != null && profile!.email.trim().isNotEmpty)
+                      ? profile.email
+                      : (profile?.corporateEmail ?? 'No email provided'),
+                  gender: profile?.gender ?? 'Not Specified',
                   onEditTap: () => _showEditProfileBottomSheet(context, profile),
                 ),
 
@@ -597,6 +599,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     corporateId: profile.corporateId,
                     department: profile.department,
                     designation: profile.designation,
+                    spendingLimit: profile.spendingLimit,
+                    location: profile.companyLocation,
                   ),
                 ],
 

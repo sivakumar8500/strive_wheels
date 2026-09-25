@@ -1,3 +1,4 @@
+import '../entities/corporate_aligned_vehicle_entity.dart';
 import '../entities/fare_estimate_entity.dart';
 import '../entities/recent_journey_entity.dart';
 import '../entities/vehicle_option_entity.dart';
@@ -7,6 +8,11 @@ abstract class BookingRepository {
   Future<List<RecentJourneyEntity>> getRecentJourneys();
   Future<List<VehicleOptionEntity>> getAvailableVehicles();
   Future<List<VehicleTypeEntity>> getVehicleTypes();
+  Future<List<CorporateAlignedVehicleEntity>> getCorporateAlignedVehicles({
+    double? pickupLat,
+    double? pickupLng,
+    String? dropAddress,
+  });
   Future<FareEstimateEntity> getFareEstimate({
     required int vehicleTypeId,
     required double pickupLat,
@@ -24,5 +30,6 @@ abstract class BookingRepository {
     int vehicleAgeYears = 2,
     String weather = 'CLEAR',
     String trafficLevel = 'LOW',
+    int? companyId,
   });
 }

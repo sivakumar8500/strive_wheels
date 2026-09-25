@@ -12,6 +12,8 @@ class UserProfileEntity {
   final String? corporateId;
   final String? department;
   final String? designation;
+  final String? spendingLimit;
+  final String? companyLocation;
 
   const UserProfileEntity({
     required this.name,
@@ -27,5 +29,7 @@ class UserProfileEntity {
     this.corporateId,
     this.department,
     this.designation,
+    this.spendingLimit,
+    this.companyLocation,
   });
 }

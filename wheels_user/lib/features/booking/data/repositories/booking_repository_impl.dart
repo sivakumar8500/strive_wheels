@@ -1,3 +1,4 @@
+import '../../domain/entities/corporate_aligned_vehicle_entity.dart';
 import '../../domain/entities/fare_estimate_entity.dart';
 import '../../domain/entities/recent_journey_entity.dart';
 import '../../domain/entities/vehicle_option_entity.dart';
@@ -78,6 +79,27 @@ class BookingRepositoryImpl implements BookingRepository {
   }
 
   @override
+  Future<List<CorporateAlignedVehicleEntity>> getCorporateAlignedVehicles({
+    double? pickupLat,
+    double? pickupLng,
+    String? dropAddress,
+  }) async {
+    if (remoteDataSource != null) {
+      try {
+        final models = await remoteDataSource!.getCorporateAlignedVehicles(
+          pickupLat: pickupLat,
+          pickupLng: pickupLng,
+          dropAddress: dropAddress,
+        );
+        return models.map((m) => m.toEntity()).toList();
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  }
+
+  @override
   Future<FareEstimateEntity> getFareEstimate({
     required int vehicleTypeId,
     required double pickupLat,
@@ -95,6 +117,7 @@ class BookingRepositoryImpl implements BookingRepository {
     int vehicleAgeYears = 2,
     String weather = 'CLEAR',
     String trafficLevel = 'LOW',
+    int? companyId,
   }) async {
     if (remoteDataSource == null) {
       throw Exception('Remote data source not available');
@@ -116,6 +139,7 @@ class BookingRepositoryImpl implements BookingRepository {
       vehicleAgeYears: vehicleAgeYears,
       weather: weather,
       trafficLevel: trafficLevel,
+      companyId: companyId,
     );
     return FareEstimateEntity(
       serviceMode: model.serviceMode,
