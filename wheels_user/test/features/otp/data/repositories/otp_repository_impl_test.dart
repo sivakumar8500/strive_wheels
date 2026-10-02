@@ -79,6 +79,9 @@ void main() {
               data: {'token': 'fake_token', 'otp': '123456'},
             ));
     when(() => mockPrefs.setString(any(), any())).thenAnswer((_) async => true);
+    when(() => mockPrefs.setInt(any(), any())).thenAnswer((_) async => true);
+    when(() => mockPrefs.setBool(any(), any())).thenAnswer((_) async => true);
+    when(() => mockPrefs.remove(any())).thenAnswer((_) async => true);
             
     final dataSource = OtpRemoteDataSourceImpl(dio: mockDio, sharedPreferences: mockPrefs);
     const model = OtpVerificationModel(

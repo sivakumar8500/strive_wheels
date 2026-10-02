@@ -17,7 +17,9 @@ import '../../../profile/presentation/bloc/profile_event.dart';
 import '../../../profile/presentation/bloc/profile_state.dart';
 import '../../../profile/domain/entities/profile_entity.dart';
 import '../../../profile/presentation/pages/edit_profile_page.dart';
+import '../../../profile/presentation/pages/profile_view_page.dart';
 import '../../../../core/widgets/zoomable_image_dialog.dart';
+import '../../../../core/widgets/corporate_details_card.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -69,23 +71,72 @@ class _SettingsPageState extends State<SettingsPage> {
                       }
 
                       if (_lastLoadedProfile != null) {
+                        final profile = _lastLoadedProfile!;
+                        final bool hasCorporateCollaboration = profile.isCorporate ||
+                            (profile.companyName != null && profile.companyName!.trim().isNotEmpty);
+
                         return Column(
                           children: [
-                            _buildProfileCard(isDark, _lastLoadedProfile!),
-                            if (_lastLoadedProfile!.isCorporate) ...[
+                            _buildProfileCard(isDark, profile),
+                            if (hasCorporateCollaboration) ...[
                               const SizedBox(height: 20),
                               _buildSectionHeader('COLLABORATED COMPANY', isDark),
                               const SizedBox(height: 10),
-                              _buildCorporateCard(isDark, _lastLoadedProfile!),
+                              CorporateDetailsCard(
+                                companyName: profile.companyName ?? 'Corporate Partner',
+                                corporateApprovalStatus: profile.corporateApprovalStatus,
+                                corporateRoute: profile.corporateRoute,
+                                companyLocation: profile.companyLocation,
+                                companyEmail: profile.companyEmail,
+                                companyPhone: profile.companyPhone,
+                              ),
                             ],
                             const SizedBox(height: 20),
                             _buildSectionHeader('VEHICLE DETAILS', isDark),
                             const SizedBox(height: 10),
-                            _buildVehicleCard(isDark, _lastLoadedProfile!),
+                            _buildVehicleCard(isDark, profile),
                           ],
                         );
                       } else if (state is ProfileError) {
-                        return Center(child: Text(state.message));
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline_rounded, color: Colors.red, size: 28),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Failed to load profile',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? Colors.white : Colors.black87,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Could not synchronize profile details with server.',
+                                      style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => _profileBloc.add(GetProfileEvent()),
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        );
                       }
                       return const Center(child: CircularProgressIndicator());
                     },
@@ -119,69 +170,103 @@ class _SettingsPageState extends State<SettingsPage> {
     final earningsVal = profile.totalEarnings.toStringAsFixed(0);
     final phoneText = profile.phone.isNotEmpty ? profile.phone : '+91 9876543210';
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 4),
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BlocProvider.value(
+              value: _profileBloc,
+              child: ProfileViewPage(initialProfile: profile),
+            ),
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
+        );
+      },
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+              blurRadius: 15,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF10B981),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'VERIFIED DRIVER',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF10B981),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: Row(
+                Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF10B981),
-                        shape: BoxShape.circle,
-                      ),
+                    IconButton(
+                      icon: const Icon(Icons.visibility_outlined, color: Color(0xFF0D6EFD), size: 20),
+                      tooltip: 'View Profile',
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BlocProvider.value(
+                              value: _profileBloc,
+                              child: ProfileViewPage(initialProfile: profile),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'VERIFIED DRIVER',
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF10B981),
-                        letterSpacing: 0.5,
-                      ),
+                    IconButton(
+                      icon: const Icon(Icons.edit_note, color: Color(0xFF0D6EFD), size: 24),
+                      tooltip: 'Edit Profile',
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BlocProvider.value(
+                              value: _profileBloc,
+                              child: EditProfilePage(profile: profile),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.edit_note, color: Color(0xFF0D6EFD), size: 24),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => BlocProvider.value(
-                        value: _profileBloc,
-                        child: EditProfilePage(profile: profile),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
+              ],
+            ),
           const SizedBox(height: 8),
 
           // Avatar Stack
@@ -355,182 +440,9 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildCorporateCard(bool isDark, ProfileEntity profile) {
-    final companyName = profile.companyName ?? 'Corporate Partner';
-    final approvalStatus = profile.corporateApprovalStatus ?? 'ACTIVE';
-    final isApproved = approvalStatus.toUpperCase() == 'APPROVED' || approvalStatus.toUpperCase() == 'ACTIVE';
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFF6366F1).withValues(alpha: isDark ? 0.35 : 0.2),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.business_rounded, color: Color(0xFF6366F1), size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      companyName,
-                      style: GoogleFonts.poppins(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : const Color(0xFF1E293B),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      profile.companyLocation ?? 'Corporate Fleet Partner',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: Colors.grey.shade500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: (isApproved ? const Color(0xFF10B981) : const Color(0xFFF59E0B)).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: (isApproved ? const Color(0xFF10B981) : const Color(0xFFF59E0B)).withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isApproved ? Icons.verified_rounded : Icons.pending_actions_rounded,
-                      size: 13,
-                      color: isApproved ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      approvalStatus.toUpperCase(),
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: isApproved ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Divider(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
-          const SizedBox(height: 10),
-          if (profile.corporateRoute != null && profile.corporateRoute!.isNotEmpty) ...[
-            _buildCorporateMetaItem(
-              icon: Icons.alt_route_rounded,
-              label: 'Assigned Route',
-              value: profile.corporateRoute!,
-              isDark: isDark,
-            ),
-            const SizedBox(height: 8),
-          ],
-          if (profile.companyEmail != null && profile.companyEmail!.isNotEmpty) ...[
-            _buildCorporateMetaItem(
-              icon: Icons.email_outlined,
-              label: 'Company Email',
-              value: profile.companyEmail!,
-              isDark: isDark,
-            ),
-            const SizedBox(height: 8),
-          ],
-          if (profile.companyPhone != null && profile.companyPhone!.isNotEmpty) ...[
-            _buildCorporateMetaItem(
-              icon: Icons.phone_outlined,
-              label: 'Company Phone',
-              value: profile.companyPhone!,
-              isDark: isDark,
-            ),
-            const SizedBox(height: 8),
-          ],
-          if (profile.companyLocation != null && profile.companyLocation!.isNotEmpty) ...[
-            _buildCorporateMetaItem(
-              icon: Icons.location_on_outlined,
-              label: 'Company Location',
-              value: profile.companyLocation!,
-              isDark: isDark,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCorporateMetaItem({
-    required IconData icon,
-    required String label,
-    required String value,
-    required bool isDark,
-  }) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
-        const SizedBox(width: 8),
-        Text(
-          '$label:',
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-          ),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            value,
-            textAlign: TextAlign.end,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white : const Color(0xFF1E293B),
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildVehicleCard(bool isDark, ProfileEntity profile) {
     final makeModel = "${profile.vehicleMake} ${profile.vehicleModel}".trim();

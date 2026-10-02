@@ -7,4 +7,5 @@ abstract class AppAssets {
   static const String onboarding2 = 'assets/images/onboarding_2.png';
   static const String loginIcon = 'assets/images/login.png';
   static const String otpIllustration = 'assets/images/otp.jpeg';
+  static const String movingVehicle = 'assets/images/moving_vehicle.png';
 }

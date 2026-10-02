@@ -57,35 +57,19 @@ class _VehicleDetailsPageState extends State<VehicleDetailsPage> {
               Icons.share_outlined,
               color: isDark ? AppColors.white : AppColors.onboardingTextPrimaryLight,
             ),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Sharing vehicle details...')),
-              );
-            },
+            onPressed: () {},
           ),
           IconButton(
             icon: Icon(
               Icons.favorite_border_rounded,
               color: isDark ? AppColors.white : AppColors.onboardingTextPrimaryLight,
             ),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Saved to Favourites!')),
-              );
-            },
+            onPressed: () {},
           ),
         ],
       ),
       body: BlocConsumer<VehicleDetailsBloc, VehicleDetailsState>(
         listener: (context, state) {
-          if (state.actionMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.actionMessage!),
-                backgroundColor: AppColors.primaryBlue,
-              ),
-            );
-          }
           if (state.isBookingConfirmed) {
             Navigator.of(context).push(
               MaterialPageRoute(

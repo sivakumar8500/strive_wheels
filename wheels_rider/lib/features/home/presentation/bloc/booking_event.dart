@@ -18,7 +18,10 @@ class AcceptRideEvent extends BookingEvent {
   AcceptRideEvent(this.bookingId);
 }
 
-class DeclineRideEvent extends BookingEvent {}
+class DeclineRideEvent extends BookingEvent {
+  final int? bookingId;
+  DeclineRideEvent([this.bookingId]);
+}
 
 class BookingSuccessEvent extends BookingEvent {
   final int bookingId;

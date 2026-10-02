@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:dio/dio.dart';
@@ -9,9 +10,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:geolocator/geolocator.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_constants.dart';
+import '../../../../core/utils/toast_utils.dart';
 import '../../../../core/services/route_condition_service.dart';
 import '../../../driver_search/presentation/bloc/driver_search_bloc.dart';
 import '../../../driver_search/presentation/pages/driver_search_page.dart';
@@ -69,7 +74,9 @@ class RideSummaryPage extends StatefulWidget {
     this.riderId,
     this.vehicleId,
     this.corporateVehicle,
+    this.seatNumber,
   });
+  final int? seatNumber;
 
   @override
   State<RideSummaryPage> createState() => _RideSummaryPageState();
@@ -135,6 +142,7 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
     _initDynamicVehicleMarkers();
   }
 
+
   void _loadCorporateInfo() {
     if (!widget.isCorporate) return;
     final prefs = sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : null;
@@ -143,6 +151,25 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
       _corporateEmployeeCode = prefs.getString('corporate_employee_code');
       _corporateSpendingLimit = prefs.getString('corporate_spending_limit');
       _corporateCompanyId = prefs.getInt('corporate_company_id');
+
+      if (_corporateCompanyId == null) {
+        final saved = prefs.getString('saved_customer_profile');
+        if (saved != null && saved.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(saved);
+            final data = (decoded is Map && decoded['data'] is Map) ? decoded['data'] : (decoded is Map ? decoded : {});
+            final activeComp = data['active_company'] is Map ? data['active_company'] : null;
+            final corpInfo = data['corporate_info'] is Map ? data['corporate_info'] : null;
+            final cId = activeComp?['id'] ?? corpInfo?['company_id'] ?? data['company_id'];
+            if (cId != null) {
+              _corporateCompanyId = int.tryParse(cId.toString());
+              if (_corporateCompanyId != null) {
+                prefs.setInt('corporate_company_id', _corporateCompanyId!);
+              }
+            }
+          } catch (_) {}
+        }
+      }
     }
   }
 
@@ -345,9 +372,27 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
         BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
   }
 
+  double get _effectiveDistanceMeters {
+    try {
+      final text = widget.routeDistance.toLowerCase().trim();
+      if (text.contains('km')) {
+        final val = double.tryParse(text.replaceAll(RegExp(r'[^0-9.]'), ''));
+        if (val != null) return val * 1000.0;
+      } else if (text.contains('m')) {
+        final val = double.tryParse(text.replaceAll(RegExp(r'[^0-9.]'), ''));
+        if (val != null) return val;
+      }
+    } catch (_) {}
+    return Geolocator.distanceBetween(
+      widget.pickupLatLng.latitude,
+      widget.pickupLatLng.longitude,
+      widget.dropLatLng.latitude,
+      widget.dropLatLng.longitude,
+    );
+  }
+
   double get _parsedDistanceKm {
-    final clean = widget.routeDistance.replaceAll(RegExp(r'[^0-9.]'), '');
-    return double.tryParse(clean) ?? 9.25;
+    return _effectiveDistanceMeters / 1000.0;
   }
 
   int get _parsedDurationMins {
@@ -482,6 +527,28 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
   bool get _showScheduleOptions =>
       widget.bookingMode == 'ONE_WAY' || widget.bookingMode == 'ROUND_TRIP';
 
+  bool get _isCarVehicle {
+    final code = widget.selectedVehicle.code.toUpperCase();
+    final name = widget.selectedVehicle.name.toUpperCase();
+    if (code.contains('BIKE') || code.contains('AUTO')) return false;
+    return code.contains('CAB') ||
+        code.contains('CAR') ||
+        code.contains('SEDAN') ||
+        code.contains('HATCHBACK') ||
+        code.contains('SUV') ||
+        code.contains('MINI_VAN') ||
+        code.contains('VAN') ||
+        code.contains('TAXI') ||
+        name.contains('CAB') ||
+        name.contains('CAR') ||
+        name.contains('SEDAN') ||
+        name.contains('HATCHBACK');
+  }
+
+  bool get _showOutstationCarTerms =>
+      _isCarVehicle &&
+      (widget.bookingMode == 'ONE_WAY' || widget.bookingMode == 'ROUND_TRIP');
+
   String get _displayDistance {
     if (_fareEstimate != null) {
       return '${_fareEstimate!.estimatedDistanceKm.toStringAsFixed(1)} km';
@@ -510,6 +577,11 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
   }
 
   void _confirmRide() {
+    if (_effectiveDistanceMeters <= AppConstants.minBookingDistanceMeters) {
+      ToastUtils.showError(context, AppStrings.minDistanceError);
+      return;
+    }
+
     final distanceKm = _parsedDistanceKm;
     final effectiveBookingMode = distanceKm > 80.0 ? 'ONE_WAY' : widget.bookingMode;
 
@@ -536,6 +608,7 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
             vehicleInfo: widget.corporateVehicle?.vehicleName,
             licensePlate: widget.corporateVehicle?.licensePlate,
             routeAlignment: widget.corporateVehicle?.alignmentLabel,
+            seatNumber: widget.seatNumber,
           ),
         ),
       ),
@@ -811,14 +884,24 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
                               ),
                               Container(
                                   width: 1, height: 40, color: dividerColor),
-                              _buildStatChip(
-                                Icons.currency_rupee_rounded,
-                                'FARE',
-                                _displayFare,
-                                textPrimary,
-                                textSecondary,
-                                isFare: true,
-                              ),
+                              if (widget.isCorporate)
+                                _buildStatChip(
+                                  Icons.business_rounded,
+                                  'BILLING',
+                                  'Corporate',
+                                  textPrimary,
+                                  textSecondary,
+                                  isFare: true,
+                                )
+                              else
+                                _buildStatChip(
+                                  Icons.currency_rupee_rounded,
+                                  'FARE',
+                                  _displayFare,
+                                  textPrimary,
+                                  textSecondary,
+                                  isFare: true,
+                                ),
                             ],
                           ),
                   ),
@@ -953,8 +1036,8 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
                   ),
                   const SizedBox(height: 12),
 
-                  // ── Route Conditions (Traffic & Weather) Card ──────────
-                  if (_routeConditions != null)
+                  // ── Route Conditions (Traffic & Weather) Card (hidden for corporate) ──────────
+                  if (!widget.isCorporate && _routeConditions != null)
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 16),
                       padding: const EdgeInsets.all(16),
@@ -977,15 +1060,18 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
                               const Icon(Icons.traffic_rounded,
                                   color: AppColors.primaryBlue, size: 18),
                               const SizedBox(width: 8),
-                              Text(
-                                'Route Conditions & Surge',
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: textPrimary,
+                              Expanded(
+                                child: Text(
+                                  'Route Conditions & Surge',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: textPrimary,
+                                  ),
                                 ),
                               ),
-                              const Spacer(),
+                              const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 8, vertical: 2),
@@ -1024,10 +1110,11 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
                         ],
                       ),
                     ),
-                  const SizedBox(height: 12),
+                  if (!widget.isCorporate && _routeConditions != null)
+                    const SizedBox(height: 12),
 
-                  // ── Fare Breakdown Card (shown when API responds) ──────
-                  if (!_isLoadingFare && _fareEstimate != null)
+                  // ── Fare Breakdown Card (hidden for corporate) ──────
+                  if (!widget.isCorporate && !_isLoadingFare && _fareEstimate != null)
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 16),
                       padding: const EdgeInsets.all(16),
@@ -1229,12 +1316,16 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
                                   ),
                                 ],
                               ),
-                              Text(
-                                'Corporate Direct Billing',
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF0038A8),
+                               Flexible(
+                                child: Text(
+                                  'Corporate Direct Billing',
+                                  textAlign: TextAlign.end,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF0038A8),
+                                  ),
                                 ),
                               ),
                             ],
@@ -1290,29 +1381,34 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
                           children: [
                             Row(
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.route_rounded, size: 14, color: Color(0xFF10B981)),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        widget.corporateVehicle!.alignmentLabel,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: const Color(0xFF10B981),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.route_rounded, size: 14, color: Color(0xFF10B981)),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            widget.corporateVehicle!.alignmentLabel,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.inter(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: const Color(0xFF10B981),
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
-                                const Spacer(),
+                                const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
@@ -1632,22 +1728,24 @@ class _RideSummaryPageState extends State<RideSummaryPage> {
                           ),
                           const SizedBox(height: 14),
                         ],
-                        _buildTermRow(
-                            Icons.check_circle_outline_rounded,
-                            'Take number halting (per day 3 free)',
-                            textSecondary),
-                        _buildTermRow(
-                            Icons.check_circle_outline_rounded,
-                            'Driver beta',
-                            textSecondary),
-                        _buildTermRow(
-                            Icons.check_circle_outline_rounded,
-                            'Driver alwence',
-                            textSecondary),
-                        _buildTermRow(
-                            Icons.check_circle_outline_rounded,
-                            'Toll charges',
-                            textSecondary),
+                        if (_showOutstationCarTerms) ...[
+                          _buildTermRow(
+                              Icons.check_circle_outline_rounded,
+                              'Take number halting (per day 3 free)',
+                              textSecondary),
+                          _buildTermRow(
+                              Icons.check_circle_outline_rounded,
+                              'Driver beta',
+                              textSecondary),
+                          _buildTermRow(
+                              Icons.check_circle_outline_rounded,
+                              'Driver alwence',
+                              textSecondary),
+                          _buildTermRow(
+                              Icons.check_circle_outline_rounded,
+                              'Toll charges',
+                              textSecondary),
+                        ],
                         _buildTermRow(
                             Icons.info_outline_rounded,
                             'Terms and conditions',

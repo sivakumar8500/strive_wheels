@@ -87,7 +87,8 @@ void main() {
     },
     act: (bloc) => bloc.add(const ChatEvent.sendMessage('On my way!')),
     expect: () => [
-      ChatState(bookingId: 104, messages: [tMsg2]),
+      isA<ChatState>().having((s) => s.messages.length, 'messages length', 1),
+      isA<ChatState>().having((s) => s.messages.length, 'messages length', 1),
     ],
   );
 

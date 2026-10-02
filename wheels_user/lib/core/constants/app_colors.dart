@@ -95,6 +95,11 @@ abstract class AppColors {
   static const Color logoutBgLight = Color(0xFFFFE4E6);
   static const Color logoutText = Color(0xFFDC2626);
 
+  // Status & Notification Colors
+  static const Color errorRed = Color(0xFFDC2626);
+  static const Color corporatePurple = Color(0xFF7E22CE);
+  static const Color corporatePurpleBg = Color(0xFFF3E8FF);
+
   // Booking & Vehicle Search Colors
   static const Color pickupBlueRing = Color(0xFF0066FF);
   static const Color destinationRedPin = Color(0xFFDC2626);

@@ -1,9 +1,13 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/network/api_constants.dart';
 import '../../../history/presentation/widgets/ride_history_top_bar.dart';
 import '../../domain/entities/user_profile_entity.dart';
 import '../bloc/settings_bloc.dart';
@@ -63,12 +67,25 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Widget _buildFallbackPersonIcon() {
+    return Container(
+      color: const Color(0xFF0F2027),
+      child: const Icon(
+        Icons.person_rounded,
+        size: 50,
+        color: Colors.white,
+      ),
+    );
+  }
+
   void _showEditProfileBottomSheet(BuildContext context, UserProfileEntity? profile) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final nameController = TextEditingController(text: profile?.name ?? '');
     final phoneController = TextEditingController(text: profile?.phone ?? '');
     final emailController = TextEditingController(text: profile?.email ?? '');
     String selectedGender = profile?.gender ?? 'Female';
+    String? pickedImagePath;
+    final ImagePicker imagePicker = ImagePicker();
 
     showModalBottomSheet(
       context: context,
@@ -81,122 +98,350 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (bottomSheetContext) {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
+            Future<void> pickImage(ImageSource source) async {
+              try {
+                final XFile? picked = await imagePicker.pickImage(
+                  source: source,
+                  imageQuality: 85,
+                  maxWidth: 800,
+                  maxHeight: 800,
+                );
+                if (picked != null) {
+                  setModalState(() {
+                    pickedImagePath = picked.path;
+                  });
+                }
+              } catch (e) {
+                debugPrint('Error picking image: $e');
+              }
+            }
+
+            void showImageSourceModal() {
+              showModalBottomSheet(
+                context: bottomSheetContext,
+                backgroundColor: isDark ? AppColors.onboardingBgDark : Colors.white,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                builder: (sourceCtx) => SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Wrap(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          child: Text(
+                            'Select Profile Photo',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? AppColors.white : AppColors.onboardingTextPrimaryLight,
+                            ),
+                          ),
+                        ),
+                        ListTile(
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryBlue.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.photo_camera_rounded, color: AppColors.primaryBlue),
+                          ),
+                          title: Text(
+                            'Take Photo with Camera',
+                            style: GoogleFonts.poppins(fontWeight: FontWeight.w500, fontSize: 14),
+                          ),
+                          onTap: () {
+                            Navigator.pop(sourceCtx);
+                            pickImage(ImageSource.camera);
+                          },
+                        ),
+                        ListTile(
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.photo_library_rounded, color: Color(0xFF10B981)),
+                          ),
+                          title: Text(
+                            'Choose from Gallery',
+                            style: GoogleFonts.poppins(fontWeight: FontWeight.w500, fontSize: 14),
+                          ),
+                          onTap: () {
+                            Navigator.pop(sourceCtx);
+                            pickImage(ImageSource.gallery);
+                          },
+                        ),
+                        if (pickedImagePath != null || (profile?.profileImageUrl != null && profile!.profileImageUrl!.isNotEmpty))
+                          ListTile(
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+                            ),
+                            title: Text(
+                              'Remove Photo',
+                              style: GoogleFonts.poppins(fontWeight: FontWeight.w500, fontSize: 14, color: Colors.redAccent),
+                            ),
+                            onTap: () {
+                              Navigator.pop(sourceCtx);
+                              setModalState(() {
+                                pickedImagePath = '';
+                              });
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            Widget buildAvatarPreview() {
+              final activePath = pickedImagePath;
+              final currentUrl = profile?.profileImageUrl;
+
+              Widget avatarContent;
+              if (activePath != null && activePath.isNotEmpty) {
+                avatarContent = Image.file(
+                  File(activePath),
+                  width: 84,
+                  height: 84,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _buildFallbackPersonIcon(),
+                );
+              } else if (activePath == null && currentUrl != null && currentUrl.trim().isNotEmpty) {
+                final resolved = ApiConstants.getImageUrl(currentUrl.trim());
+                if (kIsWeb ||
+                    resolved.startsWith('http://') ||
+                    resolved.startsWith('https://') ||
+                    resolved.startsWith('blob:')) {
+                  avatarContent = Image.network(
+                    resolved,
+                    width: 84,
+                    height: 84,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => _buildFallbackPersonIcon(),
+                  );
+                } else {
+                  try {
+                    final file = File(currentUrl);
+                    if (file.existsSync()) {
+                      avatarContent = Image.file(
+                        file,
+                        width: 84,
+                        height: 84,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => _buildFallbackPersonIcon(),
+                      );
+                    } else {
+                      avatarContent = _buildFallbackPersonIcon();
+                    }
+                  } catch (_) {
+                    avatarContent = _buildFallbackPersonIcon();
+                  }
+                }
+              } else {
+                avatarContent = _buildFallbackPersonIcon();
+              }
+
+              return Center(
+                child: Column(
+                  children: [
+                    Stack(
+                      children: [
+                        GestureDetector(
+                          key: const Key('edit_profile_avatar_picker'),
+                          onTap: showImageSourceModal,
+                          child: Container(
+                            width: 84,
+                            height: 84,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppColors.primaryBlue.withValues(alpha: 0.3),
+                                width: 3,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.08),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ClipOval(child: avatarContent),
+                          ),
+                        ),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: GestureDetector(
+                            onTap: showImageSourceModal,
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryBlue,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isDark ? AppColors.onboardingBgDark : Colors.white,
+                                  width: 2,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt_rounded,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Tap to change photo (Optional)',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: isDark ? AppColors.textSecondaryDark : AppColors.onboardingTextSecondaryLight,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
             return Padding(
               padding: EdgeInsets.only(
                 left: 24,
                 right: 24,
-                top: 24,
+                top: 20,
                 bottom: MediaQuery.of(bottomSheetContext).viewInsets.bottom +
                     MediaQuery.of(bottomSheetContext).padding.bottom +
-                    24,
+                    20,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.grey[700] : Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Edit Personal Details',
-                    style: GoogleFonts.poppins(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? AppColors.white : AppColors.onboardingTextPrimaryLight,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: nameController,
-                    decoration: InputDecoration(
-                      labelText: 'Full Name',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      prefixIcon: const Icon(Icons.person_outline_rounded),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: phoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      labelText: 'Phone Number',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      prefixIcon: const Icon(Icons.phone_android_rounded),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      labelText: 'Email Address',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      prefixIcon: const Icon(Icons.email_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Gender',
-                    style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: ['Female', 'Male', 'Other'].map((g) {
-                      final isSel = selectedGender == g;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          label: Text(g),
-                          selected: isSel,
-                          onSelected: (val) {
-                            if (val) {
-                              setModalState(() {
-                                selectedGender = g;
-                              });
-                            }
-                          },
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryBlue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.grey[700] : Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      onPressed: () {
-                        context.read<SettingsBloc>().add(
-                              UpdateUserProfileEvent(
-                                name: nameController.text,
-                                phone: phoneController.text,
-                                email: emailController.text,
-                                gender: selectedGender,
-                              ),
-                            );
-                        Navigator.pop(bottomSheetContext);
-                      },
+                    ),
+                    const SizedBox(height: 14),
+                    Center(
                       child: Text(
-                        'Save Changes',
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
+                        'Edit Personal Details',
+                        style: GoogleFonts.poppins(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? AppColors.white : AppColors.onboardingTextPrimaryLight,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    buildAvatarPreview(),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: nameController,
+                      decoration: InputDecoration(
+                        labelText: 'Full Name',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        prefixIcon: const Icon(Icons.person_outline_rounded),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                        labelText: 'Phone Number',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        prefixIcon: const Icon(Icons.phone_android_rounded),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        labelText: 'Email Address',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        prefixIcon: const Icon(Icons.email_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Gender',
+                      style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: ['Female', 'Male', 'Other'].map((g) {
+                        final isSel = selectedGender == g;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(g),
+                            selected: isSel,
+                            onSelected: (val) {
+                              if (val) {
+                                setModalState(() {
+                                  selectedGender = g;
+                                });
+                              }
+                            },
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryBlue,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () {
+                          context.read<SettingsBloc>().add(
+                                UpdateUserProfileEvent(
+                                  name: nameController.text,
+                                  phone: phoneController.text,
+                                  email: emailController.text,
+                                  gender: selectedGender,
+                                  profileImagePath: pickedImagePath,
+                                ),
+                              );
+                          Navigator.pop(bottomSheetContext);
+                        },
+                        child: Text(
+                          'Save Changes',
+                          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -567,6 +812,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ProfileHeaderCard(
                   name: (profile?.name != null && profile!.name.trim().isNotEmpty) ? profile.name : 'User',
                   membershipTier: profile?.membershipTier ?? AppStrings.diamondMember,
+                  profileImageUrl: profile?.profileImageUrl,
                   onEditProfileTap: () => _showEditProfileBottomSheet(context, profile),
                 ),
 

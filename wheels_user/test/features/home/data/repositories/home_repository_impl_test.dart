@@ -41,6 +41,8 @@ void main() {
         .thenAnswer((_) async => []);
     when(() => mockRemoteDataSource.getActiveCoupons())
         .thenAnswer((_) async => []);
+    when(() => mockRemoteDataSource.getCustomerProfile())
+        .thenAnswer((_) async => null);
 
     // act
     final result = await repository.getHomeDashboard();

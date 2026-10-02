@@ -20,6 +20,8 @@ import '../../../../core/services/navigation_service.dart';
 import '../widgets/maneuver_banner_widget.dart';
 import '../../../home/presentation/pages/home_page.dart';
 import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
+import 'package:permission_handler/permission_handler.dart';
+import '../../../../core/services/live_journey_notification_service.dart';
 import 'journey_complete_page.dart';
 import '../../../../core/widgets/app_map_widget.dart';
 import '../../../chat/presentation/pages/ride_chat_page.dart';
@@ -42,6 +44,7 @@ class LiveTripTrackingPage extends StatefulWidget {
   final String etaTime;
   final String? startOtp;
   final String initialStatus;
+  final bool isCorporate;
 
   const LiveTripTrackingPage({
     super.key,
@@ -59,6 +62,7 @@ class LiveTripTrackingPage extends StatefulWidget {
     this.etaTime = '14:45',
     this.startOtp,
     this.initialStatus = 'RIDER_ACCEPTED',
+    this.isCorporate = false,
   });
 
   @override
@@ -71,6 +75,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
   late LatLng _currentVehiclePos;
   double _currentVehicleRotation = 0.0;
 
+  List<LatLng> _fullRoutePoints = [];
   List<LatLng> _routePoints = [];
   List<LatLng> _dropoffPreviewRoutePoints = [];
 
@@ -132,28 +137,30 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
     )..addListener(() {
         if (!mounted) return;
         final t = Curves.easeInOut.transform(_animController.value);
+
+        // Smooth shortest-arc rotational interpolation
+        double diffRotation = (_animTargetRotation - _animStartRotation) % 360.0;
+        if (diffRotation > 180.0) diffRotation -= 360.0;
+        if (diffRotation < -180.0) diffRotation += 360.0;
+        final interpolatedRotation = (_animStartRotation + diffRotation * t) % 360.0;
+
         setState(() {
           _currentVehiclePos = LatLng(
             _animStartPos.latitude + (_animTargetPos.latitude - _animStartPos.latitude) * t,
             _animStartPos.longitude + (_animTargetPos.longitude - _animStartPos.longitude) * t,
           );
-          _currentVehicleRotation = _animStartRotation + (_animTargetRotation - _animStartRotation) * t;
+          _currentVehicleRotation = interpolatedRotation;
         });
 
         if (_isFollowingVehicle && _mapController != null) {
-          final targetCamPos = _calculateHeadingCameraTarget(
-            _currentVehiclePos,
-            _currentVehicleRotation,
-            25.0,
-          );
           _isProgrammaticCameraMove = true;
           _mapController!.moveCamera(
             CameraUpdate.newCameraPosition(
               CameraPosition(
-                target: targetCamPos,
+                target: _currentVehiclePos,
                 zoom: 18.0,
-                tilt: _is3DView ? 60.0 : 0.0,
-                bearing: _currentVehicleRotation,
+                tilt: _is3DView ? 45.0 : 0.0,
+                bearing: _is3DView ? _currentVehicleRotation : 0.0,
               ),
             ),
           );
@@ -193,6 +200,13 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
 
     // 4. Start stale location check timer (15 second threshold)
     _startStaleLocationTimer();
+
+    // 5. Ensure notification permission is requested for background/call notifications
+    _initNotificationPermission();
+  }
+
+  void _initNotificationPermission() {
+    Permission.notification.request();
   }
 
   TripPhase _phase = TripPhase.navToPickup;
@@ -286,6 +300,8 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
             _phase = TripPhase.inTransit;
             _lastRouteFetchTime = null;
             _lastRouteFetchPos = null;
+            _fullRoutePoints = [];
+            _routePoints = [];
             _routeSteps = [];
             _currentStep = null;
           });
@@ -315,13 +331,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
           sl<ActiveBookingService>().clearActiveBooking();
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(displayMsg),
-              backgroundColor: const Color(0xFFEF4444),
-              duration: const Duration(seconds: 4),
-            ),
-          );
           Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
         }
       } else if (status == 'COMPLETED' || status == 'TRIP_COMPLETED' || status == 'FINISHED') {
@@ -405,12 +414,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
               if (sl.isRegistered<ActiveBookingService>()) {
                 sl<ActiveBookingService>().clearActiveBooking();
               }
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Trip cancelled successfully'),
-                  backgroundColor: Color(0xFFEF4444),
-                ),
-              );
               Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
             },
             style: ElevatedButton.styleFrom(
@@ -493,26 +496,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
             if (sl.isRegistered<ActiveBookingService>()) {
               sl<ActiveBookingService>().updateBookingStatus('DRIVER_ARRIVED');
             }
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: [
-                      const Icon(Icons.location_on, color: Colors.white, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Driver has arrived! Share OTP with driver: ${widget.startOtp ?? ""}',
-                          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                  backgroundColor: AppColors.primaryBlue,
-                  duration: const Duration(seconds: 4),
-                ),
-              );
-            }
           }
 
           final isTripStarted =
@@ -554,6 +537,8 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                 _phase = TripPhase.inTransit;
                 _lastRouteFetchTime = null;
                 _lastRouteFetchPos = null;
+                _fullRoutePoints = [];
+                _routePoints = [];
                 _routeSteps = [];
                 _currentStep = null;
               });
@@ -562,26 +547,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                 sl<ActiveBookingService>().updateBookingStatus('TRIP_STARTED');
               }
               _fetchRealRoadRoute(from: _currentVehiclePos, to: widget.dropLatLng, force: true);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Row(
-                      children: [
-                        const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'OTP Verified! Ride Started - En Route to Destination',
-                            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
-                    ),
-                    backgroundColor: AppColors.primaryBlue,
-                    duration: const Duration(seconds: 4),
-                  ),
-                );
-              }
             }
           } else if (event == 'booking.completed' || event == 'rider.trip_completed' || event == 'booking.trip_completed') {
             if (_hasNavigatedToComplete) return;
@@ -590,10 +555,16 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
             if (sl.isRegistered<ActiveBookingService>()) {
               sl<ActiveBookingService>().clearActiveBooking();
             }
+            final bool isCorp = widget.isCorporate ||
+                data['service_mode'] == 'CORPORATE' ||
+                bookingObj?['service_mode'] == 'CORPORATE' ||
+                data['payment_method'] == 'CORPORATE_BILLING';
             final fareVal = data['final_fare'] ?? data['finalFare'] ?? data['price'] ?? data['fare'] ?? data['final_amount'] ??
                 bookingObj?['final_fare'] ?? bookingObj?['estimated_fare'] ?? bookingObj?['finalFare'];
             final double fare = (fareVal is num) ? fareVal.toDouble() : (double.tryParse(fareVal?.toString() ?? '') ?? _savedFareAmount);
-            final String fareStr = fare > 0 ? '₹${fare.toStringAsFixed(2)}' : (_savedFareAmount > 0 ? '₹${_savedFareAmount.toStringAsFixed(2)}' : '');
+            final String fareStr = isCorp
+                ? 'Corporate Direct Billing'
+                : (fare > 0 ? '₹${fare.toStringAsFixed(2)}' : (_savedFareAmount > 0 ? '₹${_savedFareAmount.toStringAsFixed(2)}' : ''));
 
             if (mounted) {
               ScaffoldMessenger.of(context).clearSnackBars();
@@ -605,6 +576,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                     distanceText: _formattedDistance,
                     durationText: _formattedDuration,
                     finalPaymentText: fareStr,
+                    isCorporate: isCorp,
                   ),
                 ),
               );
@@ -624,15 +596,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
           } else if (event == 'booking.drop_rejected') {
             final reason = (data['reason'] ?? 'Rider declined early drop request').toString();
             _dropCountdownTimer?.cancel();
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Drop Request Declined: $reason'),
-                  backgroundColor: const Color(0xFFEF4444),
-                  duration: const Duration(seconds: 4),
-                ),
-              );
-            }
           } else if (event == 'booking.drop_approved' ||
               event == 'booking.drop_accepted' ||
               event == 'trip.drop_approved' ||
@@ -653,13 +616,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
               sl<ActiveBookingService>().clearActiveBooking();
             }
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(displayMsg),
-                  backgroundColor: const Color(0xFFEF4444),
-                  duration: const Duration(seconds: 4),
-                ),
-              );
               Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
             }
           }
@@ -694,25 +650,43 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
     _animController.reset();
     _animController.forward();
 
-    // Slice remaining route points smoothly along road geometry
-    if (_routePoints.length > 1) {
-      int closestIdx = 0;
-      double minDistance = double.infinity;
-      for (int i = 0; i < _routePoints.length; i++) {
-        final dist = NavigationService.calculateDistanceMeters(newPos, _routePoints[i]);
-        if (dist < minDistance) {
-          minDistance = dist;
+    final targetDest = _phase == TripPhase.inTransit ? widget.dropLatLng : widget.pickupLatLng;
+
+    // Check off-route relative to master full planned route
+    double minDistanceToPlannedRoute = double.infinity;
+    int closestIdx = -1;
+    if (_fullRoutePoints.isNotEmpty) {
+      for (int i = 0; i < _fullRoutePoints.length; i++) {
+        final d = NavigationService.calculateDistanceMeters(newPos, _fullRoutePoints[i]);
+        if (d < minDistanceToPlannedRoute) {
+          minDistanceToPlannedRoute = d;
           closestIdx = i;
         }
       }
-      if (closestIdx >= 0 && closestIdx < _routePoints.length) {
-        final remaining = closestIdx == 0 ? _routePoints.sublist(1) : _routePoints.sublist(closestIdx);
-        _routePoints = [newPos, ...remaining];
+    }
+
+    final now = DateTime.now();
+    final secondsSinceLastFetch = _lastRouteFetchTime != null
+        ? now.difference(_lastRouteFetchTime!).inSeconds
+        : 999;
+
+    final bool isOffRoute = _fullRoutePoints.isEmpty ||
+        _lastRouteFetchPos == null ||
+        minDistanceToPlannedRoute > 50.0;
+    final bool shouldRefetch = isOffRoute && secondsSinceLastFetch >= 5;
+
+    if (shouldRefetch) {
+      _fetchRealRoadRoute(from: newPos, to: targetDest, force: true);
+    } else if (_fullRoutePoints.isNotEmpty && closestIdx >= 0) {
+      // Non-destructively slice from master full route
+      if (closestIdx < _fullRoutePoints.length - 1) {
+        _routePoints = [newPos, ..._fullRoutePoints.sublist(closestIdx + 1)];
+      } else {
+        _routePoints = [newPos, _fullRoutePoints.last];
       }
     }
 
     // Dynamic distance & duration update
-    final targetDest = _phase == TripPhase.inTransit ? widget.dropLatLng : widget.pickupLatLng;
     final remainingDist = NavigationService.calculateDistanceMeters(newPos, targetDest);
     setState(() {
       _remainingMetersVal = remainingDist;
@@ -728,25 +702,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
         _currentStep = nextStep;
         _distanceToStepMeters = NavigationService.calculateDistanceMeters(newPos, nextStep.location);
       }
-    }
-
-    // Off-route detection (> 50 meters from route geometry)
-    double minDistanceToRoute = double.infinity;
-    for (final pt in _routePoints) {
-      final d = NavigationService.calculateDistanceMeters(newPos, pt);
-      if (d < minDistanceToRoute) minDistanceToRoute = d;
-    }
-
-    bool shouldRefetch = minDistanceToRoute > 50.0;
-    if (_lastRouteFetchTime != null) {
-      final secondsSinceLastFetch = DateTime.now().difference(_lastRouteFetchTime!).inSeconds;
-      if (secondsSinceLastFetch < 8 && !shouldRefetch) {
-        shouldRefetch = false;
-      }
-    }
-
-    if (shouldRefetch) {
-      _fetchRealRoadRoute(from: newPos, to: targetDest);
     }
   }
 
@@ -905,7 +860,8 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
 
       if (navData.points.isNotEmpty && mounted) {
         setState(() {
-          _routePoints = navData.points;
+          _fullRoutePoints = List<LatLng>.from(navData.points);
+          _routePoints = List<LatLng>.from(navData.points);
           _routeSteps = navData.steps;
           _isRouteUnavailable = false;
           if (_routePoints.length > 1) {
@@ -977,13 +933,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
     return (bearing + 360.0) % 360.0;
   }
 
-  /// Calculates camera target offset so navigation arrow is positioned near lower-center of map
-  LatLng _calculateHeadingCameraTarget(LatLng vehiclePos, double rotation, double forwardMeters) {
-    final rad = rotation * (pi / 180.0);
-    final dLat = (forwardMeters / 111320.0) * cos(rad);
-    final dLng = (forwardMeters / (111320.0 * cos(vehiclePos.latitude * (pi / 180.0)))) * sin(rad);
-    return LatLng(vehiclePos.latitude + dLat, vehiclePos.longitude + dLng);
-  }
 
   /// Fits camera view to show full route and markers with padding
   void _fitMapBounds() {
@@ -1027,6 +976,11 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
 
   @override
   void dispose() {
+    if (_phase == TripPhase.tripCompleted) {
+      if (sl.isRegistered<LiveJourneyNotificationService>()) {
+        sl<LiveJourneyNotificationService>().dismissJourneyNotification();
+      }
+    }
     WidgetsBinding.instance.removeObserver(this);
     WakelockPlus.disable();
     _customerPositionStreamSubscription?.cancel();
@@ -1039,16 +993,68 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
+      _showLiveJourneyNotification();
+    } else if (state == AppLifecycleState.resumed) {
       debugPrint('[LiveTripTrackingPage] App resumed (from call/background). Reconnecting socket & checking active booking status...');
       if (sl.isRegistered<CustomerWSController>()) {
         sl<CustomerWSController>().reconnectIfNeeded();
       }
       _checkActiveBookingStatusHttp();
+      _showLiveJourneyNotification();
     }
   }
 
+  double get _journeyProgressPercent {
+    if (_phase == TripPhase.tripCompleted) return 1.0;
+    if (_phase == TripPhase.driverArrived) return 0.5;
+    if (_fullRoutePoints.isNotEmpty) {
+      final total = _fullRoutePoints.length;
+      final remaining = _routePoints.length;
+      if (total > 0) {
+        return (((total - remaining) / total)).clamp(0.05, 0.95);
+      }
+    }
+    return _phase == TripPhase.inTransit ? 0.65 : 0.25;
+  }
+
+  String get _journeyStatusTitle {
+    if (_phase == TripPhase.navToPickup) return 'Driver arriving';
+    if (_phase == TripPhase.driverArrived) return 'Driver arrived at pickup';
+    if (_phase == TripPhase.inTransit) return 'On Trip to Destination';
+    return 'Trip Completed';
+  }
+
+  String get _vehicleBadgeText {
+    if (widget.vehicleInfo.contains('•')) {
+      return widget.vehicleInfo.split('•').last.trim();
+    }
+    return widget.vehicleInfo.trim();
+  }
+
+  void _showLiveJourneyNotification() {
+    if (!sl.isRegistered<LiveJourneyNotificationService>()) return;
+    if (_phase == TripPhase.tripCompleted) {
+      sl<LiveJourneyNotificationService>().dismissJourneyNotification();
+      return;
+    }
+
+    final mins = (_remainingSecondsVal / 60).ceil();
+
+    sl<LiveJourneyNotificationService>().showJourneyNotification(
+      title: '$_journeyStatusTitle • $_formattedDuration',
+      pickupLocation: widget.pickupAddress,
+      dropLocation: widget.dropAddress,
+      subText: _vehicleBadgeText.isNotEmpty ? _vehicleBadgeText : null,
+      progressPercent: _journeyProgressPercent,
+      remainingMins: mins > 0 ? mins : 1,
+    );
+  }
+
   Future<void> _makePhoneCall(String phoneNumber) async {
+    _showLiveJourneyNotification();
     final cleanNum = phoneNumber.replaceAll(' ', '');
     final uri = Uri.parse('tel:$cleanNum');
     try {
@@ -1059,14 +1065,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
       }
     } catch (e) {
       debugPrint('Error launching phone call to $cleanNum: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Dialing $phoneNumber...'),
-            backgroundColor: AppColors.primaryBlue,
-          ),
-        );
-      }
     }
   }
 
@@ -1482,10 +1480,20 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
     }
 
     final bookingObj = (data != null && data['booking'] is Map) ? data['booking'] as Map<String, dynamic> : null;
+    final bool isCorp = widget.isCorporate ||
+        data?['service_mode'] == 'CORPORATE' ||
+        bookingObj?['service_mode'] == 'CORPORATE' ||
+        data?['payment_method'] == 'CORPORATE_BILLING';
     final fareVal = data?['final_fare'] ?? data?['finalFare'] ?? data?['price'] ?? data?['fare'] ?? data?['final_amount'] ??
         bookingObj?['final_fare'] ?? bookingObj?['estimated_fare'] ?? bookingObj?['finalFare'];
     final double fare = (fareVal is num) ? fareVal.toDouble() : (double.tryParse(fareVal?.toString() ?? '') ?? _savedFareAmount);
-    final String fareStr = fare > 0 ? '₹${fare.toStringAsFixed(2)}' : (_savedFareAmount > 0 ? '₹${_savedFareAmount.toStringAsFixed(2)}' : '');
+    final String fareStr = isCorp
+        ? 'Corporate Direct Billing'
+        : (fare > 0 ? '₹${fare.toStringAsFixed(2)}' : (_savedFareAmount > 0 ? '₹${_savedFareAmount.toStringAsFixed(2)}' : ''));
+
+    final distVal = data?['distance_km'] ?? data?['distance'] ?? data?['actual_distance_km'] ?? bookingObj?['distance_km'];
+    final double? parsedDist = (distVal is num) ? distVal.toDouble() : double.tryParse(distVal?.toString() ?? '');
+    final String distanceStr = (parsedDist != null && parsedDist > 0) ? '${parsedDist.toStringAsFixed(1)} km' : _formattedDistance;
 
     ScaffoldMessenger.of(context).clearSnackBars();
 
@@ -1494,9 +1502,10 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
         builder: (_) => JourneyCompletePage(
           driverName: widget.driverName,
           vehicleInfo: widget.vehicleInfo,
-          distanceText: _formattedDistance,
+          distanceText: distanceStr,
           durationText: _formattedDuration,
           finalPaymentText: fareStr,
+          isCorporate: isCorp,
         ),
       ),
     );
@@ -1800,9 +1809,10 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
           // 1. Full Screen Map View
           AppMapWidget(
             initialCameraPosition: CameraPosition(
-              target: widget.pickupLatLng,
+              target: _currentVehiclePos,
               zoom: 18.0,
-              tilt: 60.0,
+              tilt: 45.0,
+              bearing: _currentVehicleRotation,
             ),
             buildingsEnabled: true,
             tiltGesturesEnabled: true,
@@ -1810,20 +1820,15 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
             onMapCreated: (controller) {
               _mapController = controller;
               if (_isFollowingVehicle && mounted) {
-                final targetCamPos = _calculateHeadingCameraTarget(
-                  _currentVehiclePos,
-                  _currentVehicleRotation,
-                  25.0,
-                );
                 _isProgrammaticCameraMove = true;
                 try {
                   _mapController?.animateCamera(
                     CameraUpdate.newCameraPosition(
                       CameraPosition(
-                        target: targetCamPos,
+                        target: _currentVehiclePos,
                         zoom: 18.0,
-                        tilt: _is3DView ? 60.0 : 0.0,
-                        bearing: _currentVehicleRotation,
+                        tilt: _is3DView ? 45.0 : 0.0,
+                        bearing: _is3DView ? _currentVehicleRotation : 0.0,
                       ),
                     ),
                   );
@@ -1846,6 +1851,17 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
             zoomControlsEnabled: false,
             myLocationButtonEnabled: false,
             polylines: {
+              if (_phase != TripPhase.inTransit && _dropoffPreviewRoutePoints.isNotEmpty)
+                Polyline(
+                  polylineId: const PolylineId('dropoff_preview_route'),
+                  points: _dropoffPreviewRoutePoints,
+                  color: AppColors.primaryBlue.withValues(alpha: 0.35),
+                  width: 4,
+                  patterns: [PatternItem.dash(12), PatternItem.gap(6)],
+                  jointType: JointType.round,
+                  startCap: Cap.roundCap,
+                  endCap: Cap.roundCap,
+                ),
               if (_routePoints.isNotEmpty)
                 Polyline(
                   polylineId: const PolylineId('street_route'),
@@ -1920,12 +1936,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
               isMuted: _isMuted,
               onToggleMute: () {
                 setState(() => _isMuted = !_isMuted);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(_isMuted ? 'Voice guidance muted' : 'Voice guidance enabled'),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
               },
               onOverviewTap: () {
                 setState(() => _isFollowingVehicle = false);
@@ -2037,12 +2047,6 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                     ),
                     onPressed: () {
                       setState(() => _isMuted = !_isMuted);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(_isMuted ? 'Voice guidance muted' : 'Voice guidance enabled'),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
                     },
                   ),
                 ),
@@ -2075,20 +2079,15 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                         _is3DView = !_is3DView;
                         _isFollowingVehicle = true;
                       });
-                      final targetCamPos = _calculateHeadingCameraTarget(
-                        _currentVehiclePos,
-                        _currentVehicleRotation,
-                        25.0,
-                      );
                       _isProgrammaticCameraMove = true;
                       try {
                         _mapController?.animateCamera(
                           CameraUpdate.newCameraPosition(
                             CameraPosition(
-                              target: targetCamPos,
+                              target: _currentVehiclePos,
                               zoom: 18.0,
-                              tilt: _is3DView ? 60.0 : 0.0,
-                              bearing: _currentVehicleRotation,
+                              tilt: _is3DView ? 45.0 : 0.0,
+                              bearing: _is3DView ? _currentVehicleRotation : 0.0,
                             ),
                           ),
                         );
@@ -2124,20 +2123,15 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                     ),
                     onPressed: () {
                       setState(() => _isFollowingVehicle = true);
-                      final targetCamPos = _calculateHeadingCameraTarget(
-                        _currentVehiclePos,
-                        _currentVehicleRotation,
-                        25.0,
-                      );
                       _isProgrammaticCameraMove = true;
                       try {
                         _mapController?.animateCamera(
                           CameraUpdate.newCameraPosition(
                             CameraPosition(
-                              target: targetCamPos,
+                              target: _currentVehiclePos,
                               zoom: 18.0,
-                              tilt: _is3DView ? 60.0 : 0.0,
-                              bearing: _currentVehicleRotation,
+                              tilt: _is3DView ? 45.0 : 0.0,
+                              bearing: _is3DView ? _currentVehicleRotation : 0.0,
                             ),
                           ),
                         );

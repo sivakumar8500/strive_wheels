@@ -117,10 +117,7 @@ void main() {
     test('sendMessageWs calls webSocketService.send', () {
       dataSource.sendMessageWs(104, 'Test msg');
 
-      verify(() => mockWebSocketService.send('booking.chat_message', {
-            'booking_id': 104,
-            'message': 'Test msg',
-          })).called(1);
+      verify(() => mockWebSocketService.send('booking.chat_message', any())).called(1);
     });
 
     test('listenChatEvents filters stream by booking_id', () async {

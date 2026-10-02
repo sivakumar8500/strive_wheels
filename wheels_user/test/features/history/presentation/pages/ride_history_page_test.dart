@@ -52,13 +52,18 @@ void main() {
     mockBloc = MockRideHistoryBloc();
   });
 
-  Widget buildTestWidget({VoidCallback? onMenuTap, VoidCallback? onNotificationTap}) {
+  Widget buildTestWidget({
+    VoidCallback? onMenuTap,
+    VoidCallback? onNotificationTap,
+    void Function(PastRideItemEntity ride)? onBookAgainNavigate,
+  }) {
     return MaterialApp(
       home: BlocProvider<RideHistoryBloc>.value(
         value: mockBloc,
         child: RideHistoryPage(
           onMenuTap: onMenuTap,
           onNotificationTap: onNotificationTap,
+          onBookAgainNavigate: onBookAgainNavigate,
         ),
       ),
     );
@@ -104,13 +109,18 @@ void main() {
     verify(() => mockBloc.add(const FilterTripsTabEvent(1))).called(1);
   });
 
-  testWidgets('tapping Book again button fires BookAgainEvent', (tester) async {
+  testWidgets('tapping Book again button fires BookAgainEvent and passes autofilled ride', (tester) async {
+    PastRideItemEntity? navigatedRide;
     when(() => mockBloc.state).thenReturn(const RideHistoryState(
       isLoading: false,
       historyEntity: tEntity,
     ));
 
-    await tester.pumpWidget(buildTestWidget());
+    await tester.pumpWidget(buildTestWidget(
+      onBookAgainNavigate: (ride) {
+        navigatedRide = ride;
+      },
+    ));
 
     await tester.tap(find.byKey(const Key('book_again_button_1')));
     await tester.pump();
@@ -119,5 +129,48 @@ void main() {
       rideId: '1',
       rideTitle: 'Mindspace IT Park ➔ Home',
     ))).called(1);
+
+    expect(navigatedRide, isNotNull);
+    expect(navigatedRide?.effectivePickupAddress, 'Mindspace IT Park');
+    expect(navigatedRide?.effectiveDropAddress, 'Home');
+  });
+
+  testWidgets('renders Self and Corporate badges on past ride cards', (tester) async {
+    const tEntityWithModes = RideHistoryEntity(
+      monthlySummaryTitle: 'June ride summary',
+      tripCountText: '2 trips',
+      distanceText: '50 km this month',
+      spentText: '₹713 spent',
+      pastRides: [
+        PastRideItemEntity(
+          id: '1',
+          title: 'Mindspace IT Park ➔ Home',
+          dateAndVehicle: 'Yesterday · 6:42 PM · Bike',
+          status: 'Completed',
+          amount: '₹185',
+          serviceType: 'Bike',
+          serviceMode: 'SELF',
+        ),
+        PastRideItemEntity(
+          id: '2',
+          title: 'Home ➔ Rajiv Gandhi Airport',
+          dateAndVehicle: 'Jun 18 · 5:15 AM · Mini',
+          status: 'Completed',
+          amount: '₹528',
+          serviceType: 'Mini',
+          serviceMode: 'CORPORATE',
+        ),
+      ],
+    );
+
+    when(() => mockBloc.state).thenReturn(const RideHistoryState(
+      isLoading: false,
+      historyEntity: tEntityWithModes,
+    ));
+
+    await tester.pumpWidget(buildTestWidget());
+
+    expect(find.text('Self'), findsOneWidget);
+    expect(find.text('Corporate'), findsOneWidget);
   });
 }

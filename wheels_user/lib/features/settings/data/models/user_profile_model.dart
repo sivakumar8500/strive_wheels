@@ -13,6 +13,7 @@ abstract class UserProfileModel with _$UserProfileModel {
     required String phone,
     required String email,
     required String gender,
+    String? profileImageUrl,
     required bool isCorporate,
     String? companyName,
     String? corporateEmail,
@@ -89,6 +90,14 @@ abstract class UserProfileModel with _$UserProfileModel {
         corpData['location'] ??
         data['company_location'];
 
+    final rawImageUrl = data['profile_image_url'] ??
+        data['profile_photo_url'] ??
+        data['profile_image'] ??
+        data['avatar_url'] ??
+        data['avatar'] ??
+        data['image_url'] ??
+        data['profile_pic'];
+
     return UserProfileModel(
       name: (data['name'] ?? data['full_name'] ?? data['first_name'] ?? 'User').toString(),
       membershipTier: (data['membershipTier'] ?? data['membership_tier'] ?? data['tier'] ?? 'Gold Member').toString(),
@@ -97,6 +106,7 @@ abstract class UserProfileModel with _$UserProfileModel {
       phone: (data['phone'] ?? data['phone_number'] ?? data['mobile'] ?? '').toString(),
       email: (data['email'] ?? data['email_id'] ?? '').toString(),
       gender: (data['gender'] ?? 'Not Specified').toString(),
+      profileImageUrl: rawImageUrl?.toString(),
       isCorporate: isCorp,
       companyName: rawCompanyName?.toString(),
       corporateEmail: rawCorpEmail?.toString(),
@@ -118,6 +128,7 @@ extension UserProfileModelX on UserProfileModel {
         phone: phone,
         email: email,
         gender: gender,
+        profileImageUrl: profileImageUrl,
         isCorporate: isCorporate,
         companyName: companyName,
         corporateEmail: corporateEmail,

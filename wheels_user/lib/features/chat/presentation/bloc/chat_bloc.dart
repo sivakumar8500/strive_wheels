@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/models/chat_message_model.dart';
 import '../../domain/entities/chat_message_entity.dart';
@@ -53,14 +54,28 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     await _wsSubscription?.cancel();
     _wsSubscription = listenChatMessagesUseCase(event.bookingId).listen(
       (eventMap) {
-        final eventName = eventMap['event'] as String?;
-        final data = eventMap['data'] as Map<String, dynamic>? ?? {};
+        final eventName = (eventMap['event'] as String?)?.toLowerCase();
+        final data = (eventMap['data'] is Map)
+            ? Map<String, dynamic>.from(eventMap['data'] as Map)
+            : eventMap;
 
-        if (eventName == 'booking.chat_message') {
+        final isChatMsg = eventName == 'booking.chat_message' ||
+            eventName == 'booking.chat' ||
+            eventName == 'chat.message' ||
+            eventName == 'chat_message' ||
+            eventName == 'chat' ||
+            eventName == 'booking.message' ||
+            eventName == 'message';
+
+        if (isChatMsg) {
           try {
             final model = ChatMessageModel.fromJson(data);
-            add(ChatEvent.messageReceived(model.toEntity()));
-          } catch (_) {}
+            if (model.message.trim().isNotEmpty) {
+              add(ChatEvent.messageReceived(model.toEntity()));
+            }
+          } catch (e) {
+            debugPrint('[ChatBloc] Error decoding chat message: $e');
+          }
         } else if (eventName == 'booking.chat_closed' ||
             eventName == 'booking.cancelled' ||
             eventName == 'booking.rider_cancelled') {
@@ -84,6 +99,17 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     if (state.isClosed || event.message.trim().isEmpty) return;
 
     final trimmed = event.message.trim();
+    // 1. Optimistic message update so sender immediately sees their message
+    final optimisticMsg = ChatMessageEntity(
+      id: 0,
+      bookingId: state.bookingId,
+      senderId: 0,
+      senderRole: 'CUSTOMER',
+      message: trimmed,
+      sentAt: DateTime.now(),
+    );
+    add(ChatEvent.messageReceived(optimisticMsg));
+
     try {
       final sentEntity = await sendChatMessageUseCase(
         bookingId: state.bookingId,
@@ -108,13 +134,14 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     Emitter<ChatState> emit,
   ) {
     final existing = List<ChatMessageEntity>.from(state.messages);
-    final exists = existing.any((m) =>
-        (m.id != 0 && m.id == event.message.id) ||
-        (m.senderId == event.message.senderId &&
-            m.message == event.message.message &&
-            m.sentAt.difference(event.message.sentAt).abs().inSeconds < 3));
+    final existsIndex = existing.indexWhere((m) =>
+        (m.id != 0 && event.message.id != 0 && m.id == event.message.id) ||
+        (m.message.trim() == event.message.message.trim() && (m.id == 0 || event.message.id == 0)));
 
-    if (!exists) {
+    if (existsIndex != -1) {
+      existing[existsIndex] = event.message;
+      emit(state.copyWith(messages: existing));
+    } else {
       existing.add(event.message);
       existing.sort((a, b) => a.sentAt.compareTo(b.sentAt));
       emit(state.copyWith(messages: existing));

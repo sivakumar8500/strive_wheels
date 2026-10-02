@@ -130,21 +130,96 @@ class PastRideCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
 
-                    // Completed Badge Row
-                    Row(
+                    // Completed Badge & Ride Type (Self / Corporate) Row
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
-                        const Icon(
-                          Icons.check_circle_rounded,
-                          color: AppColors.completedGreen,
-                          size: 13,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              ride.status.toUpperCase().contains('CANCEL')
+                                  ? Icons.cancel_rounded
+                                  : Icons.check_circle_rounded,
+                              color: ride.status.toUpperCase().contains('CANCEL')
+                                  ? AppColors.errorRed
+                                  : AppColors.completedGreen,
+                              size: 13,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              ride.status,
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: ride.status.toUpperCase().contains('CANCEL')
+                                    ? AppColors.errorRed
+                                    : AppColors.completedGreen,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          ride.status,
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.completedGreen,
+
+                        // Ride Type Pill (Corporate / Self)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: ride.isCorporate
+                                ? (isDark
+                                    ? const Color(0xFF2E1065)
+                                    : const Color(0xFFF3E8FF))
+                                : (isDark
+                                    ? const Color(0xFF0C2A4D)
+                                    : const Color(0xFFE0F2FE)),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: ride.isCorporate
+                                  ? (isDark
+                                      ? const Color(0xFF7E22CE)
+                                      : const Color(0xFFD8B4FE))
+                                  : (isDark
+                                      ? const Color(0xFF0284C7)
+                                      : const Color(0xFFBAE6FD)),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                ride.isCorporate
+                                    ? Icons.business_rounded
+                                    : Icons.person_rounded,
+                                size: 10,
+                                color: ride.isCorporate
+                                    ? (isDark
+                                        ? const Color(0xFFD8B4FE)
+                                        : const Color(0xFF7E22CE))
+                                    : (isDark
+                                        ? const Color(0xFF38BDF8)
+                                        : const Color(0xFF0284C7)),
+                              ),
+                              const SizedBox(width: 3.5),
+                              Text(
+                                ride.isCorporate ? 'Corporate' : 'Self',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: ride.isCorporate
+                                      ? (isDark
+                                          ? const Color(0xFFD8B4FE)
+                                          : const Color(0xFF7E22CE))
+                                      : (isDark
+                                          ? const Color(0xFF38BDF8)
+                                          : const Color(0xFF0284C7)),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],

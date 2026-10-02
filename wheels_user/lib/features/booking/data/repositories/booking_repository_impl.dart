@@ -83,6 +83,10 @@ class BookingRepositoryImpl implements BookingRepository {
     double? pickupLat,
     double? pickupLng,
     String? dropAddress,
+    String? pickupAddress,
+    double? dropLat,
+    double? dropLng,
+    int? companyId,
   }) async {
     if (remoteDataSource != null) {
       try {
@@ -90,6 +94,10 @@ class BookingRepositoryImpl implements BookingRepository {
           pickupLat: pickupLat,
           pickupLng: pickupLng,
           dropAddress: dropAddress,
+          pickupAddress: pickupAddress,
+          dropLat: dropLat,
+          dropLng: dropLng,
+          companyId: companyId,
         );
         return models.map((m) => m.toEntity()).toList();
       } catch (e) {

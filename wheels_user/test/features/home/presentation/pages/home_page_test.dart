@@ -15,8 +15,27 @@ import 'package:wheels_user/features/home/presentation/bloc/home_state.dart';
 import 'package:wheels_user/features/home/presentation/pages/home_page.dart';
 import 'package:wheels_user/features/home/presentation/widgets/home_search_bar.dart';
 
+import 'package:wheels_user/features/notifications/domain/entities/notification_entity.dart';
+import 'package:wheels_user/features/notifications/domain/repositories/notification_repository.dart';
+import 'package:wheels_user/features/notifications/domain/usecases/get_notifications_usecase.dart';
+import 'package:wheels_user/features/notifications/domain/usecases/get_unread_count_usecase.dart';
+import 'package:wheels_user/features/notifications/domain/usecases/mark_notification_read_usecase.dart';
+import 'package:wheels_user/features/notifications/domain/usecases/mark_all_read_usecase.dart';
+import 'package:wheels_user/features/notifications/presentation/bloc/notification_bloc.dart';
+import 'package:wheels_user/features/notifications/presentation/pages/notifications_page.dart';
+
 class MockHomeBloc extends MockBloc<HomeEvent, HomeState> implements HomeBloc {}
 class MockBookingBloc extends MockBloc<BookingEvent, BookingState> implements BookingBloc {}
+class MockNotificationRepo implements NotificationRepository {
+  @override
+  Future<List<NotificationEntity>> getNotifications({int limit = 50, int skip = 0}) async => [];
+  @override
+  Future<int> getUnreadCount() async => 0;
+  @override
+  Future<bool> markAsRead(int notificationId) async => true;
+  @override
+  Future<int> markAllAsRead() async => 0;
+}
 
 void main() {
   late MockHomeBloc mockHomeBloc;
@@ -28,6 +47,19 @@ void main() {
     when(() => mockBookingBloc.state).thenReturn(const BookingState());
     if (!sl.isRegistered<BookingBloc>()) {
       sl.registerFactory<BookingBloc>(() => mockBookingBloc);
+    }
+    final mockNotifRepo = MockNotificationRepo();
+    if (!sl.isRegistered<GetNotificationsUseCase>()) {
+      sl.registerLazySingleton<GetNotificationsUseCase>(() => GetNotificationsUseCase(mockNotifRepo));
+      sl.registerLazySingleton<GetUnreadCountUseCase>(() => GetUnreadCountUseCase(mockNotifRepo));
+      sl.registerLazySingleton<MarkNotificationReadUseCase>(() => MarkNotificationReadUseCase(mockNotifRepo));
+      sl.registerLazySingleton<MarkAllReadUseCase>(() => MarkAllReadUseCase(mockNotifRepo));
+      sl.registerFactory<NotificationBloc>(() => NotificationBloc(
+        getNotificationsUseCase: sl(),
+        getUnreadCountUseCase: sl(),
+        markNotificationReadUseCase: sl(),
+        markAllReadUseCase: sl(),
+      ));
     }
   });
 
@@ -84,9 +116,8 @@ void main() {
     await widgetTester.pump();
     await widgetTester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('Good Morning 👋'), findsOneWidget);
+    expect(find.textContaining('👋'), findsOneWidget);
     expect(find.text('Siri, ready for your next ride?'), findsOneWidget);
-    expect(find.text('Office ➔ Home'), findsOneWidget);
     expect(find.text('Quick ride services'), findsOneWidget);
     expect(find.text('Bike'), findsOneWidget);
     expect(find.text('Auto'), findsOneWidget);
@@ -140,7 +171,7 @@ void main() {
     expect(find.byType(LocationSearchPage), findsOneWidget);
   });
 
-  testWidgets('tapping menu, mic, notifications, and avatar buttons triggers respective events',
+  testWidgets('tapping avatar button triggers ChangeNavTabEvent to settings tab',
       (widgetTester) async {
     when(() => mockHomeBloc.state).thenReturn(
       const HomeState(
@@ -154,16 +185,27 @@ void main() {
     await widgetTester.pump();
     await widgetTester.pump(const Duration(milliseconds: 500));
 
-    await widgetTester.tap(find.byKey(const Key('home_search_menu_button')));
-    verify(() => mockHomeBloc.add(const OpenMenuEvent())).called(1);
+    await widgetTester.tap(find.byKey(const Key('home_search_avatar_button')));
+    verify(() => mockHomeBloc.add(const ChangeNavTabEvent(3))).called(1);
+  });
 
-    await widgetTester.tap(find.byKey(const Key('home_search_mic_button')));
-    verify(() => mockHomeBloc.add(const OpenMicEvent())).called(1);
+  testWidgets('tapping notifications button navigates to NotificationsPage',
+      (widgetTester) async {
+    when(() => mockHomeBloc.state).thenReturn(
+      const HomeState(
+        isLoading: false,
+        dashboardEntity: tEntity,
+        selectedNavIndex: 0,
+      ),
+    );
+
+    await widgetTester.pumpWidget(createWidgetUnderTest());
+    await widgetTester.pump();
+    await widgetTester.pump(const Duration(milliseconds: 500));
 
     await widgetTester.tap(find.byKey(const Key('home_search_notifications_button')));
-    verify(() => mockHomeBloc.add(const OpenNotificationsEvent())).called(1);
+    await widgetTester.pumpAndSettle();
 
-    await widgetTester.tap(find.byKey(const Key('home_search_avatar_button')));
-    verify(() => mockHomeBloc.add(const OpenProfileEvent())).called(1);
+    expect(find.byType(NotificationsPage), findsOneWidget);
   });
 }

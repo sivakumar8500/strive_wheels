@@ -14,7 +14,7 @@ void main() {
   const tEntity = DriverSearchEntity(
     statusTitle: 'Searching for nearby drivers...',
     statusSubtitle: 'Connecting you to the nearest premium vehicle.',
-    estimatedConfirmationText: '5 - 30 mins',
+    estimatedConfirmationText: '0 - 90s',
     orderTime: '10:42 AM',
     scanRadiusText: 'Scanning 1.2km radius...',
     activeStepIndex: 1,

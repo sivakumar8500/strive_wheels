@@ -1,3 +1,29 @@
+class CorporateWaypointEntity {
+  final int bookingId;
+  final String passengerName;
+  final int? seatNumber;
+  final String pickupAddress;
+  final double pickupLat;
+  final double pickupLng;
+  final String dropAddress;
+  final double dropLat;
+  final double dropLng;
+  final String status;
+
+  const CorporateWaypointEntity({
+    required this.bookingId,
+    required this.passengerName,
+    this.seatNumber,
+    required this.pickupAddress,
+    required this.pickupLat,
+    required this.pickupLng,
+    required this.dropAddress,
+    required this.dropLat,
+    required this.dropLng,
+    this.status = 'ACTIVE',
+  });
+}
+
 class CorporateAlignedVehicleEntity {
   final int id;
   final int companyId;
@@ -19,6 +45,10 @@ class CorporateAlignedVehicleEntity {
   final bool isAligned;
   final String alignmentLabel;
   final int seats;
+  final int availableSeats;
+  final int occupiedSeats;
+  final List<int> availableSeatNumbers;
+  final List<CorporateWaypointEntity> waypoints;
 
   const CorporateAlignedVehicleEntity({
     required this.id,
@@ -41,6 +71,10 @@ class CorporateAlignedVehicleEntity {
     this.isAligned = false,
     required this.alignmentLabel,
     this.seats = 4,
+    this.availableSeats = 4,
+    this.occupiedSeats = 0,
+    this.availableSeatNumbers = const [1, 2, 3, 4],
+    this.waypoints = const [],
   });
 
   @override

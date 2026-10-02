@@ -1,8 +1,11 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/network/api_constants.dart';
 
 /// Fully functional, interactive top floating search bar widget.
 class HomeSearchBar extends StatefulWidget {
@@ -76,8 +79,8 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
     final hintColor = isDark ? AppColors.textSecondaryDark : AppColors.onboardingTextSecondaryLight;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: const EdgeInsets.only(left: 16, right: 16, top: 0, bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(30),
@@ -91,14 +94,15 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
       ),
       child: Row(
         children: [
-          // Search Field Prefix Icon
+          // Search Field Prefix / Menu Icon
           GestureDetector(
-            onTap: widget.onTap,
+            key: const Key('home_search_menu_button'),
+            onTap: widget.onMenuTap ?? widget.onTap,
             behavior: HitTestBehavior.opaque,
             child: Padding(
               padding: const EdgeInsets.only(left: 12, right: 8),
               child: Icon(
-                Icons.search,
+                widget.onMenuTap != null ? Icons.menu : Icons.search,
                 color: hintColor,
                 size: 20,
               ),
@@ -128,7 +132,7 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
                 ),
                 border: InputBorder.none,
                 isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                contentPadding: const EdgeInsets.symmetric(vertical: 6),
               ),
             ),
           ),
@@ -208,7 +212,7 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
     final photoUrl = widget.profileImageUrl?.trim() ?? '';
     final name = widget.userName?.trim() ?? '';
 
-    String initials = 'JW';
+    String initials = 'U';
     if (name.isNotEmpty) {
       final parts = name.split(' ').where((p) => p.isNotEmpty).toList();
       if (parts.length >= 2) {
@@ -219,17 +223,47 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
     }
 
     if (photoUrl.isNotEmpty) {
+      final resolvedUrl = ApiConstants.getImageUrl(photoUrl);
+      Widget imageWidget;
+      if (kIsWeb ||
+          resolvedUrl.startsWith('http://') ||
+          resolvedUrl.startsWith('https://') ||
+          resolvedUrl.startsWith('blob:')) {
+        imageWidget = Image.network(
+          resolvedUrl,
+          width: 36,
+          height: 36,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return _buildInitialsText(initials);
+          },
+          errorBuilder: (context, error, stackTrace) => _buildInitialsText(initials),
+        );
+      } else {
+        try {
+          final file = File(photoUrl);
+          if (file.existsSync()) {
+            imageWidget = Image.file(
+              file,
+              width: 36,
+              height: 36,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => _buildInitialsText(initials),
+            );
+          } else {
+            imageWidget = _buildInitialsText(initials);
+          }
+        } catch (_) {
+          imageWidget = _buildInitialsText(initials);
+        }
+      }
+
       return CircleAvatar(
         radius: 18,
         backgroundColor: AppColors.primaryBlue,
         child: ClipOval(
-          child: Image.network(
-            photoUrl,
-            width: 36,
-            height: 36,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => _buildInitialsText(initials),
-          ),
+          child: imageWidget,
         ),
       );
     }

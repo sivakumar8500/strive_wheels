@@ -96,7 +96,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final email = _emailController.text.trim();
     final dob = _dobController.text.trim();
 
-    if (firstName.isEmpty || lastName.isEmpty || mobileNumber.isEmpty || email.isEmpty || dob.isEmpty) {
+    if (firstName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your first name')),
+      );
+      return;
+    }
+    if (mobileNumber.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your mobile number')),
+      );
+      return;
+    }
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email address')),
+      );
       return;
     }
 
@@ -107,13 +122,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     final updatedData = {
       'first_name': firstName,
-      'last_name': lastName,
+      'last_name': lastName.isNotEmpty ? lastName : '',
+      'name': "$firstName ${lastName.isNotEmpty ? lastName : ''}".trim(),
       'mobile_number': formattedPhone,
+      'phone': formattedPhone,
       'email': email,
       'dob': dob,
       'gender': selectedGender.toUpperCase(),
       'referral_code': '',
       'profile_photo_url': _profileImagePath ?? '',
+      'vehicle_make': _vehicleMakeController.text.trim(),
+      'vehicle_model': _vehicleModelController.text.trim(),
+      'registration_number': _vehicleNumberController.text.trim(),
+      'vehicle_color': _vehicleColorController.text.trim(),
     };
     context.read<ProfileBloc>().add(UpdateProfileEvent(updatedData));
   }
@@ -143,9 +164,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
       body: BlocConsumer<ProfileBloc, ProfileState>(
         listener: (context, state) {
           if (state is ProfileUpdateSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Profile updated successfully'),
+                backgroundColor: Color(0xFF10B981),
+              ),
+            );
             Navigator.pop(context);
           } else if (state is ProfileUpdateError) {
-            // Error handled silently
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to update: ${state.message}'),
+                backgroundColor: Colors.red,
+              ),
+            );
           }
         },
         builder: (context, state) {
@@ -482,7 +514,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
           // Email
           _buildInputField(
-            label: 'Email Address',
+            label: 'Email',
             controller: _emailController,
             icon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,

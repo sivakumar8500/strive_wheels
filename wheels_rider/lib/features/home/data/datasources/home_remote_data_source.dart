@@ -5,14 +5,22 @@ import '../../../../core/network/api_endpoints.dart';
 abstract class HomeRemoteDataSource {
   Future<void> updateLocation({required double lat, required double lng});
   Future<void> updateAvailability({required String availabilityMode, required bool isOnline});
-  Future<void> updateAvailabilitySchedule(List<DateTime> dates);
-  Future<List<DateTime>> getAvailabilitySchedule();
+  Future<void> updateAvailabilitySchedule(List<DateTime> dates, {List<DateTime>? allWorkingDays});
+  Future<List<DateTime>> getAvailabilitySchedule({DateTime? startDate});
 }
 
 class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
   final ApiClient apiClient;
 
   HomeRemoteDataSourceImpl({required this.apiClient});
+
+  DateTime _calculateNextWorkingDay() {
+    DateTime current = DateTime.now().add(const Duration(days: 1));
+    while (current.weekday == DateTime.saturday || current.weekday == DateTime.sunday) {
+      current = current.add(const Duration(days: 1));
+    }
+    return DateTime(current.year, current.month, current.day);
+  }
 
   @override
   Future<void> updateLocation({required double lat, required double lng}) async {
@@ -66,13 +74,35 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
     }
   }
 
+  List<DateTime> _calculateNextWorkingDays(int count) {
+    List<DateTime> days = [];
+    DateTime current = DateTime.now().add(const Duration(days: 1));
+    current = DateTime(current.year, current.month, current.day);
+    while (days.length < count) {
+      if (current.weekday != DateTime.saturday && current.weekday != DateTime.sunday) {
+        days.add(current);
+      }
+      current = current.add(const Duration(days: 1));
+    }
+    return days;
+  }
+
   @override
-  Future<void> updateAvailabilitySchedule(List<DateTime> dates) async {
+  Future<void> updateAvailabilitySchedule(List<DateTime> dates, {List<DateTime>? allWorkingDays}) async {
     try {
-      final List<Map<String, dynamic>> payload = dates.map((date) => {
-        "date": "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}",
-        "is_available": true,
-        "notes": ""
+      final daysToUpdate = (allWorkingDays != null && allWorkingDays.isNotEmpty)
+          ? allWorkingDays
+          : _calculateNextWorkingDays(5);
+
+      final List<Map<String, dynamic>> payload = daysToUpdate.map((date) {
+        final isAvailable = dates.any(
+          (d) => d.year == date.year && d.month == date.month && d.day == date.day,
+        );
+        return {
+          "date": "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}",
+          "is_available": isAvailable,
+          "notes": ""
+        };
       }).toList();
 
       final response = await apiClient.post(
@@ -107,10 +137,15 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
   }
 
   @override
-  Future<List<DateTime>> getAvailabilitySchedule() async {
+  Future<List<DateTime>> getAvailabilitySchedule({DateTime? startDate}) async {
     try {
+      final queryDate = startDate ?? _calculateNextWorkingDay();
+      final dateStr =
+          "${queryDate.year}-${queryDate.month.toString().padLeft(2, '0')}-${queryDate.day.toString().padLeft(2, '0')}";
+
       final response = await apiClient.get(
         ApiEndpoints.riderAvailabilitySchedule,
+        queryParameters: {'start_date': dateStr},
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {

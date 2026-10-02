@@ -23,6 +23,7 @@ abstract class RideRequestModel with _$RideRequestModel {
     @JsonKey(name: 'estimated_duration_mins') int? estimatedDurationMins,
     @JsonKey(name: 'booking_code') String? bookingCode,
     @JsonKey(name: 'service_mode') String? serviceMode,
+    @JsonKey(name: 'seat_number') int? seatNumber,
   }) = _RideRequestModel;
 
   factory RideRequestModel.fromJson(Map<String, dynamic> json) => _$RideRequestModelFromJson(json);
@@ -42,6 +43,7 @@ abstract class RideRequestModel with _$RideRequestModel {
       estimatedDurationMins: estimatedDurationMins,
       bookingCode: bookingCode,
       serviceMode: serviceMode,
+      seatNumber: seatNumber,
     );
   }
 }

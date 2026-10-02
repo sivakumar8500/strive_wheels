@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$UserProfileModel {
 
- String get name; String get membershipTier; String get totalRides; String get rating; String get phone; String get email; String get gender; bool get isCorporate; String? get companyName; String? get corporateEmail; String? get corporateId; String? get department; String? get designation; String? get spendingLimit; String? get companyLocation;
+ String get name; String get membershipTier; String get totalRides; String get rating; String get phone; String get email; String get gender; String? get profileImageUrl; bool get isCorporate; String? get companyName; String? get corporateEmail; String? get corporateId; String? get department; String? get designation; String? get spendingLimit; String? get companyLocation;
 /// Create a copy of UserProfileModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $UserProfileModelCopyWith<UserProfileModel> get copyWith => _$UserProfileModelCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserProfileModel&&(identical(other.name, name) || other.name == name)&&(identical(other.membershipTier, membershipTier) || other.membershipTier == membershipTier)&&(identical(other.totalRides, totalRides) || other.totalRides == totalRides)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.email, email) || other.email == email)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.isCorporate, isCorporate) || other.isCorporate == isCorporate)&&(identical(other.companyName, companyName) || other.companyName == companyName)&&(identical(other.corporateEmail, corporateEmail) || other.corporateEmail == corporateEmail)&&(identical(other.corporateId, corporateId) || other.corporateId == corporateId)&&(identical(other.department, department) || other.department == department)&&(identical(other.designation, designation) || other.designation == designation)&&(identical(other.spendingLimit, spendingLimit) || other.spendingLimit == spendingLimit)&&(identical(other.companyLocation, companyLocation) || other.companyLocation == companyLocation));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserProfileModel&&(identical(other.name, name) || other.name == name)&&(identical(other.membershipTier, membershipTier) || other.membershipTier == membershipTier)&&(identical(other.totalRides, totalRides) || other.totalRides == totalRides)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.email, email) || other.email == email)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.profileImageUrl, profileImageUrl) || other.profileImageUrl == profileImageUrl)&&(identical(other.isCorporate, isCorporate) || other.isCorporate == isCorporate)&&(identical(other.companyName, companyName) || other.companyName == companyName)&&(identical(other.corporateEmail, corporateEmail) || other.corporateEmail == corporateEmail)&&(identical(other.corporateId, corporateId) || other.corporateId == corporateId)&&(identical(other.department, department) || other.department == department)&&(identical(other.designation, designation) || other.designation == designation)&&(identical(other.spendingLimit, spendingLimit) || other.spendingLimit == spendingLimit)&&(identical(other.companyLocation, companyLocation) || other.companyLocation == companyLocation));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,name,membershipTier,totalRides,rating,phone,email,gender,isCorporate,companyName,corporateEmail,corporateId,department,designation,spendingLimit,companyLocation);
+int get hashCode => Object.hash(runtimeType,name,membershipTier,totalRides,rating,phone,email,gender,profileImageUrl,isCorporate,companyName,corporateEmail,corporateId,department,designation,spendingLimit,companyLocation);
 
 @override
 String toString() {
-  return 'UserProfileModel(name: $name, membershipTier: $membershipTier, totalRides: $totalRides, rating: $rating, phone: $phone, email: $email, gender: $gender, isCorporate: $isCorporate, companyName: $companyName, corporateEmail: $corporateEmail, corporateId: $corporateId, department: $department, designation: $designation, spendingLimit: $spendingLimit, companyLocation: $companyLocation)';
+  return 'UserProfileModel(name: $name, membershipTier: $membershipTier, totalRides: $totalRides, rating: $rating, phone: $phone, email: $email, gender: $gender, profileImageUrl: $profileImageUrl, isCorporate: $isCorporate, companyName: $companyName, corporateEmail: $corporateEmail, corporateId: $corporateId, department: $department, designation: $designation, spendingLimit: $spendingLimit, companyLocation: $companyLocation)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $UserProfileModelCopyWith<$Res>  {
   factory $UserProfileModelCopyWith(UserProfileModel value, $Res Function(UserProfileModel) _then) = _$UserProfileModelCopyWithImpl;
 @useResult
 $Res call({
- String name, String membershipTier, String totalRides, String rating, String phone, String email, String gender, bool isCorporate, String? companyName, String? corporateEmail, String? corporateId, String? department, String? designation, String? spendingLimit, String? companyLocation
+ String name, String membershipTier, String totalRides, String rating, String phone, String email, String gender, String? profileImageUrl, bool isCorporate, String? companyName, String? corporateEmail, String? corporateId, String? department, String? designation, String? spendingLimit, String? companyLocation
 });
 
 
@@ -62,7 +62,7 @@ class _$UserProfileModelCopyWithImpl<$Res>
 
 /// Create a copy of UserProfileModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? name = null,Object? membershipTier = null,Object? totalRides = null,Object? rating = null,Object? phone = null,Object? email = null,Object? gender = null,Object? isCorporate = null,Object? companyName = freezed,Object? corporateEmail = freezed,Object? corporateId = freezed,Object? department = freezed,Object? designation = freezed,Object? spendingLimit = freezed,Object? companyLocation = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? name = null,Object? membershipTier = null,Object? totalRides = null,Object? rating = null,Object? phone = null,Object? email = null,Object? gender = null,Object? profileImageUrl = freezed,Object? isCorporate = null,Object? companyName = freezed,Object? corporateEmail = freezed,Object? corporateId = freezed,Object? department = freezed,Object? designation = freezed,Object? spendingLimit = freezed,Object? companyLocation = freezed,}) {
   return _then(_self.copyWith(
 name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,membershipTier: null == membershipTier ? _self.membershipTier : membershipTier // ignore: cast_nullable_to_non_nullable
@@ -71,7 +71,8 @@ as String,rating: null == rating ? _self.rating : rating // ignore: cast_nullabl
 as String,phone: null == phone ? _self.phone : phone // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
 as String,gender: null == gender ? _self.gender : gender // ignore: cast_nullable_to_non_nullable
-as String,isCorporate: null == isCorporate ? _self.isCorporate : isCorporate // ignore: cast_nullable_to_non_nullable
+as String,profileImageUrl: freezed == profileImageUrl ? _self.profileImageUrl : profileImageUrl // ignore: cast_nullable_to_non_nullable
+as String?,isCorporate: null == isCorporate ? _self.isCorporate : isCorporate // ignore: cast_nullable_to_non_nullable
 as bool,companyName: freezed == companyName ? _self.companyName : companyName // ignore: cast_nullable_to_non_nullable
 as String?,corporateEmail: freezed == corporateEmail ? _self.corporateEmail : corporateEmail // ignore: cast_nullable_to_non_nullable
 as String?,corporateId: freezed == corporateId ? _self.corporateId : corporateId // ignore: cast_nullable_to_non_nullable
@@ -164,10 +165,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String name,  String membershipTier,  String totalRides,  String rating,  String phone,  String email,  String gender,  bool isCorporate,  String? companyName,  String? corporateEmail,  String? corporateId,  String? department,  String? designation,  String? spendingLimit,  String? companyLocation)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String name,  String membershipTier,  String totalRides,  String rating,  String phone,  String email,  String gender,  String? profileImageUrl,  bool isCorporate,  String? companyName,  String? corporateEmail,  String? corporateId,  String? department,  String? designation,  String? spendingLimit,  String? companyLocation)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _UserProfileModel() when $default != null:
-return $default(_that.name,_that.membershipTier,_that.totalRides,_that.rating,_that.phone,_that.email,_that.gender,_that.isCorporate,_that.companyName,_that.corporateEmail,_that.corporateId,_that.department,_that.designation,_that.spendingLimit,_that.companyLocation);case _:
+return $default(_that.name,_that.membershipTier,_that.totalRides,_that.rating,_that.phone,_that.email,_that.gender,_that.profileImageUrl,_that.isCorporate,_that.companyName,_that.corporateEmail,_that.corporateId,_that.department,_that.designation,_that.spendingLimit,_that.companyLocation);case _:
   return orElse();
 
 }
@@ -185,10 +186,10 @@ return $default(_that.name,_that.membershipTier,_that.totalRides,_that.rating,_t
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String name,  String membershipTier,  String totalRides,  String rating,  String phone,  String email,  String gender,  bool isCorporate,  String? companyName,  String? corporateEmail,  String? corporateId,  String? department,  String? designation,  String? spendingLimit,  String? companyLocation)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String name,  String membershipTier,  String totalRides,  String rating,  String phone,  String email,  String gender,  String? profileImageUrl,  bool isCorporate,  String? companyName,  String? corporateEmail,  String? corporateId,  String? department,  String? designation,  String? spendingLimit,  String? companyLocation)  $default,) {final _that = this;
 switch (_that) {
 case _UserProfileModel():
-return $default(_that.name,_that.membershipTier,_that.totalRides,_that.rating,_that.phone,_that.email,_that.gender,_that.isCorporate,_that.companyName,_that.corporateEmail,_that.corporateId,_that.department,_that.designation,_that.spendingLimit,_that.companyLocation);case _:
+return $default(_that.name,_that.membershipTier,_that.totalRides,_that.rating,_that.phone,_that.email,_that.gender,_that.profileImageUrl,_that.isCorporate,_that.companyName,_that.corporateEmail,_that.corporateId,_that.department,_that.designation,_that.spendingLimit,_that.companyLocation);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -205,10 +206,10 @@ return $default(_that.name,_that.membershipTier,_that.totalRides,_that.rating,_t
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String name,  String membershipTier,  String totalRides,  String rating,  String phone,  String email,  String gender,  bool isCorporate,  String? companyName,  String? corporateEmail,  String? corporateId,  String? department,  String? designation,  String? spendingLimit,  String? companyLocation)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String name,  String membershipTier,  String totalRides,  String rating,  String phone,  String email,  String gender,  String? profileImageUrl,  bool isCorporate,  String? companyName,  String? corporateEmail,  String? corporateId,  String? department,  String? designation,  String? spendingLimit,  String? companyLocation)?  $default,) {final _that = this;
 switch (_that) {
 case _UserProfileModel() when $default != null:
-return $default(_that.name,_that.membershipTier,_that.totalRides,_that.rating,_that.phone,_that.email,_that.gender,_that.isCorporate,_that.companyName,_that.corporateEmail,_that.corporateId,_that.department,_that.designation,_that.spendingLimit,_that.companyLocation);case _:
+return $default(_that.name,_that.membershipTier,_that.totalRides,_that.rating,_that.phone,_that.email,_that.gender,_that.profileImageUrl,_that.isCorporate,_that.companyName,_that.corporateEmail,_that.corporateId,_that.department,_that.designation,_that.spendingLimit,_that.companyLocation);case _:
   return null;
 
 }
@@ -220,7 +221,7 @@ return $default(_that.name,_that.membershipTier,_that.totalRides,_that.rating,_t
 
 
 class _UserProfileModel implements UserProfileModel {
-  const _UserProfileModel({required this.name, required this.membershipTier, required this.totalRides, required this.rating, required this.phone, required this.email, required this.gender, required this.isCorporate, this.companyName, this.corporateEmail, this.corporateId, this.department, this.designation, this.spendingLimit, this.companyLocation});
+  const _UserProfileModel({required this.name, required this.membershipTier, required this.totalRides, required this.rating, required this.phone, required this.email, required this.gender, this.profileImageUrl, required this.isCorporate, this.companyName, this.corporateEmail, this.corporateId, this.department, this.designation, this.spendingLimit, this.companyLocation});
   
 
 @override final  String name;
@@ -230,6 +231,7 @@ class _UserProfileModel implements UserProfileModel {
 @override final  String phone;
 @override final  String email;
 @override final  String gender;
+@override final  String? profileImageUrl;
 @override final  bool isCorporate;
 @override final  String? companyName;
 @override final  String? corporateEmail;
@@ -249,16 +251,16 @@ _$UserProfileModelCopyWith<_UserProfileModel> get copyWith => __$UserProfileMode
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserProfileModel&&(identical(other.name, name) || other.name == name)&&(identical(other.membershipTier, membershipTier) || other.membershipTier == membershipTier)&&(identical(other.totalRides, totalRides) || other.totalRides == totalRides)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.email, email) || other.email == email)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.isCorporate, isCorporate) || other.isCorporate == isCorporate)&&(identical(other.companyName, companyName) || other.companyName == companyName)&&(identical(other.corporateEmail, corporateEmail) || other.corporateEmail == corporateEmail)&&(identical(other.corporateId, corporateId) || other.corporateId == corporateId)&&(identical(other.department, department) || other.department == department)&&(identical(other.designation, designation) || other.designation == designation)&&(identical(other.spendingLimit, spendingLimit) || other.spendingLimit == spendingLimit)&&(identical(other.companyLocation, companyLocation) || other.companyLocation == companyLocation));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserProfileModel&&(identical(other.name, name) || other.name == name)&&(identical(other.membershipTier, membershipTier) || other.membershipTier == membershipTier)&&(identical(other.totalRides, totalRides) || other.totalRides == totalRides)&&(identical(other.rating, rating) || other.rating == rating)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.email, email) || other.email == email)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.profileImageUrl, profileImageUrl) || other.profileImageUrl == profileImageUrl)&&(identical(other.isCorporate, isCorporate) || other.isCorporate == isCorporate)&&(identical(other.companyName, companyName) || other.companyName == companyName)&&(identical(other.corporateEmail, corporateEmail) || other.corporateEmail == corporateEmail)&&(identical(other.corporateId, corporateId) || other.corporateId == corporateId)&&(identical(other.department, department) || other.department == department)&&(identical(other.designation, designation) || other.designation == designation)&&(identical(other.spendingLimit, spendingLimit) || other.spendingLimit == spendingLimit)&&(identical(other.companyLocation, companyLocation) || other.companyLocation == companyLocation));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,name,membershipTier,totalRides,rating,phone,email,gender,isCorporate,companyName,corporateEmail,corporateId,department,designation,spendingLimit,companyLocation);
+int get hashCode => Object.hash(runtimeType,name,membershipTier,totalRides,rating,phone,email,gender,profileImageUrl,isCorporate,companyName,corporateEmail,corporateId,department,designation,spendingLimit,companyLocation);
 
 @override
 String toString() {
-  return 'UserProfileModel(name: $name, membershipTier: $membershipTier, totalRides: $totalRides, rating: $rating, phone: $phone, email: $email, gender: $gender, isCorporate: $isCorporate, companyName: $companyName, corporateEmail: $corporateEmail, corporateId: $corporateId, department: $department, designation: $designation, spendingLimit: $spendingLimit, companyLocation: $companyLocation)';
+  return 'UserProfileModel(name: $name, membershipTier: $membershipTier, totalRides: $totalRides, rating: $rating, phone: $phone, email: $email, gender: $gender, profileImageUrl: $profileImageUrl, isCorporate: $isCorporate, companyName: $companyName, corporateEmail: $corporateEmail, corporateId: $corporateId, department: $department, designation: $designation, spendingLimit: $spendingLimit, companyLocation: $companyLocation)';
 }
 
 
@@ -269,7 +271,7 @@ abstract mixin class _$UserProfileModelCopyWith<$Res> implements $UserProfileMod
   factory _$UserProfileModelCopyWith(_UserProfileModel value, $Res Function(_UserProfileModel) _then) = __$UserProfileModelCopyWithImpl;
 @override @useResult
 $Res call({
- String name, String membershipTier, String totalRides, String rating, String phone, String email, String gender, bool isCorporate, String? companyName, String? corporateEmail, String? corporateId, String? department, String? designation, String? spendingLimit, String? companyLocation
+ String name, String membershipTier, String totalRides, String rating, String phone, String email, String gender, String? profileImageUrl, bool isCorporate, String? companyName, String? corporateEmail, String? corporateId, String? department, String? designation, String? spendingLimit, String? companyLocation
 });
 
 
@@ -286,7 +288,7 @@ class __$UserProfileModelCopyWithImpl<$Res>
 
 /// Create a copy of UserProfileModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? name = null,Object? membershipTier = null,Object? totalRides = null,Object? rating = null,Object? phone = null,Object? email = null,Object? gender = null,Object? isCorporate = null,Object? companyName = freezed,Object? corporateEmail = freezed,Object? corporateId = freezed,Object? department = freezed,Object? designation = freezed,Object? spendingLimit = freezed,Object? companyLocation = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? name = null,Object? membershipTier = null,Object? totalRides = null,Object? rating = null,Object? phone = null,Object? email = null,Object? gender = null,Object? profileImageUrl = freezed,Object? isCorporate = null,Object? companyName = freezed,Object? corporateEmail = freezed,Object? corporateId = freezed,Object? department = freezed,Object? designation = freezed,Object? spendingLimit = freezed,Object? companyLocation = freezed,}) {
   return _then(_UserProfileModel(
 name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,membershipTier: null == membershipTier ? _self.membershipTier : membershipTier // ignore: cast_nullable_to_non_nullable
@@ -295,7 +297,8 @@ as String,rating: null == rating ? _self.rating : rating // ignore: cast_nullabl
 as String,phone: null == phone ? _self.phone : phone // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
 as String,gender: null == gender ? _self.gender : gender // ignore: cast_nullable_to_non_nullable
-as String,isCorporate: null == isCorporate ? _self.isCorporate : isCorporate // ignore: cast_nullable_to_non_nullable
+as String,profileImageUrl: freezed == profileImageUrl ? _self.profileImageUrl : profileImageUrl // ignore: cast_nullable_to_non_nullable
+as String?,isCorporate: null == isCorporate ? _self.isCorporate : isCorporate // ignore: cast_nullable_to_non_nullable
 as bool,companyName: freezed == companyName ? _self.companyName : companyName // ignore: cast_nullable_to_non_nullable
 as String?,corporateEmail: freezed == corporateEmail ? _self.corporateEmail : corporateEmail // ignore: cast_nullable_to_non_nullable
 as String?,corporateId: freezed == corporateId ? _self.corporateId : corporateId // ignore: cast_nullable_to_non_nullable

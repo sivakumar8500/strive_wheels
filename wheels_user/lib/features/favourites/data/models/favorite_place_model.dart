@@ -12,6 +12,8 @@ abstract class FavoritePlaceModel with _$FavoritePlaceModel {
     @JsonKey(defaultValue: '') required String address,
     double? latitude,
     double? longitude,
+    @JsonKey(name: 'location_type', defaultValue: 'SELF') @Default('SELF') String locationType,
+    @JsonKey(name: 'is_corporate', defaultValue: false) @Default(false) bool isCorporate,
   }) = _FavoritePlaceModel;
 
   factory FavoritePlaceModel.fromJson(Map<String, dynamic> json) =>
@@ -29,7 +31,7 @@ extension FavoritePlaceModelX on FavoritePlaceModel {
   FavoritePlaceEntity toEntity() {
     String resolvedIcon = 'home';
     final t = title.toLowerCase();
-    if (t.contains('work') || t.contains('office')) {
+    if (t.contains('work') || t.contains('office') || isCorporate || locationType.toUpperCase() == 'CORPORATE') {
       resolvedIcon = 'office';
     } else if (t.contains('airport')) {
       resolvedIcon = 'airport';
@@ -43,6 +45,8 @@ extension FavoritePlaceModelX on FavoritePlaceModel {
       iconType: resolvedIcon,
       latitude: latitude,
       longitude: longitude,
+      locationType: locationType,
+      isCorporate: isCorporate || locationType.toUpperCase() == 'CORPORATE',
     );
   }
 }
@@ -54,5 +58,7 @@ extension FavoritePlaceEntityX on FavoritePlaceEntity {
         address: address,
         latitude: latitude,
         longitude: longitude,
+        locationType: locationType,
+        isCorporate: isCorporate,
       );
 }

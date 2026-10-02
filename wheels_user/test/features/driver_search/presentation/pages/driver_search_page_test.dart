@@ -27,7 +27,7 @@ void main() {
   const tEntity = DriverSearchEntity(
     statusTitle: 'Searching for nearby drivers...',
     statusSubtitle: 'Connecting you to the nearest premium vehicle.',
-    estimatedConfirmationText: '5 - 30 mins',
+    estimatedConfirmationText: '0 – 90 sec',
     orderTime: '10:42 AM',
     scanRadiusText: 'Scanning 1.2km radius...',
     activeStepIndex: 1,
@@ -75,7 +75,7 @@ void main() {
 
     expect(find.text('Searching for nearby drivers...'), findsWidgets);
     expect(find.text('ESTIMATED CONFIRMATION'), findsOneWidget);
-    expect(find.text('5 - 30 mins'), findsOneWidget);
+    expect(find.text('0 – 90 sec'), findsOneWidget);
     expect(find.text('Cancel Request'), findsOneWidget);
   });
 

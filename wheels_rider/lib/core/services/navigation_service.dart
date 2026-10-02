@@ -128,6 +128,46 @@ class RouteNavigationData {
   bool get isEmpty => points.isEmpty;
 }
 
+class CorridorWaypointStop {
+  final String id;
+  final String label;
+  final String address;
+  final LatLng location;
+  final String type; // 'pickup' | 'drop'
+  final int sequence;
+  final String? passengerName;
+
+  const CorridorWaypointStop({
+    required this.id,
+    required this.label,
+    required this.address,
+    required this.location,
+    required this.type,
+    this.sequence = 0,
+    this.passengerName,
+  });
+
+  CorridorWaypointStop copyWith({
+    String? id,
+    String? label,
+    String? address,
+    LatLng? location,
+    String? type,
+    int? sequence,
+    String? passengerName,
+  }) {
+    return CorridorWaypointStop(
+      id: id ?? this.id,
+      label: label ?? this.label,
+      address: address ?? this.address,
+      location: location ?? this.location,
+      type: type ?? this.type,
+      sequence: sequence ?? this.sequence,
+      passengerName: passengerName ?? this.passengerName,
+    );
+  }
+}
+
 class NavigationService {
   final Dio _dio;
 
@@ -175,12 +215,13 @@ class NavigationService {
           List<NavigationStep> steps = [];
           final legs = firstRoute['legs'] as List<dynamic>?;
           if (legs != null && legs.isNotEmpty) {
-            final firstLeg = legs.first as Map<String, dynamic>;
-            final rawSteps = firstLeg['steps'] as List<dynamic>?;
-            if (rawSteps != null) {
-              steps = rawSteps
-                  .map((s) => NavigationStep.fromOsrmJson(s as Map<String, dynamic>))
-                  .toList();
+            for (final leg in legs) {
+              final rawSteps = (leg as Map<String, dynamic>)['steps'] as List<dynamic>?;
+              if (rawSteps != null) {
+                steps.addAll(
+                  rawSteps.map((s) => NavigationStep.fromOsrmJson(s as Map<String, dynamic>)),
+                );
+              }
             }
           }
 
@@ -204,6 +245,191 @@ class NavigationService {
     );
   }
 
+  /// Fetches real road-accurate turn-by-turn geometry points for multiple stops/waypoints from OSRM
+  Future<RouteNavigationData> fetchMultiStopRouteNavigation({
+    required List<LatLng> waypoints,
+  }) async {
+    if (waypoints.length < 2) {
+      return const RouteNavigationData(
+        points: [],
+        steps: [],
+        totalDistanceMeters: 0,
+        totalDurationSeconds: 0,
+      );
+    }
+
+    try {
+      final coordsParam = waypoints
+          .map((w) => '${w.longitude},${w.latitude}')
+          .join(';');
+      final url = '$_osrmBaseUrl/$coordsParam?overview=full&geometries=geojson&steps=true';
+
+      final response = await _dio.get(
+        url,
+        options: Options(
+          responseType: ResponseType.json,
+          sendTimeout: const Duration(seconds: 8),
+          receiveTimeout: const Duration(seconds: 8),
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final data = response.data is Map ? response.data as Map<String, dynamic> : {};
+        final routes = data['routes'] as List<dynamic>?;
+        if (routes != null && routes.isNotEmpty) {
+          final firstRoute = routes.first as Map<String, dynamic>;
+          final geometry = firstRoute['geometry'] as Map<String, dynamic>?;
+          final coords = geometry?['coordinates'] as List<dynamic>?;
+
+          final totalDistance = (firstRoute['distance'] as num?)?.toDouble() ?? 0.0;
+          final totalDuration = (firstRoute['duration'] as num?)?.toDouble() ?? 0.0;
+
+          List<LatLng> points = [];
+          if (coords != null) {
+            points = coords.map((c) {
+              final lng = (c[0] as num).toDouble();
+              final lat = (c[1] as num).toDouble();
+              return LatLng(lat, lng);
+            }).toList();
+          }
+
+          List<NavigationStep> steps = [];
+          final legs = firstRoute['legs'] as List<dynamic>?;
+          if (legs != null && legs.isNotEmpty) {
+            for (final leg in legs) {
+              final rawSteps = (leg as Map<String, dynamic>)['steps'] as List<dynamic>?;
+              if (rawSteps != null) {
+                steps.addAll(
+                  rawSteps.map((s) => NavigationStep.fromOsrmJson(s as Map<String, dynamic>)),
+                );
+              }
+            }
+          }
+
+          return RouteNavigationData(
+            points: points,
+            steps: steps,
+            totalDistanceMeters: totalDistance,
+            totalDurationSeconds: totalDuration,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('[NavigationService] Multi-stop route fetch error: $e');
+    }
+
+    return const RouteNavigationData(
+      points: [],
+      steps: [],
+      totalDistanceMeters: 0,
+      totalDurationSeconds: 0,
+    );
+  }
+
+  /// Sequences multi-passenger corridor stops logically based on origin, pickups, drops, and company destination.
+  List<CorridorWaypointStop> optimizeCorridorSequence({
+    required List<CorridorWaypointStop> stops,
+    LatLng? companyLocation,
+    bool isEveningCommute = false,
+  }) {
+    if (stops.length <= 1) return stops;
+
+    final pickups = stops.where((s) => s.type.toLowerCase() == 'pickup').toList();
+    final drops = stops.where((s) => s.type.toLowerCase() == 'drop').toList();
+
+    // Case 1: Commute to Destination (Pickups heading towards a company destination)
+    if (drops.length <= 1 && pickups.isNotEmpty) {
+      final destLocation = drops.isNotEmpty
+          ? drops.first.location
+          : (companyLocation ?? pickups.last.location);
+
+      // Sort pickups descending by distance to destination:
+      // Farthest pickup first (e.g. KPHB) -> Next (Nexus Mall) -> Nearest (Madhapur) -> Destination (Mindspace)
+      pickups.sort((a, b) {
+        final distA = calculateDistanceMeters(a.location, destLocation);
+        final distB = calculateDistanceMeters(b.location, destLocation);
+        return distB.compareTo(distA); // descending
+      });
+
+      final result = <CorridorWaypointStop>[...pickups, ...drops];
+      for (int i = 0; i < result.length; i++) {
+        result[i] = result[i].copyWith(sequence: i + 1);
+      }
+      return result;
+    }
+
+    // Case 2: Evening Commute (Single origin / company pickup with multiple drops)
+    if (pickups.length <= 1 && drops.isNotEmpty && isEveningCommute) {
+      final originLocation = pickups.isNotEmpty
+          ? pickups.first.location
+          : (companyLocation ?? drops.first.location);
+
+      // Sort drops ascending by distance from origin:
+      // Company Origin -> Nearest drop first (Madhapur) -> Next (Nexus Mall) -> Farthest drop (KPHB)
+      drops.sort((a, b) {
+        final distA = calculateDistanceMeters(originLocation, a.location);
+        final distB = calculateDistanceMeters(originLocation, b.location);
+        return distA.compareTo(distB); // ascending
+      });
+
+      final result = <CorridorWaypointStop>[...pickups, ...drops];
+      for (int i = 0; i < result.length; i++) {
+        result[i] = result[i].copyWith(sequence: i + 1);
+      }
+      return result;
+    }
+
+    // Case 3: Mixed Pickups and Drops (Greedy topological nearest neighbor)
+    final unvisited = List<CorridorWaypointStop>.from(stops);
+    final visited = <CorridorWaypointStop>[];
+    final pickedUpIds = <String>{};
+
+    CorridorWaypointStop current;
+    if (companyLocation != null && pickups.isNotEmpty) {
+      pickups.sort((a, b) => calculateDistanceMeters(b.location, companyLocation)
+          .compareTo(calculateDistanceMeters(a.location, companyLocation)));
+      current = pickups.first;
+    } else {
+      current = unvisited.first;
+    }
+
+    unvisited.remove(current);
+    visited.add(current);
+    if (current.type.toLowerCase() == 'pickup') {
+      pickedUpIds.add(current.id);
+    }
+
+    while (unvisited.isNotEmpty) {
+      final candidates = unvisited.where((s) {
+        if (s.type.toLowerCase() == 'pickup') return true;
+        return pickedUpIds.contains(s.id) || !stops.any((x) => x.id == s.id && x.type.toLowerCase() == 'pickup');
+      }).toList();
+
+      if (candidates.isEmpty) {
+        candidates.addAll(unvisited);
+      }
+
+      candidates.sort((a, b) {
+        final distA = calculateDistanceMeters(current.location, a.location);
+        final distB = calculateDistanceMeters(current.location, b.location);
+        return distA.compareTo(distB);
+      });
+
+      final next = candidates.first;
+      unvisited.remove(next);
+      visited.add(next);
+      if (next.type.toLowerCase() == 'pickup') {
+        pickedUpIds.add(next.id);
+      }
+      current = next;
+    }
+
+    for (int i = 0; i < visited.length; i++) {
+      visited[i] = visited[i].copyWith(sequence: i + 1);
+    }
+    return visited;
+  }
+
   /// Calculates nearest upcoming navigation step based on current vehicle location
   NavigationStep? getCurrentStep(LatLng currentPos, List<NavigationStep> steps) {
     if (steps.isEmpty) return null;
@@ -212,7 +438,7 @@ class NavigationService {
     double minDistance = double.infinity;
 
     for (final step in steps) {
-      final distance = _calculateDistanceMeters(currentPos, step.location);
+      final distance = calculateDistanceMeters(currentPos, step.location);
       if (distance < minDistance) {
         minDistance = distance;
         closestStep = step;
@@ -222,7 +448,7 @@ class NavigationService {
     return closestStep;
   }
 
-  static double _calculateDistanceMeters(LatLng p1, LatLng p2) {
+  static double calculateDistanceMeters(LatLng p1, LatLng p2) {
     const p = 0.017453292519943295;
     final a = 0.5 -
         cos((p2.latitude - p1.latitude) * p) / 2 +

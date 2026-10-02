@@ -9,6 +9,7 @@ part of 'home_dashboard_model.dart';
 _HomeDashboardModel _$HomeDashboardModelFromJson(Map<String, dynamic> json) =>
     _HomeDashboardModel(
       userName: json['userName'] as String,
+      profileImageUrl: json['profileImageUrl'] as String?,
       greetingTitle: json['greetingTitle'] as String,
       greetingSubtitle: json['greetingSubtitle'] as String,
       recentRideTitle: json['recentRideTitle'] as String,
@@ -24,6 +25,7 @@ _HomeDashboardModel _$HomeDashboardModelFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$HomeDashboardModelToJson(_HomeDashboardModel instance) =>
     <String, dynamic>{
       'userName': instance.userName,
+      'profileImageUrl': instance.profileImageUrl,
       'greetingTitle': instance.greetingTitle,
       'greetingSubtitle': instance.greetingSubtitle,
       'recentRideTitle': instance.recentRideTitle,

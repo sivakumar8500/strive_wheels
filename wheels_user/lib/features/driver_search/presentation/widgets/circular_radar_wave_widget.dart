@@ -26,7 +26,7 @@ class _CircularRadarWaveWidgetState extends State<CircularRadarWaveWidget>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2400),
+      duration: const Duration(milliseconds: 3600),
     )..repeat();
   }
 

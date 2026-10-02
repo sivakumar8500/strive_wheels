@@ -3,9 +3,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
@@ -13,6 +15,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_constants.dart';
 import '../../../../core/network/customer_ws_controller.dart';
 import '../../../../core/services/active_booking_service.dart';
+import '../../domain/entities/home_dashboard_entity.dart';
 import '../../../booking/presentation/bloc/booking_bloc.dart';
 import '../../../booking/presentation/pages/booking_confirmed_page.dart';
 import '../../../booking/presentation/pages/journey_complete_page.dart';
@@ -24,6 +27,7 @@ import '../../../history/presentation/bloc/ride_history_bloc.dart';
 import '../../../history/presentation/pages/ride_history_page.dart';
 import '../../../settings/presentation/bloc/settings_bloc.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
+import '../../../notifications/presentation/pages/notifications_page.dart';
 import '../bloc/home_bloc.dart';
 import '../bloc/home_event.dart';
 import '../bloc/home_state.dart';
@@ -34,6 +38,7 @@ import '../widgets/popular_locations_grid.dart';
 import '../widgets/quick_services_grid.dart';
 import '../widgets/recent_ride_card.dart';
 import '../widgets/corporate_home_banner.dart';
+import '../widgets/moving_car.dart';
 import '../../../../core/widgets/app_map_widget.dart';
 
 /// Main Home Dashboard Page matching exact reference UI design.
@@ -56,6 +61,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   GoogleMapController? _mapController;
   LatLng _currentPosition = const LatLng(17.4924, 78.3639); // Default fallback
+  String? _currentAddress;
 
   late final AnimationController _pulseController;
   BitmapDescriptor? _customMarker;
@@ -147,6 +153,28 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     }
   }
 
+  Future<void> _reverseGeocodePosition(Position position) async {
+    try {
+      final placemarks = await Geocoding().placemarkFromCoordinates(position.latitude, position.longitude);
+      if (placemarks.isNotEmpty) {
+        final place = placemarks.first;
+        final components = [
+          if (place.name != null && place.name!.isNotEmpty && place.name != place.street) place.name,
+          if (place.street != null && place.street!.isNotEmpty) place.street,
+          if (place.subLocality != null && place.subLocality!.isNotEmpty) place.subLocality,
+          if (place.locality != null && place.locality!.isNotEmpty) place.locality,
+          if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) place.administrativeArea,
+        ];
+        final resolved = components.isNotEmpty
+            ? components.join(', ')
+            : (place.locality ?? 'Current Location');
+        if (mounted) {
+          _currentAddress = resolved;
+        }
+      }
+    } catch (_) {}
+  }
+
   Future<void> _startLocationUpdates() async {
     try {
       LocationPermission permission = await Geolocator.checkPermission();
@@ -164,6 +192,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         ),
       ).listen((Position position) {
         final newLatLng = LatLng(position.latitude, position.longitude);
+        _reverseGeocodePosition(position);
         if (mounted) {
           setState(() {
             _currentPosition = newLatLng;
@@ -208,6 +237,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         );
 
         final newLatLng = LatLng(position.latitude, position.longitude);
+        _reverseGeocodePosition(position);
 
         if (mounted) {
           setState(() {
@@ -245,7 +275,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     }
   }
 
-  void _navigateToLocationSearch(BuildContext context, {bool initialIsCorporate = false}) {
+  void _navigateToLocationSearch(
+    BuildContext context, {
+    bool initialIsCorporate = false,
+    String? initialPickupAddress,
+    String? initialDropAddress,
+    LatLng? initialPickupLatLng,
+    LatLng? initialDropLatLng,
+  }) {
     if (sl.isRegistered<ActiveBookingService>() && sl<ActiveBookingService>().hasActiveBooking) {
       _showActiveBookingWarningDialog(context);
       return;
@@ -269,11 +306,17 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           ],
           child: LocationSearchPage(
             initialIsCorporate: initialIsCorporate,
+            initialPickupAddress: initialPickupAddress,
+            initialDropAddress: initialDropAddress,
+            initialPickupLatLng: initialPickupLatLng,
+            initialDropLatLng: initialDropLatLng,
             onMenuTap: () {
               context.read<HomeBloc>().add(const OpenMenuEvent());
             },
             onNotificationTap: () {
-              context.read<HomeBloc>().add(const OpenNotificationsEvent());
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const NotificationsPage()),
+              );
             },
           ),
         ),
@@ -436,28 +479,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       backgroundColor: isDark ? AppColors.onboardingBgDark : Colors.white,
       body: BlocConsumer<HomeBloc, HomeState>(
         listener: (context, state) {
-          if (state.claimedOfferMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.claimedOfferMessage!),
-                backgroundColor: AppColors.primaryBlue,
-              ),
-            );
-          } else if (state.actionMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.actionMessage!),
-                backgroundColor: AppColors.primaryBlue,
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          } else if (state.selectedService != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Selected: ${state.selectedService}'),
-              ),
-            );
-          }
+          // No intrusive snackbars/toasts on home interactions
         },
         builder: (context, state) {
           if (state.isLoading) {
@@ -489,7 +511,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   context.read<HomeBloc>().add(const OpenMenuEvent());
                 },
                 onNotificationTap: () {
-                  context.read<HomeBloc>().add(const OpenNotificationsEvent());
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const NotificationsPage()),
+                  );
                 },
               ),
             );
@@ -501,7 +525,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   context.read<HomeBloc>().add(const OpenMenuEvent());
                 },
                 onNotificationTap: () {
-                  context.read<HomeBloc>().add(const OpenNotificationsEvent());
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const NotificationsPage()),
+                  );
                 },
               ),
             );
@@ -513,12 +539,19 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   context.read<HomeBloc>().add(const OpenMenuEvent());
                 },
                 onNotificationTap: () {
-                  context.read<HomeBloc>().add(const OpenNotificationsEvent());
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const NotificationsPage()),
+                  );
                 },
               ),
             );
           } else {
+            final topPadding = MediaQuery.of(context).padding.top;
+            final movingCarTop = topPadding > 0 ? (topPadding + 6.0) : 46.0;
+            final searchBarTop = movingCarTop + 26.0;
+
             mainContent = Stack(
+              clipBehavior: Clip.none,
               children: [
                 // 1. Map Layer Background
                 Positioned.fill(
@@ -563,12 +596,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
                 // 2. Floating Top Search Bar
                 Positioned(
-                  top: MediaQuery.of(context).padding.top + 8,
+                  top: searchBarTop,
                   left: 0,
                   right: 0,
                   child: HomeSearchBar(
                     readOnly: true,
                     userName: entity?.userName ?? 'User',
+                    profileImageUrl: entity?.profileImageUrl,
                     onTap: () => _navigateToLocationSearch(context),
                     onMenuTap: () {
                       context.read<HomeBloc>().add(const OpenMenuEvent());
@@ -588,19 +622,33 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       context.read<HomeBloc>().add(const OpenMicEvent());
                     },
                     onNotificationTap: () {
-                      context
-                          .read<HomeBloc>()
-                          .add(const OpenNotificationsEvent());
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const NotificationsPage()),
+                      );
                     },
                     onAvatarTap: () {
-                      context.read<HomeBloc>().add(const OpenProfileEvent());
+                      context.read<HomeBloc>().add(const ChangeNavTabEvent(3));
                     },
+                  ),
+                ),
+
+                // 2.2 Moving bike driving across the top rim of the search bar
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: movingCarTop,
+                  child: const SizedBox(
+                    height: 28,
+                    child: MovingCar(
+                      height: 28,
+                      carWidth: 56,
+                    ),
                   ),
                 ),
 
                 // 2.5 Floating Top Right Current Location GPS Button
                 Positioned(
-                  top: MediaQuery.of(context).padding.top + 76,
+                  top: searchBarTop + 54,
                   right: 16,
                   child: GestureDetector(
                     onTap: () {
@@ -745,7 +793,72 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                               context
                                   .read<HomeBloc>()
                                   .add(const RepeatRideEvent());
-                              _navigateToLocationSearch(context);
+
+                              final prefs = sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : null;
+                              final lastPickup = prefs?.getString('last_booking_pickup');
+                              final lastDrop = prefs?.getString('last_booking_drop');
+                              final lastPickupLat = prefs?.getDouble('last_booking_pickup_lat');
+                              final lastPickupLng = prefs?.getDouble('last_booking_pickup_lng');
+                              final lastDropLat = prefs?.getDouble('last_booking_drop_lat');
+                              final lastDropLng = prefs?.getDouble('last_booking_drop_lng');
+
+                              String pickup = '';
+                              String drop = '';
+                              LatLng? pLatLng;
+                              LatLng? dLatLng;
+
+                              if (lastPickup != null && lastPickup.isNotEmpty && lastDrop != null && lastDrop.isNotEmpty) {
+                                pickup = lastPickup;
+                                drop = lastDrop;
+                                if (lastPickupLat != null && lastPickupLng != null) {
+                                  pLatLng = LatLng(lastPickupLat, lastPickupLng);
+                                }
+                                if (lastDropLat != null && lastDropLng != null) {
+                                  dLatLng = LatLng(lastDropLat, lastDropLng);
+                                }
+                              } else {
+                                if (recentTitle.contains('➔')) {
+                                  final parts = recentTitle.split('➔');
+                                  pickup = parts[0].trim();
+                                  drop = parts.length > 1 ? parts[1].trim() : '';
+                                } else if (recentTitle.contains('->')) {
+                                  final parts = recentTitle.split('->');
+                                  pickup = parts[0].trim();
+                                  drop = parts.length > 1 ? parts[1].trim() : '';
+                                } else if (recentTitle.contains(' to ')) {
+                                  final parts = recentTitle.split(' to ');
+                                  pickup = parts[0].trim();
+                                  drop = parts.length > 1 ? parts[1].trim() : '';
+                                }
+                              }
+
+                              if (pickup.toLowerCase() == 'office') {
+                                final corpLoc = prefs?.getString('corporate_location') ?? prefs?.getString('company_location');
+                                if (corpLoc != null && corpLoc.trim().isNotEmpty) {
+                                  pickup = corpLoc.trim();
+                                } else {
+                                  pickup = 'Mindspace IT Park, Madhapur, Hyderabad';
+                                  pLatLng ??= const LatLng(17.4401, 78.3811);
+                                }
+                              } else if (pickup.isEmpty) {
+                                pickup = _currentAddress ?? 'Current Location';
+                                pLatLng ??= _currentPosition;
+                              }
+
+                              if (drop.toLowerCase() == 'home') {
+                                drop = 'Nanakramguda, Hyderabad';
+                                dLatLng ??= const LatLng(17.4156, 78.3427);
+                              } else if (drop.isEmpty) {
+                                drop = 'Selected Location';
+                              }
+
+                              _navigateToLocationSearch(
+                                context,
+                                initialPickupAddress: pickup,
+                                initialDropAddress: drop,
+                                initialPickupLatLng: pLatLng ?? _currentPosition,
+                                initialDropLatLng: dLatLng,
+                              );
                             },
                           ),
 
@@ -771,7 +884,33 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                               context
                                   .read<HomeBloc>()
                                   .add(SelectQuickServiceEvent(serviceName));
-                              _navigateToLocationSearch(context);
+                              if (serviceName.toLowerCase() == 'airport') {
+                                PopularLocationEntity? airportLoc;
+                                try {
+                                  airportLoc = entity?.popularLocations.firstWhere(
+                                    (loc) =>
+                                        loc.type.toLowerCase() == 'airport' ||
+                                        loc.title.toLowerCase().contains('airport') ||
+                                        loc.address.toLowerCase().contains('airport'),
+                                  );
+                                } catch (_) {}
+
+                                final destination = airportLoc != null
+                                    ? (airportLoc.address.isNotEmpty
+                                        ? '${airportLoc.title}, ${airportLoc.address}'
+                                        : airportLoc.title)
+                                    : 'Rajiv Gandhi International Airport, Shamshabad';
+
+                                _navigateToLocationSearch(
+                                  context,
+                                  initialDropAddress: destination,
+                                  initialDropLatLng: const LatLng(17.2403, 78.4294),
+                                  initialPickupAddress: _currentAddress ?? 'Current Location',
+                                  initialPickupLatLng: _currentPosition,
+                                );
+                              } else {
+                                _navigateToLocationSearch(context);
+                              }
                             },
                           ),
 
@@ -781,8 +920,30 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                           if (entity?.popularLocations.isNotEmpty == true)
                             PopularLocationsGrid(
                               locations: entity!.popularLocations,
-                              onLocationTap: (locationId) {
-                                // Add navigation or logic
+                              onLocationTap: (location) {
+                                final destination = location.address.isNotEmpty
+                                    ? '${location.title}, ${location.address}'
+                                    : location.title;
+
+                                LatLng? dropLatLng;
+                                final lower = destination.toLowerCase();
+                                if (location.type.toLowerCase() == 'airport' ||
+                                    lower.contains('airport') ||
+                                    lower.contains('shamshabad')) {
+                                  dropLatLng = const LatLng(17.2403, 78.4294);
+                                } else if (lower.contains('secunderabad')) {
+                                  dropLatLng = const LatLng(17.4344, 78.5017);
+                                } else if (lower.contains('cyber') || lower.contains('hitech')) {
+                                  dropLatLng = const LatLng(17.4504, 78.3808);
+                                }
+
+                                _navigateToLocationSearch(
+                                  context,
+                                  initialDropAddress: destination,
+                                  initialDropLatLng: dropLatLng,
+                                  initialPickupAddress: _currentAddress ?? 'Current Location',
+                                  initialPickupLatLng: _currentPosition,
+                                );
                               },
                             ),
 

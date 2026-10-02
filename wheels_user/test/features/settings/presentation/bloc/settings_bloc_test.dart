@@ -90,4 +90,45 @@ void main() {
       isA<SettingsState>().having((s) => s.isLoggedOut, 'isLoggedOut', true),
     ],
   );
+
+  blocTest<SettingsBloc, SettingsState>(
+    'updates profile with new image on UpdateUserProfileEvent',
+    build: () => bloc,
+    seed: () => const SettingsState(isLoading: false, settingsEntity: tEntity),
+    act: (bloc) => bloc.add(const UpdateUserProfileEvent(
+      name: 'Jane Doe',
+      phone: '+91 99887 76655',
+      email: 'jane@example.com',
+      gender: 'Female',
+      profileImagePath: '/path/to/image.jpg',
+    )),
+    expect: () => [
+      isA<SettingsState>()
+          .having((s) => s.settingsEntity?.profile.name, 'name', 'Jane Doe')
+          .having((s) => s.settingsEntity?.profile.phone, 'phone', '+91 99887 76655')
+          .having((s) => s.settingsEntity?.profile.email, 'email', 'jane@example.com')
+          .having((s) => s.settingsEntity?.profile.gender, 'gender', 'Female')
+          .having((s) => s.settingsEntity?.profile.profileImageUrl, 'profileImageUrl', '/path/to/image.jpg')
+          .having((s) => s.actionMessage, 'actionMessage', 'Profile updated successfully!'),
+    ],
+  );
+
+  blocTest<SettingsBloc, SettingsState>(
+    'updates profile without image on UpdateUserProfileEvent (non-mandatory image)',
+    build: () => bloc,
+    seed: () => const SettingsState(isLoading: false, settingsEntity: tEntity),
+    act: (bloc) => bloc.add(const UpdateUserProfileEvent(
+      name: 'Jane Doe',
+      phone: '+91 99887 76655',
+      email: 'jane@example.com',
+      gender: 'Female',
+    )),
+    expect: () => [
+      isA<SettingsState>()
+          .having((s) => s.settingsEntity?.profile.name, 'name', 'Jane Doe')
+          .having((s) => s.settingsEntity?.profile.gender, 'gender', 'Female')
+          .having((s) => s.settingsEntity?.profile.profileImageUrl, 'profileImageUrl', null)
+          .having((s) => s.actionMessage, 'actionMessage', 'Profile updated successfully!'),
+    ],
+  );
 }

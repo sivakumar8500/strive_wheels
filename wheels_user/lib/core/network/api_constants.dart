@@ -2,6 +2,27 @@ class ApiConstants {
   // Base URLs
   static const String baseUrl = 'http://15.252.129.37:8200';
   static const String wsBaseUrl = 'ws://15.252.129.37:8200/api/v1';
+
+  /// Returns full image URL by prepending baseUrl if the path is relative.
+  static String getImageUrl(String? path) {
+    if (path == null || path.trim().isEmpty) return '';
+    final cleanPath = path.trim();
+    if (cleanPath.startsWith('http://') ||
+        cleanPath.startsWith('https://') ||
+        cleanPath.startsWith('blob:') ||
+        cleanPath.startsWith('file://') ||
+        cleanPath.startsWith('/data/') ||
+        cleanPath.startsWith('/var/') ||
+        cleanPath.startsWith('/private/') ||
+        cleanPath.startsWith('/Users/') ||
+        cleanPath.contains(RegExp(r'^[a-zA-Z]:[\\/]'))) {
+      return cleanPath;
+    }
+    if (!cleanPath.startsWith('/')) {
+      return '$baseUrl/$cleanPath';
+    }
+    return '$baseUrl$cleanPath';
+  }
   
   // Timeout constants
   static const Duration connectTimeout = Duration(seconds: 30);
@@ -37,6 +58,13 @@ class ApiConstants {
 
   // Offers Endpoints
   static const String coupons = '/api/v1/customer/coupons';
+
+  // Notifications Endpoints
+  static String customerNotifications({int limit = 50, int skip = 0}) =>
+      '/api/v1/customer/notifications?limit=$limit&skip=$skip';
+  static const String customerUnreadNotificationsCount = '/api/v1/customer/notifications/unread-count';
+  static String markCustomerNotificationRead(int id) => '/api/v1/customer/notifications/$id/read';
+  static const String markAllCustomerNotificationsRead = '/api/v1/customer/notifications/read-all';
 
   // Google Maps & Places API (New)
   static const String googleMapsApiKey = 'AIzaSyDWeoIAJVD66D6Jvon6k_4Q6ixxJirPdW0';

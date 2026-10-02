@@ -12,6 +12,10 @@ abstract class BookingRepository {
     double? pickupLat,
     double? pickupLng,
     String? dropAddress,
+    String? pickupAddress,
+    double? dropLat,
+    double? dropLng,
+    int? companyId,
   });
   Future<FareEstimateEntity> getFareEstimate({
     required int vehicleTypeId,

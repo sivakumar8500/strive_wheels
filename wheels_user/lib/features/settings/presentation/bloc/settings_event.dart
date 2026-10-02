@@ -63,11 +63,32 @@ class UpdateUserProfileEvent extends SettingsEvent {
   final String phone;
   final String email;
   final String gender;
+  final String? profileImagePath;
 
   const UpdateUserProfileEvent({
     required this.name,
     required this.phone,
     required this.email,
     required this.gender,
+    this.profileImagePath,
   });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UpdateUserProfileEvent &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          phone == other.phone &&
+          email == other.email &&
+          gender == other.gender &&
+          profileImagePath == other.profileImagePath;
+
+  @override
+  int get hashCode =>
+      name.hashCode ^
+      phone.hashCode ^
+      email.hashCode ^
+      gender.hashCode ^
+      profileImagePath.hashCode;
 }

@@ -22,6 +22,7 @@ _RideRequestModel _$RideRequestModelFromJson(Map<String, dynamic> json) =>
       estimatedDurationMins: (json['estimated_duration_mins'] as num?)?.toInt(),
       bookingCode: json['booking_code'] as String?,
       serviceMode: json['service_mode'] as String?,
+      seatNumber: (json['seat_number'] as num?)?.toInt(),
     );
 
 Map<String, dynamic> _$RideRequestModelToJson(_RideRequestModel instance) =>
@@ -40,4 +41,5 @@ Map<String, dynamic> _$RideRequestModelToJson(_RideRequestModel instance) =>
       'estimated_duration_mins': instance.estimatedDurationMins,
       'booking_code': instance.bookingCode,
       'service_mode': instance.serviceMode,
+      'seat_number': instance.seatNumber,
     };

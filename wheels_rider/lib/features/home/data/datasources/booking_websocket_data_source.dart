@@ -8,6 +8,7 @@ abstract class BookingWebSocketDataSource {
   void connect(int driverId, String token);
   void disconnect();
   void acceptBooking(int bookingId);
+  void declineBooking(int bookingId);
   void cancelBooking(int bookingId, {String reason});
   void notifyBookingSuccess(int bookingId);
   void sendLocationPing({
@@ -59,6 +60,9 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
         case 'ride.requested':
         case 'ride_request':
         case 'new_ride_request':
+        case 'booking.assigned':
+        case 'corporate.booking_assigned':
+        case 'corporate.booking_created':
         case 'notification.new':
         case 'booking.status':
         case 'booking.status_response':
@@ -134,11 +138,15 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
             if (bookingMap['service_mode'] == null && data['service_mode'] != null) {
               bookingMap['service_mode'] = data['service_mode'];
             }
+            if (bookingMap['seat_number'] == null && data['seat_number'] != null) {
+              bookingMap['seat_number'] = data['seat_number'];
+            }
 
             if (bookingMap['pickup_address'] != null) bookingMap['pickup_address'] = parseString(bookingMap['pickup_address']);
             if (bookingMap['drop_address'] != null) bookingMap['drop_address'] = parseString(bookingMap['drop_address']);
             if (bookingMap['booking_code'] != null) bookingMap['booking_code'] = parseString(bookingMap['booking_code']);
             if (bookingMap['service_mode'] != null) bookingMap['service_mode'] = parseString(bookingMap['service_mode']);
+            if (bookingMap['seat_number'] != null) bookingMap['seat_number'] = parseInt(bookingMap['seat_number']);
 
             if (bookingMap['pickup_lat'] != null) bookingMap['pickup_lat'] = parseDouble(bookingMap['pickup_lat']);
             if (bookingMap['pickup_lng'] != null) bookingMap['pickup_lng'] = parseDouble(bookingMap['pickup_lng']);
@@ -178,7 +186,18 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
           break;
         case 'booking.cancelled':
         case 'booking.canceled':
+        case 'booking.customer_cancelled':
+        case 'booking.rider_cancelled':
+        case 'booking.request_cancelled':
+        case 'booking_request_cancelled':
+        case 'booking.request_expired':
+        case 'booking.cancel_success':
+        case 'booking.cancel':
         case 'ride.cancelled':
+        case 'ride.customer_cancelled':
+        case 'ride.canceled':
+        case 'cancel_booking':
+        case 'cancel_ride':
           _rideCancelledController.add(data);
           break;
         case 'error':
@@ -204,6 +223,17 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
       'data': {
         'booking_id': bookingId,
         'request_id': bookingId,
+        'id': bookingId,
+      }
+    });
+  }
+
+  @override
+  void declineBooking(int bookingId) {
+    webSocketClient.sendMessage({
+      'event': 'booking.decline',
+      'data': {
+        'booking_id': bookingId,
         'id': bookingId,
       }
     });

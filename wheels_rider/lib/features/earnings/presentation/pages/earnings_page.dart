@@ -16,6 +16,12 @@ import '../../domain/entities/earnings_entity.dart';
 import '../../../profile/presentation/bloc/profile_bloc.dart';
 import '../../../profile/presentation/bloc/profile_event.dart';
 import '../../../profile/presentation/bloc/profile_state.dart';
+import '../../../profile/presentation/pages/profile_view_page.dart';
+import '../../../profile/domain/entities/profile_entity.dart';
+import '../../../notifications/presentation/pages/notifications_page.dart';
+import '../../../notifications/presentation/bloc/notification_bloc.dart';
+import '../../../notifications/presentation/bloc/notification_event.dart';
+import '../../../notifications/presentation/bloc/notification_state.dart';
 
 class EarningsPage extends StatelessWidget {
   const EarningsPage({super.key});
@@ -28,6 +34,8 @@ class EarningsPage extends StatelessWidget {
           BlocProvider(create: (_) => sl<EarningsBloc>()..add(GetEarningsEvent())),
         if (sl.isRegistered<ProfileBloc>())
           BlocProvider(create: (_) => sl<ProfileBloc>()..add(GetProfileEvent())),
+        if (sl.isRegistered<NotificationBloc>())
+          BlocProvider(create: (_) => sl<NotificationBloc>()..add(const LoadUnreadCountEvent())),
       ],
       child: const EarningsView(),
     );
@@ -149,164 +157,219 @@ class _EarningsViewState extends State<EarningsView> {
   }
 
   Widget _buildTopBar(bool isDark) {
-    Widget buildHeader(String name, String rating, String imageUrl) {
-      return Row(
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: Colors.grey.shade200,
-                child: ClipOval(
-                  child: imageUrl.isNotEmpty
-                      ? Image.network(
-                          imageUrl,
-                          width: 40,
-                          height: 40,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Image.asset(
-                            'assets/images/strive_logo.jpg',
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.cover,
-                          ),
-                        )
-                      : Image.asset(
-                          'assets/images/strive_logo.jpg',
-                          width: 40,
-                          height: 40,
-                          fit: BoxFit.cover,
-                        ),
+    Widget buildHeader(String name, String rating, String imageUrl, ProfileEntity? profile) {
+      return Builder(
+        builder: (context) => InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BlocProvider(
+                  create: (_) => sl<ProfileBloc>()..add(GetProfileEvent()),
+                  child: ProfileViewPage(initialProfile: profile),
                 ),
               ),
-              Positioned(
-                bottom: 0,
-                right: -2,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0D6EFD), // Blue dot
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            );
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
+              Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0D6EFD),
-                      borderRadius: BorderRadius.circular(4),
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.grey.shade200,
+                    child: ClipOval(
+                      child: imageUrl.isNotEmpty
+                          ? Image.network(
+                              imageUrl,
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Image.asset(
+                                'assets/images/strive_logo.jpg',
+                                width: 40,
+                                height: 40,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Image.asset(
+                              'assets/images/strive_logo.jpg',
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                            ),
                     ),
-                    child: const Icon(Icons.drive_eta, size: 9, color: Colors.white),
                   ),
-                  const SizedBox(width: 5),
-                  Text(
-                    name.isEmpty ? 'Puja Sri' : name,
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black,
+                  Positioned(
+                    bottom: 0,
+                    right: -2,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D6EFD), // Blue dot
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 2),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey.shade800 : Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
-                ),
-                child: Row(
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 11),
-                    const SizedBox(width: 3),
-                    Text(
-                      rating == '0.0' || rating.isEmpty ? '5.0' : rating,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0D6EFD),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Icon(Icons.drive_eta, size: 9, color: Colors.white),
+                        ),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            name.isEmpty ? 'Puja Sri' : name,
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 2),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.grey.shade800 : Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade200),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 11),
+                          const SizedBox(width: 3),
+                          Text(
+                            rating == '0.0' || rating.isEmpty ? '5.0' : rating,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
                   ],
                 ),
-              )
+              ),
             ],
           ),
-        ],
+        ),
       );
     }
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        sl.isRegistered<ProfileBloc>()
-            ? BlocBuilder<ProfileBloc, ProfileState>(
-                builder: (context, state) {
-                  String name = 'Puja Sri';
-                  String rating = '5.0';
-                  String imageUrl = '';
+        Expanded(
+          child: sl.isRegistered<ProfileBloc>()
+              ? BlocBuilder<ProfileBloc, ProfileState>(
+                  builder: (context, state) {
+                    String name = 'Puja Sri';
+                    String rating = '5.0';
+                    String imageUrl = '';
+                    ProfileEntity? profile;
 
-                  if (state is ProfileLoaded) {
-                    name = state.profile.name;
-                    rating = state.profile.rating.toString();
-                    imageUrl = state.profile.profileImageUrl;
-                  } else if (state is ProfileUpdateSuccess) {
-                    name = state.profile.name;
-                    rating = state.profile.rating.toString();
-                    imageUrl = state.profile.profileImageUrl;
-                  }
+                    if (state is ProfileLoaded) {
+                      profile = state.profile;
+                      name = state.profile.name;
+                      rating = state.profile.rating.toString();
+                      imageUrl = state.profile.profileImageUrl;
+                    } else if (state is ProfileUpdateSuccess) {
+                      profile = state.profile;
+                      name = state.profile.name;
+                      rating = state.profile.rating.toString();
+                      imageUrl = state.profile.profileImageUrl;
+                    }
 
-                  return buildHeader(name, rating, imageUrl);
-                },
-              )
-            : buildHeader('Alexander Smith', '4.98', ''),
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.grey.shade800 : Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.notifications_none, color: Colors.black87, size: 20),
-            ),
-            Positioned(
-              top: 8,
-              right: 10,
-              child: Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1.5),
-                ),
-              ),
-            ),
-          ],
+                    return buildHeader(name, rating, imageUrl, profile);
+                  },
+                )
+              : buildHeader('Puja Sri', '5.0', '', null),
         ),
+        const SizedBox(width: 10),
+        GestureDetector(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const NotificationsPage()),
+            ).then((_) {
+              if (context.mounted && sl.isRegistered<NotificationBloc>()) {
+                context.read<NotificationBloc>().add(const LoadUnreadCountEvent());
+              }
+            });
+          },
+          child: sl.isRegistered<NotificationBloc>()
+              ? BlocBuilder<NotificationBloc, NotificationState>(
+                  builder: (context, notifState) {
+                    final bool hasUnread = (notifState is NotificationLoaded && notifState.unreadCount > 0) || notifState is NotificationInitial;
+                    return _buildBellBadge(isDark, hasUnread);
+                  },
+                )
+              : _buildBellBadge(isDark, false),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBellBadge(bool isDark, bool hasUnread) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey.shade800 : Colors.white,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(Icons.notifications_none, color: isDark ? Colors.white70 : Colors.black87, size: 20),
+        ),
+        if (hasUnread)
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+                border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.white, width: 1.5),
+              ),
+            ),
+          ),
       ],
     );
   }

@@ -5,6 +5,8 @@ class FavoritePlaceEntity {
   final String iconType; // 'home', 'office', 'airport', 'metro'
   final double? latitude;
   final double? longitude;
+  final String locationType; // 'SELF' or 'CORPORATE'
+  final bool isCorporate;
 
   const FavoritePlaceEntity({
     required this.id,
@@ -13,5 +15,8 @@ class FavoritePlaceEntity {
     required this.iconType,
     this.latitude,
     this.longitude,
+    this.locationType = 'SELF',
+    this.isCorporate = false,
   });
 }
+

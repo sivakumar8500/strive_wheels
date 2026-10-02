@@ -41,6 +41,8 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
     final name = sharedPreferences.getString('user_name') ?? 'User';
     final phone = sharedPreferences.getString('user_phone') ?? '';
     final email = sharedPreferences.getString('user_email') ?? '';
+    final profileImage = sharedPreferences.getString('user_profile_image') ??
+        sharedPreferences.getString('profile_image_url');
     final isCorporate = sharedPreferences.getBool('is_corporate_user') ?? false;
     final companyName = sharedPreferences.getString('corporate_company_name');
     final employeeCode = sharedPreferences.getString('corporate_employee_code');
@@ -56,6 +58,7 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
       phone: phone,
       email: email,
       gender: 'Not Specified',
+      profileImageUrl: profileImage,
       isCorporate: isCorporate,
       companyName: companyName,
       corporateEmail: corpEmail,

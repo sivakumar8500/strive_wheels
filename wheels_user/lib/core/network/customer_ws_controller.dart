@@ -156,6 +156,7 @@ class CustomerWSController {
     int? companyId,
     int? riderId,
     int? vehicleId,
+    int? seatNumber,
   }) {
     final payload = <String, dynamic>{
       'service_mode': serviceMode,
@@ -178,6 +179,9 @@ class CustomerWSController {
     }
     if (vehicleId != null) {
       payload['vehicle_id'] = vehicleId;
+    }
+    if (seatNumber != null) {
+      payload['seat_number'] = seatNumber;
     }
     _ws.send('booking.create', payload);
   }
@@ -235,9 +239,9 @@ class CustomerWSController {
       'requested_by': 'CUSTOMER',
       'reason': reason,
       'is_drop_requested': true,
-      if (lat != null) 'lat': lat,
-      if (lng != null) 'lng': lng,
-      if (distanceKm != null) 'distance_km': distanceKm,
+      if (lat != null) ...{'lat': lat},
+      if (lng != null) ...{'lng': lng},
+      if (distanceKm != null) ...{'distance_km': distanceKm},
       'timestamp': DateTime.now().toIso8601String(),
     };
     _ws.send('booking.drop_requested', payload);
@@ -251,9 +255,9 @@ class CustomerWSController {
       'booking_id': bIdInt ?? bookingId,
       'accepted_by': 'CUSTOMER',
       'is_drop_accepted': true,
-      if (lat != null) 'lat': lat,
-      if (lng != null) 'lng': lng,
-      if (distanceKm != null) 'distance_km': distanceKm,
+      if (lat != null) ...{'lat': lat},
+      if (lng != null) ...{'lng': lng},
+      if (distanceKm != null) ...{'distance_km': distanceKm},
       'timestamp': DateTime.now().toIso8601String(),
     };
     _ws.send('booking.drop_accepted', payload);

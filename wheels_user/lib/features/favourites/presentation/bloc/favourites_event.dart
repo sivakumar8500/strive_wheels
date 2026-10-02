@@ -37,6 +37,8 @@ class AddFavoriteEvent extends FavouritesEvent {
   final String iconType;
   final double latitude;
   final double longitude;
+  final String locationType;
+  final bool isCorporate;
 
   const AddFavoriteEvent({
     required this.title,
@@ -44,6 +46,8 @@ class AddFavoriteEvent extends FavouritesEvent {
     required this.iconType,
     required this.latitude,
     required this.longitude,
+    this.locationType = 'SELF',
+    this.isCorporate = false,
   });
 }
 
@@ -52,12 +56,20 @@ class UpdateFavoriteEvent extends FavouritesEvent {
   final String title;
   final String address;
   final String iconType;
+  final double? latitude;
+  final double? longitude;
+  final String locationType;
+  final bool isCorporate;
 
   const UpdateFavoriteEvent({
     required this.id,
     required this.title,
     required this.address,
     required this.iconType,
+    this.latitude,
+    this.longitude,
+    this.locationType = 'SELF',
+    this.isCorporate = false,
   });
 }
 

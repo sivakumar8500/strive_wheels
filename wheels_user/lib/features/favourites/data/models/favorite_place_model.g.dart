@@ -13,6 +13,8 @@ _FavoritePlaceModel _$FavoritePlaceModelFromJson(Map<String, dynamic> json) =>
       address: json['address'] as String? ?? '',
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
+      locationType: json['location_type'] as String? ?? 'SELF',
+      isCorporate: json['is_corporate'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$FavoritePlaceModelToJson(_FavoritePlaceModel instance) =>
@@ -22,4 +24,6 @@ Map<String, dynamic> _$FavoritePlaceModelToJson(_FavoritePlaceModel instance) =>
       'address': instance.address,
       'latitude': instance.latitude,
       'longitude': instance.longitude,
+      'location_type': instance.locationType,
+      'is_corporate': instance.isCorporate,
     };

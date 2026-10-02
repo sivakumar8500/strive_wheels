@@ -174,5 +174,6 @@ abstract class AppStrings {
   static const String bookRide = 'Book';
   static const String confirmBooking = 'Confirm Booking';
   static const String popularAndSavedPlaces = 'Saved & Recent Places';
+  static const String minDistanceError = 'Trip distance must be greater than 500 meters to book a ride.';
 }
 

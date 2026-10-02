@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:dio/dio.dart';
@@ -6,10 +7,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:geolocator/geolocator.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_constants.dart';
+import '../../../../core/utils/toast_utils.dart';
 
 import '../../data/models/vehicle_type_model.dart';
 import '../../domain/entities/corporate_aligned_vehicle_entity.dart';
@@ -18,6 +24,7 @@ import '../../domain/usecases/get_corporate_aligned_vehicles_usecase.dart';
 import '../../domain/usecases/get_vehicle_types_usecase.dart';
 import 'ride_summary_page.dart';
 import '../../../../core/widgets/app_map_widget.dart';
+import '../../../../core/services/navigation_service.dart';
 
 class _VehicleMovementProfile {
   final Offset baseOffset;
@@ -157,6 +164,7 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
     _fetchRoutePolyline();
     _fetchVehicleTypes();
     if (widget.isCorporate) {
+      _loadCorporateCompanyInfo();
       _fetchCorporateAlignedVehicles();
     }
     _initDynamicVehicleMarkers();
@@ -234,6 +242,34 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
     }
   }
 
+  bool _isCarVehicle(VehicleTypeEntity vehicle) {
+    final code = vehicle.code.toUpperCase();
+    final name = vehicle.name.toUpperCase();
+    if (code.contains('BIKE') || code.contains('AUTO')) return false;
+    return code.contains('CAB') ||
+        code.contains('CAR') ||
+        code.contains('SEDAN') ||
+        code.contains('HATCHBACK') ||
+        code.contains('SUV') ||
+        code.contains('MINI_VAN') ||
+        code.contains('VAN') ||
+        code.contains('TAXI') ||
+        name.contains('CAB') ||
+        name.contains('CAR') ||
+        name.contains('SEDAN') ||
+        name.contains('HATCHBACK');
+  }
+
+  List<VehicleTypeEntity> get _displayedVehicleTypes {
+    final isOneWayOrRoundTrip =
+        widget.bookingMode == 'ONE_WAY' || widget.bookingMode == 'ROUND_TRIP';
+    if (isOneWayOrRoundTrip) {
+      final carsOnly = _vehicleTypes.where(_isCarVehicle).toList();
+      return carsOnly.isNotEmpty ? carsOnly : _vehicleTypes;
+    }
+    return _vehicleTypes;
+  }
+
   String _getDefaultSubtitle(VehicleTypeEntity vehicle) {
     if (vehicle.description != null && vehicle.description!.trim().isNotEmpty) {
       return vehicle.description!;
@@ -250,7 +286,118 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
   }
 
   List<CorporateAlignedVehicleEntity> _corporateAlignedVehicles = [];
+  List<CorridorWaypointStop> _activeCorporateStops = [];
   bool _isLoadingCorporateVehicles = false;
+  int? _selectedCorporateVehicleId;
+  int? _selectedSeatNumber;
+  String _corporateCompanyName = 'Corporate Ride • Company Billing';
+  int? _corporateCompanyId;
+
+  void _loadCorporateCompanyInfo() {
+    final prefs = sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : null;
+    if (prefs != null) {
+      final compName = prefs.getString('corporate_company_name');
+      if (compName != null && compName.trim().isNotEmpty) {
+        _corporateCompanyName = compName.trim();
+      }
+      _corporateCompanyId = prefs.getInt('corporate_company_id');
+      if (_corporateCompanyId == null) {
+        final saved = prefs.getString('saved_customer_profile');
+        if (saved != null && saved.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(saved);
+            final data = (decoded is Map && decoded['data'] is Map) ? decoded['data'] : (decoded is Map ? decoded : {});
+            final activeComp = data['active_company'] is Map ? data['active_company'] : null;
+            final corpInfo = data['corporate_info'] is Map ? data['corporate_info'] : null;
+            final cId = activeComp?['id'] ?? corpInfo?['company_id'] ?? data['company_id'];
+            if (cId != null) {
+              _corporateCompanyId = int.tryParse(cId.toString());
+            }
+          } catch (_) {}
+        }
+      }
+    }
+  }
+
+  Future<void> _updateCorporateRoutePolyline(CorporateAlignedVehicleEntity corpVehicle) async {
+    final navService = NavigationService(dio: _dio);
+
+    final stops = <CorridorWaypointStop>[];
+
+    // 1. Current user's pickup & drop
+    stops.add(
+      CorridorWaypointStop(
+        id: 'user_pickup',
+        label: 'You (Pickup)',
+        address: widget.pickupAddress,
+        location: widget.pickupLatLng,
+        type: 'pickup',
+        passengerName: 'You',
+      ),
+    );
+    stops.add(
+      CorridorWaypointStop(
+        id: 'user_drop',
+        label: 'You (Drop)',
+        address: widget.dropAddress,
+        location: widget.dropLatLng,
+        type: 'drop',
+        passengerName: 'You',
+      ),
+    );
+
+    // 2. Add vehicle's existing passenger waypoints
+    for (final wp in corpVehicle.waypoints) {
+      stops.add(
+        CorridorWaypointStop(
+          id: '${wp.bookingId}_pickup',
+          label: '${wp.passengerName} (Pickup)',
+          address: wp.pickupAddress,
+          location: LatLng(wp.pickupLat, wp.pickupLng),
+          type: 'pickup',
+          passengerName: wp.passengerName,
+        ),
+      );
+      stops.add(
+        CorridorWaypointStop(
+          id: '${wp.bookingId}_drop',
+          label: '${wp.passengerName} (Drop)',
+          address: wp.dropAddress,
+          location: LatLng(wp.dropLat, wp.dropLng),
+          type: 'drop',
+          passengerName: wp.passengerName,
+        ),
+      );
+    }
+
+    // 3. Optimize sequence along corridor
+    final sequenced = navService.optimizeCorridorSequence(
+      stops: stops,
+      companyLocation: widget.dropLatLng,
+    );
+
+    if (mounted) {
+      setState(() {
+        _activeCorporateStops = sequenced;
+      });
+    }
+
+    // 4. Fetch the continuous multi-stop OSRM route polyline
+    final coords = sequenced.map((s) => s.location).toList();
+    if (coords.length >= 2) {
+      final navData = await navService.fetchMultiStopRouteNavigation(waypoints: coords);
+      if (navData.points.isNotEmpty && mounted) {
+        final mins = (navData.totalDurationSeconds / 60).round();
+        final km = (navData.totalDistanceMeters / 1000).toStringAsFixed(1);
+        setState(() {
+          _routePoints = navData.points;
+          _routeDurationText = '~$mins min';
+          _routeDistanceText = '$km km';
+        });
+        _fitRouteBounds();
+      }
+    }
+  }
 
   Future<void> _fetchCorporateAlignedVehicles() async {
     if (!widget.isCorporate) return;
@@ -259,30 +406,57 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
     });
 
     try {
+      final prefs = sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : null;
+      final effectiveCompanyId = _corporateCompanyId ?? prefs?.getInt('corporate_company_id');
+
+      List<CorporateAlignedVehicleEntity> list = [];
       if (widget.getCorporateAlignedVehiclesUseCase != null) {
-        final list = await widget.getCorporateAlignedVehiclesUseCase!(
+        list = await widget.getCorporateAlignedVehiclesUseCase!(
           pickupLat: widget.pickupLatLng.latitude,
           pickupLng: widget.pickupLatLng.longitude,
           dropAddress: widget.dropAddress,
+          pickupAddress: widget.pickupAddress,
+          dropLat: widget.dropLatLng.latitude,
+          dropLng: widget.dropLatLng.longitude,
+          companyId: effectiveCompanyId,
         );
-        if (mounted) {
-          setState(() {
-            _corporateAlignedVehicles = list;
-            _isLoadingCorporateVehicles = false;
-          });
-        }
-        return;
       } else if (sl.isRegistered<GetCorporateAlignedVehiclesUseCase>()) {
-        final list = await sl<GetCorporateAlignedVehiclesUseCase>()(
+        list = await sl<GetCorporateAlignedVehiclesUseCase>()(
           pickupLat: widget.pickupLatLng.latitude,
           pickupLng: widget.pickupLatLng.longitude,
           dropAddress: widget.dropAddress,
+          pickupAddress: widget.pickupAddress,
+          dropLat: widget.dropLatLng.latitude,
+          dropLng: widget.dropLatLng.longitude,
+          companyId: effectiveCompanyId,
         );
-        if (mounted) {
-          setState(() {
-            _corporateAlignedVehicles = list;
-            _isLoadingCorporateVehicles = false;
-          });
+      }
+
+      if (mounted) {
+        CorporateAlignedVehicleEntity? chosen;
+        setState(() {
+          _corporateAlignedVehicles = list;
+          _isLoadingCorporateVehicles = false;
+          if (list.isNotEmpty) {
+            if (_selectedCorporateVehicleId == null ||
+                !list.any((v) => v.id == _selectedCorporateVehicleId)) {
+              _selectedCorporateVehicleId = list.first.id;
+              _selectedSeatNumber = list.first.availableSeatNumbers.isNotEmpty
+                  ? list.first.availableSeatNumbers.first
+                  : 1;
+            }
+            chosen = list.firstWhere(
+              (v) => v.id == _selectedCorporateVehicleId,
+              orElse: () => list.first,
+            );
+          } else {
+            _selectedCorporateVehicleId = null;
+            _selectedSeatNumber = null;
+          }
+        });
+
+        if (chosen != null) {
+          _updateCorporateRoutePolyline(chosen!);
         }
         return;
       }
@@ -297,7 +471,36 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
     }
   }
 
-  void _bookCorporateVehicle(CorporateAlignedVehicleEntity corpVehicle) {
+  double _getEffectiveDistanceMeters() {
+    try {
+      final text = _routeDistanceText.toLowerCase().trim();
+      if (text.contains('km')) {
+        final val = double.tryParse(text.replaceAll(RegExp(r'[^0-9.]'), ''));
+        if (val != null) return val * 1000.0;
+      } else if (text.contains('m')) {
+        final val = double.tryParse(text.replaceAll(RegExp(r'[^0-9.]'), ''));
+        if (val != null) return val;
+      }
+    } catch (_) {}
+    return Geolocator.distanceBetween(
+      widget.pickupLatLng.latitude,
+      widget.pickupLatLng.longitude,
+      widget.dropLatLng.latitude,
+      widget.dropLatLng.longitude,
+    );
+  }
+
+  void _bookCorporateVehicle(CorporateAlignedVehicleEntity corpVehicle, {int? seatNumber}) {
+    final distanceMeters = _getEffectiveDistanceMeters();
+    if (distanceMeters <= AppConstants.minBookingDistanceMeters) {
+      ToastUtils.showError(context, AppStrings.minDistanceError);
+      return;
+    }
+
+    final effectiveSeat = seatNumber ??
+        (_selectedCorporateVehicleId == corpVehicle.id ? _selectedSeatNumber : null) ??
+        (corpVehicle.availableSeatNumbers.isNotEmpty ? corpVehicle.availableSeatNumbers.first : 1);
+
     VehicleTypeEntity matchedVehicle = _vehicleTypes.firstWhere(
       (v) => v.id == corpVehicle.vehicleTypeId,
       orElse: () => _vehicleTypes.isNotEmpty
@@ -330,12 +533,19 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
           riderId: corpVehicle.riderId,
           vehicleId: corpVehicle.vehicleId,
           corporateVehicle: corpVehicle,
+          seatNumber: effectiveSeat,
         ),
       ),
     );
   }
 
   void _bookVehicle(VehicleTypeEntity vehicle) {
+    final distanceMeters = _getEffectiveDistanceMeters();
+    if (distanceMeters <= AppConstants.minBookingDistanceMeters) {
+      ToastUtils.showError(context, AppStrings.minDistanceError);
+      return;
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => RideSummaryPage(
@@ -821,6 +1031,31 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
 
   Set<Marker> _buildMarkersForSelectedVehicle(
       VehicleTypeEntity? selectedVehicle) {
+    if (widget.isCorporate && _activeCorporateStops.isNotEmpty) {
+      final markers = <Marker>{};
+      for (final stop in _activeCorporateStops) {
+        final isPickup = stop.type.toLowerCase() == 'pickup';
+        final isUser = stop.passengerName == 'You';
+
+        markers.add(
+          Marker(
+            markerId: MarkerId('stop_${stop.sequence}_${stop.id}'),
+            position: stop.location,
+            infoWindow: InfoWindow(
+              title: 'Stop #${stop.sequence}: ${stop.label}',
+              snippet: stop.address,
+            ),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              isPickup
+                  ? (isUser ? BitmapDescriptor.hueGreen : BitmapDescriptor.hueCyan)
+                  : (isUser ? BitmapDescriptor.hueRed : BitmapDescriptor.hueOrange),
+            ),
+          ),
+        );
+      }
+      return markers;
+    }
+
     final markers = <Marker>{
       Marker(
         markerId: const MarkerId('pickup_marker'),
@@ -1104,18 +1339,6 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
         _currentMapType = MapType.normal;
       }
     });
-
-    final typeName = _currentMapType == MapType.normal
-        ? 'Street View'
-        : (_currentMapType == MapType.hybrid ? 'Satellite View' : 'Terrain View');
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$typeName Enabled'),
-        duration: const Duration(seconds: 1),
-        backgroundColor: AppColors.primaryBlue,
-      ),
-    );
   }
 
   @override
@@ -1128,9 +1351,10 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
         isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
     final dividerColor = isDark ? AppColors.dividerDark : AppColors.dividerLight;
 
-    final selectedVehicle = _vehicleTypes.isNotEmpty
-        ? _vehicleTypes[
-            _selectedVehicleIndex.clamp(0, _vehicleTypes.length - 1)]
+    final visibleVehicles = _displayedVehicleTypes;
+    final selectedVehicle = visibleVehicles.isNotEmpty
+        ? visibleVehicles[
+            _selectedVehicleIndex.clamp(0, visibleVehicles.length - 1)]
         : null;
 
     final markers = _buildMarkersForSelectedVehicle(selectedVehicle);
@@ -1460,7 +1684,7 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
                       if (widget.isCorporate) ...[
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
+                              horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: isDark
@@ -1470,17 +1694,46 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.business_rounded, color: Colors.white, size: 16),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Corporate Ride • Company Billing',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                  letterSpacing: 0.5,
+                              const Icon(Icons.business_rounded, color: Colors.white, size: 18),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _corporateCompanyName,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      'Corporate Ride • Company Billing',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        color: Colors.white.withValues(alpha: 0.8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.25),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'Route Aligned',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF34D399),
+                                  ),
                                 ),
                               ),
                             ],
@@ -1509,24 +1762,37 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
                       ],
                       const SizedBox(height: 12),
 
-                      // Corporate Aligned Vehicles Section
+                      // Corporate Mode: Show ONLY Corporate Attached Vehicles & Specific Route
                       if (widget.isCorporate) ...[
                         if (_isLoadingCorporateVehicles) ...[
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 10),
-                            child: Center(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryBlue),
-                                  ),
-                                  SizedBox(width: 8),
-                                  Text('Checking aligned corporate vehicles...', style: TextStyle(fontSize: 12)),
-                                ],
-                              ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: dividerColor),
+                            ),
+                            child: Column(
+                              children: [
+                                const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF10B981)),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Finding company attached vehicles for your route...',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: textPrimary),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Checking schedule & seat availability for $_corporateCompanyName',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.inter(fontSize: 11, color: textSecondary),
+                                ),
+                              ],
                             ),
                           ),
                         ] else if (_corporateAlignedVehicles.isNotEmpty) ...[
@@ -1534,21 +1800,21 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                'Aligned Route Vehicles',
+                                'Company Attached Vehicles',
                                 style: GoogleFonts.inter(
-                                  fontSize: 13,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.bold,
                                   color: textPrimary,
                                 ),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
-                                  '${_corporateAlignedVehicles.length} Available',
+                                  '${_corporateAlignedVehicles.length} on Route',
                                   style: GoogleFonts.inter(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
@@ -1558,43 +1824,89 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 10),
                           ..._corporateAlignedVehicles.map((corpVehicle) {
                             return _buildCorporateVehicleCard(corpVehicle, isDark, textPrimary, textSecondary);
                           }),
                           const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Expanded(child: Divider(color: dividerColor)),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
-                                child: Text(
-                                  'or select standard vehicle category',
-                                  style: GoogleFonts.inter(fontSize: 11, color: textSecondary),
+                        ] else ...[
+                          // Corporate Route Empty State
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: dividerColor),
+                            ),
+                            child: Column(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.alt_route_rounded,
+                                    size: 32,
+                                    color: Color(0xFF3B82F6),
+                                  ),
                                 ),
-                              ),
-                              Expanded(child: Divider(color: dividerColor)),
-                            ],
+                                const SizedBox(height: 12),
+                                Text(
+                                  'No Company Vehicles on this Route',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'No vehicles attached to $_corporateCompanyName are currently scheduled along this route (${widget.pickupTitle} ➔ ${widget.dropTitle}).',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: textSecondary,
+                                    height: 1.4,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                OutlinedButton.icon(
+                                  onPressed: _fetchCorporateAlignedVehicles,
+                                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                                  label: const Text('Refresh Route Vehicles'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFF10B981),
+                                    side: const BorderSide(color: Color(0xFF10B981)),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 10),
                         ],
                       ],
 
-                      // Vehicle Options Vertical List
-                      if (_isLoadingVehicles)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 24),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              color: AppColors.primaryBlue,
+                      // Non-Corporate Mode: Vehicle Options Vertical List
+                      if (!widget.isCorporate) ...[
+                        if (_isLoadingVehicles)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: AppColors.primaryBlue,
+                              ),
                             ),
-                          ),
-                        )
-                      else
-                        Column(
-                          children:
-                              List.generate(_vehicleTypes.length, (index) {
-                            final vehicle = _vehicleTypes[index];
+                          )
+                        else
+                          Column(
+                            children:
+                              List.generate(visibleVehicles.length, (index) {
+                            final vehicle = visibleVehicles[index];
                             final isSelected = _selectedVehicleIndex == index;
 
                             return GestureDetector(
@@ -1794,152 +2106,190 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
                             );
                           }),
                         ),
-                      const SizedBox(height: 10),
+                        const SizedBox(height: 10),
 
-                      // Payment & Offers Row
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? const Color(0xFF0F172A)
-                              : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: dividerColor),
-                        ),
-                        child: Row(
-                          children: [
-                            // Rapido Wallet
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primaryBlue
-                                          .withValues(alpha: 0.12),
-                                      shape: BoxShape.circle,
+                        // Payment & Offers Row (Non-Corporate Only)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: dividerColor),
+                          ),
+                          child: Row(
+                            children: [
+                              // Rapido Wallet
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primaryBlue
+                                            .withValues(alpha: 0.12),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.account_balance_wallet_rounded,
+                                        color: AppColors.primaryBlue,
+                                        size: 18,
+                                      ),
                                     ),
-                                    child: const Icon(
-                                      Icons.account_balance_wallet_rounded,
-                                      color: AppColors.primaryBlue,
-                                      size: 18,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Text(
-                                              'Rapido Wallet',
-                                              style: GoogleFonts.inter(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                                color: textPrimary,
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Text(
+                                                'Rapido Wallet',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: textPrimary,
+                                                ),
                                               ),
-                                            ),
-                                            Icon(
-                                              Icons.chevron_right,
-                                              size: 16,
-                                              color: textSecondary,
-                                            ),
-                                          ],
-                                        ),
-                                        Text(
-                                          'Low Balance: ₹0.0',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w500,
-                                            color: const Color(0xFFEF4444),
+                                              Icon(
+                                                Icons.chevron_right,
+                                                size: 16,
+                                                color: textSecondary,
+                                              ),
+                                            ],
                                           ),
-                                        ),
-                                      ],
+                                          Text(
+                                            'Low Balance: ₹0.0',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w500,
+                                              color: const Color(0xFFEF4444),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
 
-                            Container(
-                              height: 28,
-                              width: 1,
-                              color: dividerColor,
-                              margin: const EdgeInsets.symmetric(horizontal: 8),
-                            ),
+                              Container(
+                                height: 28,
+                                width: 1,
+                                color: dividerColor,
+                                margin: const EdgeInsets.symmetric(horizontal: 8),
+                              ),
 
-                            // Offers
-                            InkWell(
-                              onTap: () {},
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.accentOrange
-                                          .withValues(alpha: 0.15),
-                                      shape: BoxShape.circle,
+                              // Offers
+                              InkWell(
+                                onTap: () {},
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.accentOrange
+                                            .withValues(alpha: 0.15),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.local_offer_rounded,
+                                        color: AppColors.accentOrange,
+                                        size: 16,
+                                      ),
                                     ),
-                                    child: const Icon(
-                                      Icons.local_offer_rounded,
-                                      color: AppColors.accentOrange,
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Offers',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: textPrimary,
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.chevron_right,
                                       size: 16,
+                                      color: textSecondary,
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Offers',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: textPrimary,
-                                    ),
-                                  ),
-                                  Icon(
-                                    Icons.chevron_right,
-                                    size: 16,
-                                    color: textSecondary,
-                                  ),
-                                ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+
+                      // Action Button: Corporate vs Standard
+                      if (widget.isCorporate) ...[
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            key: const Key('confirm_corporate_ride_booking_button'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              foregroundColor: Colors.white,
+                              elevation: 3,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Brand-Theme Action Button: "Book <Vehicle>"
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          key: const Key('confirm_ride_booking_button'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryBlue,
-                            foregroundColor: Colors.white,
-                            elevation: 3,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          onPressed: selectedVehicle != null
-                              ? () => _bookVehicle(selectedVehicle)
-                              : null,
-                          child: Text(
-                            selectedVehicle != null
-                                ? 'Book ${selectedVehicle.name}'
-                                : 'Select a Vehicle',
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                            onPressed: _corporateAlignedVehicles.isNotEmpty
+                                ? () {
+                                    final chosen = _corporateAlignedVehicles.firstWhere(
+                                      (v) => v.id == _selectedCorporateVehicleId,
+                                      orElse: () => _corporateAlignedVehicles.first,
+                                    );
+                                    _bookCorporateVehicle(chosen, seatNumber: _selectedSeatNumber);
+                                  }
+                                : null,
+                            child: Text(
+                              _corporateAlignedVehicles.isNotEmpty
+                                  ? 'Book Route • Seat #${_selectedSeatNumber ?? (_corporateAlignedVehicles.first.availableSeatNumbers.isNotEmpty ? _corporateAlignedVehicles.first.availableSeatNumbers.first : 1)}'
+                                  : 'No Route Vehicle Available',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ] else ...[
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            key: const Key('confirm_ride_booking_button'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryBlue,
+                              foregroundColor: Colors.white,
+                              elevation: 3,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            onPressed: selectedVehicle != null
+                                ? () => _bookVehicle(selectedVehicle)
+                                : null,
+                            child: Text(
+                              selectedVehicle != null
+                                  ? 'Book ${selectedVehicle.name}'
+                                  : 'Select a Vehicle',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 10),
                     ],
                   ),
@@ -1958,142 +2308,492 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
     Color textPrimary,
     Color textSecondary,
   ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF0FDF4),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: corpVehicle.isAligned
-              ? const Color(0xFF10B981)
-              : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-          width: corpVehicle.isAligned ? 1.5 : 1.0,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: corpVehicle.isAligned
-                      ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                      : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      corpVehicle.isAligned ? Icons.route_rounded : Icons.directions_car_rounded,
-                      size: 13,
-                      color: corpVehicle.isAligned ? const Color(0xFF10B981) : textSecondary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      corpVehicle.alignmentLabel,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: corpVehicle.isAligned ? const Color(0xFF10B981) : textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryBlue.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '${corpVehicle.seats} Seats',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primaryBlue,
-                  ),
-                ),
-              ),
-            ],
+    final isSelected = _selectedCorporateVehicleId == corpVehicle.id;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedCorporateVehicleId = corpVehicle.id;
+          if (_selectedSeatNumber == null ||
+              !corpVehicle.availableSeatNumbers.contains(_selectedSeatNumber)) {
+            _selectedSeatNumber = corpVehicle.availableSeatNumbers.isNotEmpty
+                ? corpVehicle.availableSeatNumbers.first
+                : 1;
+          }
+        });
+        _updateCorporateRoutePolyline(corpVehicle);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark ? const Color(0xFF064E3B).withValues(alpha: 0.3) : const Color(0xFFF0FDF4))
+              : (isDark ? const Color(0xFF1E293B) : Colors.white),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF10B981)
+                : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+            width: isSelected ? 2.0 : 1.0,
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${corpVehicle.vehicleName} • ${corpVehicle.licensePlate}',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Icon(Icons.person, size: 13, color: textSecondary),
-                        const SizedBox(width: 4),
-                        Text(
-                          corpVehicle.driverName,
-                          style: GoogleFonts.inter(fontSize: 12, color: textSecondary),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Prominent Specific Route Banner
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.25),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.alt_route_rounded, size: 16, color: Color(0xFF2563EB)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: RichText(
+                      text: TextSpan(
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : const Color(0xFF1E293B),
                         ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.star_rounded, size: 13, color: Color(0xFFF59E0B)),
-                        const SizedBox(width: 2),
-                        Text(
-                          corpVehicle.driverRating.toStringAsFixed(1),
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: textSecondary,
+                        children: [
+                          TextSpan(
+                            text: 'SPECIFIC ROUTE: ',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF2563EB),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          TextSpan(text: corpVehicle.routeFrom),
+                          const TextSpan(
+                            text: '  ➔  ',
+                            style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF2563EB)),
+                          ),
+                          TextSpan(text: corpVehicle.routeTo),
+                        ],
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Route Alignment Label & Seat Availability Badges
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: corpVehicle.isAligned
+                          ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                          : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          corpVehicle.isAligned ? Icons.check_circle_rounded : Icons.directions_car_rounded,
+                          size: 13,
+                          color: corpVehicle.isAligned ? const Color(0xFF10B981) : textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            corpVehicle.alignmentLabel,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: corpVehicle.isAligned ? const Color(0xFF10B981) : textSecondary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              InkWell(
-                key: Key('book_corporate_vehicle_${corpVehicle.id}'),
-                onTap: () => _bookCorporateVehicle(corpVehicle),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF059669), Color(0xFF10B981)],
+                    color: corpVehicle.availableSeats > 0
+                        ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                        : const Color(0xFFEF4444).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${corpVehicle.availableSeats}/${corpVehicle.seats} Seats Free',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: corpVehicle.availableSeats > 0
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFFEF4444),
                     ),
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF10B981).withValues(alpha: 0.3),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Vehicle and Driver Row
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.directions_car_filled_rounded,
+                    color: AppColors.primaryBlue,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${corpVehicle.vehicleName} • ${corpVehicle.licensePlate}',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(Icons.person, size: 13, color: textSecondary),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              corpVehicle.driverName,
+                              style: GoogleFonts.inter(fontSize: 12, color: textSecondary),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.star_rounded, size: 13, color: Color(0xFFF59E0B)),
+                          const SizedBox(width: 2),
+                          Text(
+                            corpVehicle.driverRating.toStringAsFixed(1),
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  child: Text(
-                    'Book Route',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                ),
+                const SizedBox(width: 8),
+                InkWell(
+                  key: Key('book_corporate_vehicle_${corpVehicle.id}'),
+                  onTap: corpVehicle.availableSeats > 0
+                      ? () => _bookCorporateVehicle(corpVehicle, seatNumber: _selectedSeatNumber)
+                      : null,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      gradient: corpVehicle.availableSeats > 0
+                          ? const LinearGradient(
+                              colors: [Color(0xFF059669), Color(0xFF10B981)],
+                            )
+                          : null,
+                      color: corpVehicle.availableSeats > 0
+                          ? null
+                          : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: corpVehicle.availableSeats > 0
+                          ? [
+                              BoxShadow(
+                                color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Text(
+                      corpVehicle.availableSeats > 0 ? 'Book Route' : 'Full',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Corridor Multi-Passenger Waypoint Timeline
+            if (corpVehicle.waypoints.isNotEmpty || (isSelected && _activeCorporateStops.isNotEmpty)) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.route_rounded, size: 15, color: Color(0xFF10B981)),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Corridor Stop Sequence (${(isSelected && _activeCorporateStops.isNotEmpty) ? _activeCorporateStops.length : (corpVehicle.waypoints.length + 2)} Connected Stops)',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? Colors.white : const Color(0xFF1E293B),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ...((isSelected && _activeCorporateStops.isNotEmpty)
+                            ? _activeCorporateStops
+                            : [
+                                CorridorWaypointStop(
+                                  id: 'user_p',
+                                  label: 'You (Pickup)',
+                                  address: widget.pickupAddress,
+                                  location: widget.pickupLatLng,
+                                  type: 'pickup',
+                                  sequence: 1,
+                                  passengerName: 'You',
+                                ),
+                                ...corpVehicle.waypoints.expand((wp) => [
+                                      CorridorWaypointStop(
+                                        id: '${wp.bookingId}_pickup',
+                                        label: '${wp.passengerName} (Pickup)',
+                                        address: wp.pickupAddress,
+                                        location: LatLng(wp.pickupLat, wp.pickupLng),
+                                        type: 'pickup',
+                                        passengerName: wp.passengerName,
+                                      ),
+                                      CorridorWaypointStop(
+                                        id: '${wp.bookingId}_drop',
+                                        label: '${wp.passengerName} (Drop)',
+                                        address: wp.dropAddress,
+                                        location: LatLng(wp.dropLat, wp.dropLng),
+                                        type: 'drop',
+                                        passengerName: wp.passengerName,
+                                      ),
+                                    ]),
+                                CorridorWaypointStop(
+                                  id: 'user_d',
+                                  label: '${widget.dropTitle} (Company Drop)',
+                                  address: widget.dropAddress,
+                                  location: widget.dropLatLng,
+                                  type: 'drop',
+                                  passengerName: 'Company Destination',
+                                ),
+                              ])
+                        .map((stop) {
+                      final isPickup = stop.type.toLowerCase() == 'pickup';
+                      final isUser = stop.passengerName == 'You';
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 20,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: isPickup
+                                    ? (isUser ? const Color(0xFF10B981) : const Color(0xFF0284C7))
+                                    : const Color(0xFFEF4444),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '${stop.sequence}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    stop.label,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: textPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    stop.address,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      color: textSecondary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isPickup
+                                    ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                    : const Color(0xFFEF4444).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                isPickup ? 'PICKUP' : 'DROP',
+                                style: GoogleFonts.inter(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: isPickup ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
               ),
             ],
-          ),
-        ],
+
+            // Interactive Seat Selector
+            Text(
+              'Select Your Seat:',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: textSecondary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: List.generate(corpVehicle.seats, (idx) {
+                final seatNum = idx + 1;
+                final isAvailable = corpVehicle.availableSeatNumbers.contains(seatNum);
+                final isSeatChosen = isSelected && _selectedSeatNumber == seatNum;
+
+                return GestureDetector(
+                  key: Key('seat_${corpVehicle.id}_$seatNum'),
+                  onTap: isAvailable
+                      ? () {
+                          setState(() {
+                            _selectedCorporateVehicleId = corpVehicle.id;
+                            _selectedSeatNumber = seatNum;
+                          });
+                          _updateCorporateRoutePolyline(corpVehicle);
+                        }
+                      : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: isSeatChosen
+                          ? const Color(0xFF10B981)
+                          : (isAvailable
+                              ? (isDark ? const Color(0xFF1E293B) : Colors.white)
+                              : (isDark ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0))),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isSeatChosen
+                            ? const Color(0xFF10B981)
+                            : (isAvailable
+                                ? (isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1))
+                                : Colors.transparent),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.airline_seat_recline_normal_rounded,
+                          size: 13,
+                          color: isSeatChosen
+                              ? Colors.white
+                              : (isAvailable
+                                  ? const Color(0xFF10B981)
+                                  : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8))),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Seat #$seatNum ${!isAvailable ? '(Taken)' : ''}',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: isSeatChosen ? FontWeight.bold : FontWeight.w500,
+                            color: isSeatChosen
+                                ? Colors.white
+                                : (isAvailable
+                                    ? textPrimary
+                                    : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8))),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ],
+        ),
       ),
     );
   }

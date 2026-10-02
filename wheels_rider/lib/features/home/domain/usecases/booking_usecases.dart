@@ -31,6 +31,16 @@ class AcceptBookingUseCase {
   }
 }
 
+class DeclineBookingUseCase {
+  final BookingRepository repository;
+
+  DeclineBookingUseCase(this.repository);
+
+  void call(int bookingId) {
+    repository.declineBooking(bookingId);
+  }
+}
+
 class GetRideRequestsStreamUseCase {
   final BookingRepository repository;
 

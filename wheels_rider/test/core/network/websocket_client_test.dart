@@ -9,7 +9,7 @@ void main() {
     });
 
     test('wsConnect should return correct unified endpoint', () {
-      expect(ApiEndpoints.wsConnect, 'ws://15.252.129.37:8200/api/v1/ws/v1/connect');
+      expect(ApiEndpoints.wsConnect, 'ws://15.252.129.37:8200/api/v1/ws/connect');
     });
 
     test('wsDriverConnect should format driver endpoint correctly', () {

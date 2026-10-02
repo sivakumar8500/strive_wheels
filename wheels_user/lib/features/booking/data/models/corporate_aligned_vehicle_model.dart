@@ -22,9 +22,43 @@ class CorporateAlignedVehicleModel extends CorporateAlignedVehicleEntity {
     super.isAligned,
     required super.alignmentLabel,
     super.seats,
+    super.availableSeats,
+    super.occupiedSeats,
+    super.availableSeatNumbers,
+    super.waypoints,
   });
 
   factory CorporateAlignedVehicleModel.fromJson(Map<String, dynamic> json) {
+    final rawSeats = json['seats'] as int? ?? 4;
+    final rawAvail = json['available_seats'] as int? ?? rawSeats;
+    final rawOccupied = json['occupied_seats'] as int? ?? (rawSeats - rawAvail);
+    final rawSeatNumbers = (json['available_seat_numbers'] as List<dynamic>?)
+            ?.map((e) => (e as num).toInt())
+            .toList() ??
+        List.generate(rawAvail, (i) => i + 1);
+
+    final rawWaypoints = (json['waypoints'] as List<dynamic>?)
+            ?.map((w) {
+              if (w is Map<String, dynamic>) {
+                return CorporateWaypointEntity(
+                  bookingId: w['booking_id'] as int? ?? 0,
+                  passengerName: w['passenger_name'] as String? ?? 'Passenger',
+                  seatNumber: w['seat_number'] as int?,
+                  pickupAddress: w['pickup_address'] as String? ?? '',
+                  pickupLat: (w['pickup_lat'] as num?)?.toDouble() ?? 17.4483,
+                  pickupLng: (w['pickup_lng'] as num?)?.toDouble() ?? 78.3915,
+                  dropAddress: w['drop_address'] as String? ?? '',
+                  dropLat: (w['drop_lat'] as num?)?.toDouble() ?? 17.4938,
+                  dropLng: (w['drop_lng'] as num?)?.toDouble() ?? 78.3995,
+                  status: w['status'] as String? ?? 'ACTIVE',
+                );
+              }
+              return null;
+            })
+            .whereType<CorporateWaypointEntity>()
+            .toList() ??
+        [];
+
     return CorporateAlignedVehicleModel(
       id: json['id'] as int? ?? 0,
       companyId: json['company_id'] as int? ?? 0,
@@ -45,7 +79,11 @@ class CorporateAlignedVehicleModel extends CorporateAlignedVehicleEntity {
       routeToLng: (json['route_to_lng'] as num?)?.toDouble(),
       isAligned: json['is_aligned'] as bool? ?? false,
       alignmentLabel: json['alignment_label'] as String? ?? 'Route Corridor',
-      seats: json['seats'] as int? ?? 4,
+      seats: rawSeats,
+      availableSeats: rawAvail,
+      occupiedSeats: rawOccupied,
+      availableSeatNumbers: rawSeatNumbers,
+      waypoints: rawWaypoints,
     );
   }
 
@@ -71,6 +109,23 @@ class CorporateAlignedVehicleModel extends CorporateAlignedVehicleEntity {
       'is_aligned': isAligned,
       'alignment_label': alignmentLabel,
       'seats': seats,
+      'available_seats': availableSeats,
+      'occupied_seats': occupiedSeats,
+      'available_seat_numbers': availableSeatNumbers,
+      'waypoints': waypoints
+          .map((w) => {
+                'booking_id': w.bookingId,
+                'passenger_name': w.passengerName,
+                'seat_number': w.seatNumber,
+                'pickup_address': w.pickupAddress,
+                'pickup_lat': w.pickupLat,
+                'pickup_lng': w.pickupLng,
+                'drop_address': w.dropAddress,
+                'drop_lat': w.dropLat,
+                'drop_lng': w.dropLng,
+                'status': w.status,
+              })
+          .toList(),
     };
   }
 

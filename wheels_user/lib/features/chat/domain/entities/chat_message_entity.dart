@@ -18,7 +18,15 @@ class ChatMessageEntity {
     required this.sentAt,
   });
 
-  bool isSentByMe(int currentUserId) => senderId == currentUserId;
+  bool isSentByMe(int currentUserId) {
+    if (currentUserId > 0 && senderId > 0) {
+      return senderId == currentUserId;
+    }
+    final role = senderRole.toUpperCase();
+    if (role == 'CUSTOMER' || role == 'USER' || role == 'PASSENGER') return true;
+    if (role == 'RIDER' || role == 'DRIVER') return false;
+    return true;
+  }
 
   @override
   bool operator ==(Object other) =>

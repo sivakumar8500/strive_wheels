@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/entities/favorite_place_entity.dart';
@@ -40,7 +41,7 @@ class FavouritesBloc extends Bloc<FavouritesEvent, FavouritesState> {
         favouritesEntity: entity,
       ));
     } catch (e) {
-      print('====== LOAD FAVOURITES ERROR: $e ======');
+      debugPrint('====== LOAD FAVOURITES ERROR: $e ======');
       emit(state.copyWith(
         isLoading: false,
         errorMessage: 'Failed to load saved places',
@@ -78,11 +79,13 @@ class FavouritesBloc extends Bloc<FavouritesEvent, FavouritesState> {
         iconType: event.iconType,
         latitude: event.latitude,
         longitude: event.longitude,
+        locationType: event.locationType,
+        isCorporate: event.isCorporate,
       ));
       emit(state.copyWith(actionMessage: 'Location saved successfully!'));
       add(const LoadFavouritesEvent()); // Refresh list
     } catch (e) {
-      print('====== ADD FAVORITE ERROR: $e ======');
+      debugPrint('====== ADD FAVORITE ERROR: $e ======');
       emit(state.copyWith(errorMessage: 'Failed to save location'));
     }
   }
@@ -97,6 +100,10 @@ class FavouritesBloc extends Bloc<FavouritesEvent, FavouritesState> {
         title: event.title,
         address: event.address,
         iconType: event.iconType,
+        latitude: event.latitude,
+        longitude: event.longitude,
+        locationType: event.locationType,
+        isCorporate: event.isCorporate,
       ));
       emit(state.copyWith(actionMessage: 'Location updated successfully!'));
       add(const LoadFavouritesEvent()); // Refresh list

@@ -159,6 +159,12 @@ class ActiveBookingService {
     _safeNotify(booking);
     try {
       await _prefs.setString(_keyActiveBooking, json.encode(booking.toJson()));
+      await _prefs.setString('last_booking_pickup', booking.pickupAddress);
+      await _prefs.setString('last_booking_drop', booking.dropAddress);
+      await _prefs.setDouble('last_booking_pickup_lat', booking.pickupLatLng.latitude);
+      await _prefs.setDouble('last_booking_pickup_lng', booking.pickupLatLng.longitude);
+      await _prefs.setDouble('last_booking_drop_lat', booking.dropLatLng.latitude);
+      await _prefs.setDouble('last_booking_drop_lng', booking.dropLatLng.longitude);
     } catch (e) {
       debugPrint('[ActiveBookingService] Error saving active booking: $e');
     }

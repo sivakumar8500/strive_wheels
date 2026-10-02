@@ -12,6 +12,10 @@ abstract class BookingRemoteDataSource {
     double? pickupLat,
     double? pickupLng,
     String? dropAddress,
+    String? pickupAddress,
+    double? dropLat,
+    double? dropLng,
+    int? companyId,
   });
   Future<FareEstimateModel> getFareEstimate({
     required int vehicleTypeId,
@@ -70,6 +74,10 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
     double? pickupLat,
     double? pickupLng,
     String? dropAddress,
+    String? pickupAddress,
+    double? dropLat,
+    double? dropLng,
+    int? companyId,
   }) async {
     try {
       final queryParams = <String, dynamic>{};
@@ -78,20 +86,29 @@ class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
       if (dropAddress != null && dropAddress.isNotEmpty) {
         queryParams['drop_address'] = dropAddress;
       }
+      if (pickupAddress != null && pickupAddress.isNotEmpty) {
+        queryParams['pickup_address'] = pickupAddress;
+      }
+      if (dropLat != null) queryParams['drop_lat'] = dropLat;
+      if (dropLng != null) queryParams['drop_lng'] = dropLng;
+      if (companyId != null) queryParams['company_id'] = companyId;
 
       final response = await dio.get(
-        '${ApiConstants.baseUrl}/customer/corporate-aligned-vehicles',
+        '/api/v1/customer/corporate-aligned-vehicles',
         queryParameters: queryParams,
-        options: Options(
-          headers: {'accept': 'application/json'},
-          sendTimeout: const Duration(seconds: 10),
-          receiveTimeout: const Duration(seconds: 10),
-        ),
       );
 
       if (response.statusCode == 200 && response.data != null) {
-        final data = response.data is Map ? response.data : {};
-        final List<dynamic> list = data['data'] ?? [];
+        final resData = response.data is Map ? response.data : {};
+        final innerData = resData['data'];
+        List<dynamic> list = [];
+        if (innerData is Map && innerData['aligned_vehicles'] is List) {
+          list = innerData['aligned_vehicles'] as List;
+        } else if (innerData is List) {
+          list = innerData;
+        } else if (resData['aligned_vehicles'] is List) {
+          list = resData['aligned_vehicles'] as List;
+        }
         return list
             .map((item) => CorporateAlignedVehicleModel.fromJson(
                 Map<String, dynamic>.from(item as Map)))

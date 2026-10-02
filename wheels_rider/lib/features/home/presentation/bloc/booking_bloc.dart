@@ -9,6 +9,7 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
   final ConnectToBookingSocketUseCase connectToBookingSocket;
   final DisconnectBookingSocketUseCase disconnectBookingSocket;
   final AcceptBookingUseCase acceptBooking;
+  final DeclineBookingUseCase? declineBookingUseCase;
   final GetRideRequestsStreamUseCase getRideRequestsStream;
   final GetBookingSuccessStreamUseCase getBookingSuccessStream;
   final GetBookingErrorStreamUseCase getBookingErrorStream;
@@ -25,6 +26,7 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     required this.connectToBookingSocket,
     required this.disconnectBookingSocket,
     required this.acceptBooking,
+    this.declineBookingUseCase,
     required this.getRideRequestsStream,
     required this.getBookingSuccessStream,
     required this.getBookingErrorStream,
@@ -75,6 +77,7 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     _requestsSubscription?.cancel();
     _successSubscription?.cancel();
     _errorSubscription?.cancel();
+    _cancelledSubscription?.cancel();
     emit(BookingInitial());
   }
 
@@ -88,6 +91,9 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
   }
 
   void _onDeclineRide(DeclineRideEvent event, Emitter<BookingState> emit) {
+    if (event.bookingId != null) {
+      declineBookingUseCase?.call(event.bookingId!);
+    }
     emit(BookingConnected()); // Return to connected state without showing request
   }
 

@@ -12,6 +12,7 @@ import '../services/route_condition_service.dart';
 import '../services/navigation_service.dart';
 import '../services/active_booking_service.dart';
 import '../services/fcm_token_service.dart';
+import '../services/live_journey_notification_service.dart';
 
 import '../../features/booking/data/datasources/booking_local_datasource.dart';
 import '../../features/booking/data/datasources/booking_remote_datasource.dart';
@@ -78,6 +79,7 @@ import '../../features/settings/data/datasources/settings_remote_datasource.dart
 import '../../features/settings/data/repositories/settings_repository_impl.dart';
 import '../../features/settings/domain/repositories/settings_repository.dart';
 import '../../features/settings/domain/usecases/get_settings_usecase.dart';
+import '../../features/settings/domain/usecases/update_user_profile_usecase.dart';
 import '../../features/settings/presentation/bloc/settings_bloc.dart';
 import '../../features/schedule_ride/data/datasources/schedule_ride_local_datasource.dart';
 import '../../features/schedule_ride/data/repositories/schedule_ride_repository_impl.dart';
@@ -112,6 +114,14 @@ import '../../features/chat/domain/usecases/get_chat_history_usecase.dart';
 import '../../features/chat/domain/usecases/send_chat_message_usecase.dart';
 import '../../features/chat/domain/usecases/listen_chat_messages_usecase.dart';
 import '../../features/chat/presentation/bloc/chat_bloc.dart';
+import '../../features/notifications/data/datasources/notification_remote_data_source.dart';
+import '../../features/notifications/data/repositories/notification_repository_impl.dart';
+import '../../features/notifications/domain/repositories/notification_repository.dart';
+import '../../features/notifications/domain/usecases/get_notifications_usecase.dart';
+import '../../features/notifications/domain/usecases/get_unread_count_usecase.dart';
+import '../../features/notifications/domain/usecases/mark_notification_read_usecase.dart';
+import '../../features/notifications/domain/usecases/mark_all_read_usecase.dart';
+import '../../features/notifications/presentation/bloc/notification_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -166,6 +176,12 @@ Future<void> initDependencyInjection() async {
   if (!sl.isRegistered<NavigationService>()) {
     sl.registerLazySingleton<NavigationService>(
       () => NavigationService(dio: sl<Dio>()),
+    );
+  }
+
+  if (!sl.isRegistered<LiveJourneyNotificationService>()) {
+    sl.registerLazySingleton<LiveJourneyNotificationService>(
+      () => const LiveJourneyNotificationServiceImpl(),
     );
   }
 
@@ -262,7 +278,10 @@ Future<void> initDependencyInjection() async {
   }
   if (!sl.isRegistered<FavouritesRemoteDataSource>()) {
     sl.registerLazySingleton<FavouritesRemoteDataSource>(
-      () => FavouritesRemoteDataSourceImpl(dio: sl()),
+      () => FavouritesRemoteDataSourceImpl(
+        dio: sl(),
+        sharedPreferences: sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : sharedPreferences,
+      ),
     );
   }
   if (!sl.isRegistered<SettingsLocalDataSource>()) {
@@ -443,6 +462,12 @@ Future<void> initDependencyInjection() async {
     );
   }
 
+  if (!sl.isRegistered<UpdateUserProfileUseCase>()) {
+    sl.registerLazySingleton<UpdateUserProfileUseCase>(
+      () => UpdateUserProfileUseCase(sl()),
+    );
+  }
+
   if (!sl.isRegistered<GetRecentJourneysUseCase>()) {
     sl.registerLazySingleton<GetRecentJourneysUseCase>(
       () => GetRecentJourneysUseCase(sl()),
@@ -546,7 +571,10 @@ Future<void> initDependencyInjection() async {
 
   if (!sl.isRegistered<SettingsBloc>()) {
     sl.registerFactory<SettingsBloc>(
-      () => SettingsBloc(getSettingsUseCase: sl()),
+      () => SettingsBloc(
+        getSettingsUseCase: sl(),
+        updateUserProfileUseCase: sl(),
+      ),
     );
   }
 
@@ -710,4 +738,47 @@ Future<void> initDependencyInjection() async {
       ),
     );
   }
+
+  // Notifications Feature
+  if (!sl.isRegistered<NotificationRemoteDataSource>()) {
+    sl.registerLazySingleton<NotificationRemoteDataSource>(
+      () => NotificationRemoteDataSourceImpl(sl()),
+    );
+  }
+  if (!sl.isRegistered<NotificationRepository>()) {
+    sl.registerLazySingleton<NotificationRepository>(
+      () => NotificationRepositoryImpl(remoteDataSource: sl()),
+    );
+  }
+  if (!sl.isRegistered<GetNotificationsUseCase>()) {
+    sl.registerLazySingleton<GetNotificationsUseCase>(
+      () => GetNotificationsUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<GetUnreadCountUseCase>()) {
+    sl.registerLazySingleton<GetUnreadCountUseCase>(
+      () => GetUnreadCountUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<MarkNotificationReadUseCase>()) {
+    sl.registerLazySingleton<MarkNotificationReadUseCase>(
+      () => MarkNotificationReadUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<MarkAllReadUseCase>()) {
+    sl.registerLazySingleton<MarkAllReadUseCase>(
+      () => MarkAllReadUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<NotificationBloc>()) {
+    sl.registerFactory<NotificationBloc>(
+      () => NotificationBloc(
+        getNotificationsUseCase: sl(),
+        getUnreadCountUseCase: sl(),
+        markNotificationReadUseCase: sl(),
+        markAllReadUseCase: sl(),
+      ),
+    );
+  }
 }
+

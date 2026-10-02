@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$PastRideItemModel {
 
- String get id; String get title; String get dateAndVehicle; String get status; String get amount; String get serviceType;
+ String get id; String get title; String get dateAndVehicle; String get status; String get amount; String get serviceType; String get serviceMode; String get pickupAddress; String get dropAddress; double? get pickupLat; double? get pickupLng; double? get dropLat; double? get dropLng;
 /// Create a copy of PastRideItemModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $PastRideItemModelCopyWith<PastRideItemModel> get copyWith => _$PastRideItemMode
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PastRideItemModel&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.dateAndVehicle, dateAndVehicle) || other.dateAndVehicle == dateAndVehicle)&&(identical(other.status, status) || other.status == status)&&(identical(other.amount, amount) || other.amount == amount)&&(identical(other.serviceType, serviceType) || other.serviceType == serviceType));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PastRideItemModel&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.dateAndVehicle, dateAndVehicle) || other.dateAndVehicle == dateAndVehicle)&&(identical(other.status, status) || other.status == status)&&(identical(other.amount, amount) || other.amount == amount)&&(identical(other.serviceType, serviceType) || other.serviceType == serviceType)&&(identical(other.serviceMode, serviceMode) || other.serviceMode == serviceMode)&&(identical(other.pickupAddress, pickupAddress) || other.pickupAddress == pickupAddress)&&(identical(other.dropAddress, dropAddress) || other.dropAddress == dropAddress)&&(identical(other.pickupLat, pickupLat) || other.pickupLat == pickupLat)&&(identical(other.pickupLng, pickupLng) || other.pickupLng == pickupLng)&&(identical(other.dropLat, dropLat) || other.dropLat == dropLat)&&(identical(other.dropLng, dropLng) || other.dropLng == dropLng));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,title,dateAndVehicle,status,amount,serviceType);
+int get hashCode => Object.hash(runtimeType,id,title,dateAndVehicle,status,amount,serviceType,serviceMode,pickupAddress,dropAddress,pickupLat,pickupLng,dropLat,dropLng);
 
 @override
 String toString() {
-  return 'PastRideItemModel(id: $id, title: $title, dateAndVehicle: $dateAndVehicle, status: $status, amount: $amount, serviceType: $serviceType)';
+  return 'PastRideItemModel(id: $id, title: $title, dateAndVehicle: $dateAndVehicle, status: $status, amount: $amount, serviceType: $serviceType, serviceMode: $serviceMode, pickupAddress: $pickupAddress, dropAddress: $dropAddress, pickupLat: $pickupLat, pickupLng: $pickupLng, dropLat: $dropLat, dropLng: $dropLng)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $PastRideItemModelCopyWith<$Res>  {
   factory $PastRideItemModelCopyWith(PastRideItemModel value, $Res Function(PastRideItemModel) _then) = _$PastRideItemModelCopyWithImpl;
 @useResult
 $Res call({
- String id, String title, String dateAndVehicle, String status, String amount, String serviceType
+ String id, String title, String dateAndVehicle, String status, String amount, String serviceType, String serviceMode, String pickupAddress, String dropAddress, double? pickupLat, double? pickupLng, double? dropLat, double? dropLng
 });
 
 
@@ -65,7 +65,7 @@ class _$PastRideItemModelCopyWithImpl<$Res>
 
 /// Create a copy of PastRideItemModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? dateAndVehicle = null,Object? status = null,Object? amount = null,Object? serviceType = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? dateAndVehicle = null,Object? status = null,Object? amount = null,Object? serviceType = null,Object? serviceMode = null,Object? pickupAddress = null,Object? dropAddress = null,Object? pickupLat = freezed,Object? pickupLng = freezed,Object? dropLat = freezed,Object? dropLng = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -73,7 +73,14 @@ as String,dateAndVehicle: null == dateAndVehicle ? _self.dateAndVehicle : dateAn
 as String,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as String,amount: null == amount ? _self.amount : amount // ignore: cast_nullable_to_non_nullable
 as String,serviceType: null == serviceType ? _self.serviceType : serviceType // ignore: cast_nullable_to_non_nullable
-as String,
+as String,serviceMode: null == serviceMode ? _self.serviceMode : serviceMode // ignore: cast_nullable_to_non_nullable
+as String,pickupAddress: null == pickupAddress ? _self.pickupAddress : pickupAddress // ignore: cast_nullable_to_non_nullable
+as String,dropAddress: null == dropAddress ? _self.dropAddress : dropAddress // ignore: cast_nullable_to_non_nullable
+as String,pickupLat: freezed == pickupLat ? _self.pickupLat : pickupLat // ignore: cast_nullable_to_non_nullable
+as double?,pickupLng: freezed == pickupLng ? _self.pickupLng : pickupLng // ignore: cast_nullable_to_non_nullable
+as double?,dropLat: freezed == dropLat ? _self.dropLat : dropLat // ignore: cast_nullable_to_non_nullable
+as double?,dropLng: freezed == dropLng ? _self.dropLng : dropLng // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 
@@ -158,10 +165,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title,  String dateAndVehicle,  String status,  String amount,  String serviceType)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String title,  String dateAndVehicle,  String status,  String amount,  String serviceType,  String serviceMode,  String pickupAddress,  String dropAddress,  double? pickupLat,  double? pickupLng,  double? dropLat,  double? dropLng)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PastRideItemModel() when $default != null:
-return $default(_that.id,_that.title,_that.dateAndVehicle,_that.status,_that.amount,_that.serviceType);case _:
+return $default(_that.id,_that.title,_that.dateAndVehicle,_that.status,_that.amount,_that.serviceType,_that.serviceMode,_that.pickupAddress,_that.dropAddress,_that.pickupLat,_that.pickupLng,_that.dropLat,_that.dropLng);case _:
   return orElse();
 
 }
@@ -179,10 +186,10 @@ return $default(_that.id,_that.title,_that.dateAndVehicle,_that.status,_that.amo
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title,  String dateAndVehicle,  String status,  String amount,  String serviceType)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String title,  String dateAndVehicle,  String status,  String amount,  String serviceType,  String serviceMode,  String pickupAddress,  String dropAddress,  double? pickupLat,  double? pickupLng,  double? dropLat,  double? dropLng)  $default,) {final _that = this;
 switch (_that) {
 case _PastRideItemModel():
-return $default(_that.id,_that.title,_that.dateAndVehicle,_that.status,_that.amount,_that.serviceType);case _:
+return $default(_that.id,_that.title,_that.dateAndVehicle,_that.status,_that.amount,_that.serviceType,_that.serviceMode,_that.pickupAddress,_that.dropAddress,_that.pickupLat,_that.pickupLng,_that.dropLat,_that.dropLng);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -199,10 +206,10 @@ return $default(_that.id,_that.title,_that.dateAndVehicle,_that.status,_that.amo
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title,  String dateAndVehicle,  String status,  String amount,  String serviceType)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String title,  String dateAndVehicle,  String status,  String amount,  String serviceType,  String serviceMode,  String pickupAddress,  String dropAddress,  double? pickupLat,  double? pickupLng,  double? dropLat,  double? dropLng)?  $default,) {final _that = this;
 switch (_that) {
 case _PastRideItemModel() when $default != null:
-return $default(_that.id,_that.title,_that.dateAndVehicle,_that.status,_that.amount,_that.serviceType);case _:
+return $default(_that.id,_that.title,_that.dateAndVehicle,_that.status,_that.amount,_that.serviceType,_that.serviceMode,_that.pickupAddress,_that.dropAddress,_that.pickupLat,_that.pickupLng,_that.dropLat,_that.dropLng);case _:
   return null;
 
 }
@@ -214,7 +221,7 @@ return $default(_that.id,_that.title,_that.dateAndVehicle,_that.status,_that.amo
 @JsonSerializable()
 
 class _PastRideItemModel implements PastRideItemModel {
-  const _PastRideItemModel({required this.id, required this.title, required this.dateAndVehicle, required this.status, required this.amount, required this.serviceType});
+  const _PastRideItemModel({required this.id, required this.title, required this.dateAndVehicle, required this.status, required this.amount, required this.serviceType, this.serviceMode = 'SELF', this.pickupAddress = '', this.dropAddress = '', this.pickupLat, this.pickupLng, this.dropLat, this.dropLng});
   factory _PastRideItemModel.fromJson(Map<String, dynamic> json) => _$PastRideItemModelFromJson(json);
 
 @override final  String id;
@@ -223,6 +230,13 @@ class _PastRideItemModel implements PastRideItemModel {
 @override final  String status;
 @override final  String amount;
 @override final  String serviceType;
+@override@JsonKey() final  String serviceMode;
+@override@JsonKey() final  String pickupAddress;
+@override@JsonKey() final  String dropAddress;
+@override final  double? pickupLat;
+@override final  double? pickupLng;
+@override final  double? dropLat;
+@override final  double? dropLng;
 
 /// Create a copy of PastRideItemModel
 /// with the given fields replaced by the non-null parameter values.
@@ -237,16 +251,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PastRideItemModel&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.dateAndVehicle, dateAndVehicle) || other.dateAndVehicle == dateAndVehicle)&&(identical(other.status, status) || other.status == status)&&(identical(other.amount, amount) || other.amount == amount)&&(identical(other.serviceType, serviceType) || other.serviceType == serviceType));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PastRideItemModel&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.dateAndVehicle, dateAndVehicle) || other.dateAndVehicle == dateAndVehicle)&&(identical(other.status, status) || other.status == status)&&(identical(other.amount, amount) || other.amount == amount)&&(identical(other.serviceType, serviceType) || other.serviceType == serviceType)&&(identical(other.serviceMode, serviceMode) || other.serviceMode == serviceMode)&&(identical(other.pickupAddress, pickupAddress) || other.pickupAddress == pickupAddress)&&(identical(other.dropAddress, dropAddress) || other.dropAddress == dropAddress)&&(identical(other.pickupLat, pickupLat) || other.pickupLat == pickupLat)&&(identical(other.pickupLng, pickupLng) || other.pickupLng == pickupLng)&&(identical(other.dropLat, dropLat) || other.dropLat == dropLat)&&(identical(other.dropLng, dropLng) || other.dropLng == dropLng));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,title,dateAndVehicle,status,amount,serviceType);
+int get hashCode => Object.hash(runtimeType,id,title,dateAndVehicle,status,amount,serviceType,serviceMode,pickupAddress,dropAddress,pickupLat,pickupLng,dropLat,dropLng);
 
 @override
 String toString() {
-  return 'PastRideItemModel(id: $id, title: $title, dateAndVehicle: $dateAndVehicle, status: $status, amount: $amount, serviceType: $serviceType)';
+  return 'PastRideItemModel(id: $id, title: $title, dateAndVehicle: $dateAndVehicle, status: $status, amount: $amount, serviceType: $serviceType, serviceMode: $serviceMode, pickupAddress: $pickupAddress, dropAddress: $dropAddress, pickupLat: $pickupLat, pickupLng: $pickupLng, dropLat: $dropLat, dropLng: $dropLng)';
 }
 
 
@@ -257,7 +271,7 @@ abstract mixin class _$PastRideItemModelCopyWith<$Res> implements $PastRideItemM
   factory _$PastRideItemModelCopyWith(_PastRideItemModel value, $Res Function(_PastRideItemModel) _then) = __$PastRideItemModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String title, String dateAndVehicle, String status, String amount, String serviceType
+ String id, String title, String dateAndVehicle, String status, String amount, String serviceType, String serviceMode, String pickupAddress, String dropAddress, double? pickupLat, double? pickupLng, double? dropLat, double? dropLng
 });
 
 
@@ -274,7 +288,7 @@ class __$PastRideItemModelCopyWithImpl<$Res>
 
 /// Create a copy of PastRideItemModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? dateAndVehicle = null,Object? status = null,Object? amount = null,Object? serviceType = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? dateAndVehicle = null,Object? status = null,Object? amount = null,Object? serviceType = null,Object? serviceMode = null,Object? pickupAddress = null,Object? dropAddress = null,Object? pickupLat = freezed,Object? pickupLng = freezed,Object? dropLat = freezed,Object? dropLng = freezed,}) {
   return _then(_PastRideItemModel(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
@@ -282,7 +296,14 @@ as String,dateAndVehicle: null == dateAndVehicle ? _self.dateAndVehicle : dateAn
 as String,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as String,amount: null == amount ? _self.amount : amount // ignore: cast_nullable_to_non_nullable
 as String,serviceType: null == serviceType ? _self.serviceType : serviceType // ignore: cast_nullable_to_non_nullable
-as String,
+as String,serviceMode: null == serviceMode ? _self.serviceMode : serviceMode // ignore: cast_nullable_to_non_nullable
+as String,pickupAddress: null == pickupAddress ? _self.pickupAddress : pickupAddress // ignore: cast_nullable_to_non_nullable
+as String,dropAddress: null == dropAddress ? _self.dropAddress : dropAddress // ignore: cast_nullable_to_non_nullable
+as String,pickupLat: freezed == pickupLat ? _self.pickupLat : pickupLat // ignore: cast_nullable_to_non_nullable
+as double?,pickupLng: freezed == pickupLng ? _self.pickupLng : pickupLng // ignore: cast_nullable_to_non_nullable
+as double?,dropLat: freezed == dropLat ? _self.dropLat : dropLat // ignore: cast_nullable_to_non_nullable
+as double?,dropLng: freezed == dropLng ? _self.dropLng : dropLng // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 

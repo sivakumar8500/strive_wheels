@@ -49,6 +49,10 @@ class ApiEndpoints {
   static String completeTrip(int id) => '$baseUrl/rider/bookings/$id/complete';
   static String riderEarnings({int limit = 50, int offset = 0}) => '$baseUrl/rider/earnings?limit=$limit&offset=$offset';
   static String riderBookings({int limit = 50, int offset = 0}) => '$baseUrl/rider/bookings?limit=$limit&offset=$offset';
+  static String riderNotifications({int limit = 50, int skip = 0}) => '$baseUrl/rider/notifications?limit=$limit&skip=$skip';
+  static const String riderUnreadNotificationsCount = '$baseUrl/rider/notifications/unread-count';
+  static String markRiderNotificationRead(int id) => '$baseUrl/rider/notifications/$id/read';
+  static const String markAllRiderNotificationsRead = '$baseUrl/rider/notifications/read-all';
 
 
   // Rider Registration Flow Endpoints

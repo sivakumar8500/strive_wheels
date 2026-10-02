@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -9,17 +11,23 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_constants.dart';
+import '../../../../core/utils/toast_utils.dart';
+import '../../../favourites/domain/entities/favorite_place_entity.dart';
 import '../../../favourites/presentation/bloc/favourites_bloc.dart';
 import '../../../favourites/presentation/bloc/favourites_event.dart';
 import '../../../favourites/presentation/bloc/favourites_state.dart';
+import '../../../settings/data/datasources/settings_remote_datasource.dart';
+import '../../../settings/data/models/user_profile_model.dart';
 import '../bloc/booking_bloc.dart';
 import '../bloc/booking_event.dart';
 import '../bloc/booking_state.dart';
 import '../widgets/location_list_item.dart';
 import '../widgets/route_input_card.dart';
+import 'map_location_picker_page.dart';
 import 'ride_route_map_page.dart';
 
 /// Location Search & Booking Page matching exact reference UI design.
@@ -30,12 +38,20 @@ class LocationSearchPage extends StatefulWidget {
   final VoidCallback? onMenuTap;
   final VoidCallback? onNotificationTap;
   final bool initialIsCorporate;
+  final String? initialPickupAddress;
+  final String? initialDropAddress;
+  final LatLng? initialPickupLatLng;
+  final LatLng? initialDropLatLng;
 
   const LocationSearchPage({
     super.key,
     this.onMenuTap,
     this.onNotificationTap,
     this.initialIsCorporate = false,
+    this.initialPickupAddress,
+    this.initialDropAddress,
+    this.initialPickupLatLng,
+    this.initialDropLatLng,
   });
 
   @override
@@ -85,6 +101,44 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
     }
   }
 
+  Future<bool> _verifyCorporateStatus() async {
+    final prefs = sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : null;
+    if (prefs?.getBool('is_corporate_user') == true) return true;
+
+    final compName = prefs?.getString('corporate_company_name') ?? prefs?.getString('company_name');
+    if (compName != null && compName.trim().isNotEmpty) {
+      await prefs?.setBool('is_corporate_user', true);
+      return true;
+    }
+
+    final savedProfile = prefs?.getString('saved_customer_profile');
+    if (savedProfile != null && savedProfile.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(savedProfile);
+        final profileModel = UserProfileModel.fromJson(decoded);
+        if (profileModel.isCorporate && profileModel.companyName != null && profileModel.companyName!.trim().isNotEmpty) {
+          await prefs?.setBool('is_corporate_user', true);
+          await prefs?.setString('corporate_company_name', profileModel.companyName!);
+          return true;
+        }
+      } catch (_) {}
+    }
+
+    // Live sync fallback from backend API
+    try {
+      if (sl.isRegistered<SettingsRemoteDataSource>()) {
+        final profile = await sl<SettingsRemoteDataSource>().getCustomerProfile();
+        if (profile.isCorporate && profile.companyName != null && profile.companyName!.trim().isNotEmpty) {
+          await prefs?.setBool('is_corporate_user', true);
+          await prefs?.setString('corporate_company_name', profile.companyName!);
+          return true;
+        }
+      }
+    } catch (_) {}
+
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -94,20 +148,54 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
     if (widget.initialIsCorporate && isCorp) {
       _isCorporateRide = true;
     }
-    final initialPickup = context.read<BookingBloc>().state.pickupLocation;
+
+    _verifyCorporateStatus().then((isVerified) {
+      if (mounted && isVerified && (widget.initialIsCorporate || _isCorporateRide)) {
+        setState(() {
+          _isCorporateRide = true;
+          final updatedCorpLoc = prefs?.getString('corporate_location') ?? prefs?.getString('company_location') ?? '';
+          if (updatedCorpLoc.trim().isNotEmpty && _pickupController.text.contains('Fetching current location')) {
+            _pickupController.text = updatedCorpLoc.trim();
+            context.read<BookingBloc>().add(ChangePickupLocationEvent(updatedCorpLoc.trim()));
+          }
+        });
+      }
+    });
+
+    final initialPickup = widget.initialPickupAddress ?? context.read<BookingBloc>().state.pickupLocation;
     String initialText = initialPickup.trim().isNotEmpty
         ? initialPickup
         : 'Fetching current location...';
-    if (_isCorporateRide && corpLoc.trim().isNotEmpty) {
+    if (_isCorporateRide && corpLoc.trim().isNotEmpty && (widget.initialPickupAddress == null || widget.initialPickupAddress!.isEmpty)) {
       initialText = corpLoc.trim();
     }
     _pickupController = TextEditingController(text: initialText);
-    _dropController = TextEditingController();
+    _dropController = TextEditingController(text: widget.initialDropAddress ?? '');
+    _pickupLatLng = widget.initialPickupLatLng;
+    _dropLatLng = widget.initialDropLatLng;
     _pickupController.addListener(_onControllersChanged);
     _dropController.addListener(_onControllersChanged);
 
-    // 1. Fetch real current GPS location with full address and building name for "From"
-    _fetchCurrentLocation();
+    if (widget.initialDropAddress != null && widget.initialDropAddress!.trim().isNotEmpty) {
+      context.read<BookingBloc>().add(ChangeDestinationEvent(widget.initialDropAddress!.trim()));
+    }
+    if (widget.initialPickupAddress != null && widget.initialPickupAddress!.trim().isNotEmpty) {
+      context.read<BookingBloc>().add(ChangePickupLocationEvent(widget.initialPickupAddress!.trim()));
+    }
+
+    // 1. Fetch real current GPS location with full address and building name for "From" if not provided or if generic
+    if (widget.initialPickupAddress == null ||
+        widget.initialPickupAddress!.isEmpty ||
+        widget.initialPickupAddress == 'Current Location') {
+      _fetchCurrentLocation();
+    } else if (_pickupLatLng == null) {
+      _geocodeAddressIfNeeded(isPickup: true);
+    }
+
+    // If drop address provided without coordinates, resolve asynchronously
+    if (_dropLatLng == null && _dropController.text.trim().isNotEmpty) {
+      _geocodeAddressIfNeeded(isPickup: false);
+    }
 
     // 2. Load Booking Data & Saved Locations from Backend API
     context.read<BookingBloc>().add(const LoadBookingDataEvent());
@@ -169,7 +257,38 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
 
       _pickupLatLng = LatLng(position.latitude, position.longitude);
 
-      // Query reverse geocoding for full building name, road, and city
+      // 1. Fast high-accuracy native reverse geocoding
+      try {
+        final placemarks = await Geocoding().placemarkFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+        if (placemarks.isNotEmpty) {
+          final place = placemarks.first;
+          final components = [
+            if (place.name != null && place.name!.isNotEmpty && place.name != place.street) place.name,
+            if (place.street != null && place.street!.isNotEmpty) place.street,
+            if (place.subLocality != null && place.subLocality!.isNotEmpty) place.subLocality,
+            if (place.locality != null && place.locality!.isNotEmpty) place.locality,
+            if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) place.administrativeArea,
+          ];
+          final formattedAddress = components.isNotEmpty
+              ? components.join(', ')
+              : (place.locality ?? 'Current Location');
+
+          if (mounted && formattedAddress.trim().isNotEmpty) {
+            setState(() {
+              _pickupController.text = formattedAddress;
+            });
+            context.read<BookingBloc>().add(ChangePickupLocationEvent(formattedAddress));
+            return;
+          }
+        }
+      } catch (e) {
+        debugPrint('Native geocoding error: $e');
+      }
+
+      // 2. Query reverse geocoding fallback
       try {
         final response = await _dio.get(
           ApiConstants.nominatimReverse,
@@ -211,23 +330,19 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
                 : (data['display_name'] as String? ?? 'Current Location');
 
             if (mounted) {
-              if (!_isCorporateRide || _pickupController.text == 'Fetching current location...') {
-                setState(() {
-                  _pickupController.text = formattedAddress;
-                });
-                context.read<BookingBloc>().add(ChangePickupLocationEvent(formattedAddress));
-              }
+              setState(() {
+                _pickupController.text = formattedAddress;
+              });
+              context.read<BookingBloc>().add(ChangePickupLocationEvent(formattedAddress));
             }
             return;
           } else if (data['display_name'] != null) {
             final formatted = data['display_name'].toString();
             if (mounted) {
-              if (!_isCorporateRide || _pickupController.text == 'Fetching current location...') {
-                setState(() {
-                  _pickupController.text = formatted;
-                });
-                context.read<BookingBloc>().add(ChangePickupLocationEvent(formatted));
-              }
+              setState(() {
+                _pickupController.text = formatted;
+              });
+              context.read<BookingBloc>().add(ChangePickupLocationEvent(formatted));
             }
             return;
           }
@@ -238,21 +353,17 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
 
       if (mounted) {
         const fallback = 'Current Location';
-        if (!_isCorporateRide || _pickupController.text == 'Fetching current location...') {
-          setState(() {
-            _pickupController.text = fallback;
-          });
-          context.read<BookingBloc>().add(const ChangePickupLocationEvent(fallback));
-        }
+        setState(() {
+          _pickupController.text = fallback;
+        });
+        context.read<BookingBloc>().add(const ChangePickupLocationEvent(fallback));
       }
     } catch (e) {
       debugPrint('Error getting current location: $e');
       if (mounted) {
-        if (!_isCorporateRide || _pickupController.text == 'Fetching current location...') {
-          setState(() {
-            _pickupController.text = 'Current Location';
-          });
-        }
+        setState(() {
+          _pickupController.text = 'Current Location';
+        });
       }
     }
   }
@@ -383,19 +494,26 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
 
   /// Select a place from Google Search or from Saved Locations
   Future<void> _selectPlace(Map<String, dynamic> item) async {
-    final title = item['title'] as String;
+    final title = (item['title'] as String?)?.trim() ?? '';
+    final address = (item['address'] as String?)?.trim() ?? '';
     final placeId = (item['place_id'] as String?) ?? '';
+    final isFavorite = item['is_favorite'] == true;
+
+    // When selecting a favorite/saved location, display the actual location address in the drop/pickup point
+    final selectedText = (isFavorite && address.isNotEmpty)
+        ? address
+        : (title.isNotEmpty ? title : address);
 
     if (_isSelectingPickup) {
-      _pickupController.text = title;
-      context.read<BookingBloc>().add(ChangePickupLocationEvent(title));
+      _pickupController.text = selectedText;
+      context.read<BookingBloc>().add(ChangePickupLocationEvent(selectedText));
       setState(() {
         _isSelectingPickup = false;
       });
       _dropFocusNode.requestFocus();
     } else {
-      _dropController.text = title;
-      context.read<BookingBloc>().add(ChangeDestinationEvent(title));
+      _dropController.text = selectedText;
+      context.read<BookingBloc>().add(ChangeDestinationEvent(selectedText));
       setState(() {
         _googleSearchResults.clear();
       });
@@ -439,14 +557,34 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
     if (item['latitude'] != null && item['longitude'] != null) {
       final lat = (item['latitude'] as num).toDouble();
       final lng = (item['longitude'] as num).toDouble();
-      setState(() {
-        if (_isSelectingPickup) {
-          _pickupLatLng = LatLng(lat, lng);
-        } else {
-          _dropLatLng = LatLng(lat, lng);
+      if (lat != 0.0 || lng != 0.0) {
+        setState(() {
+          if (_isSelectingPickup) {
+            _pickupLatLng = LatLng(lat, lng);
+          } else {
+            _dropLatLng = LatLng(lat, lng);
+          }
+          _checkCorporateDistanceAutoSelect();
+        });
+        return;
+      }
+    }
+
+    if (address.isNotEmpty) {
+      try {
+        final locations = await Geocoding().locationFromAddress(address);
+        if (locations.isNotEmpty) {
+          final loc = locations.first;
+          setState(() {
+            if (_isSelectingPickup) {
+              _pickupLatLng = LatLng(loc.latitude, loc.longitude);
+            } else {
+              _dropLatLng = LatLng(loc.latitude, loc.longitude);
+            }
+            _checkCorporateDistanceAutoSelect();
+          });
         }
-        _checkCorporateDistanceAutoSelect();
-      });
+      } catch (_) {}
     }
   }
 
@@ -461,6 +599,135 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
     return isPickupValid && isDropValid;
   }
 
+  Future<void> _openMapLocationPicker({required bool isPickup}) async {
+    final currentLatLng = isPickup
+        ? (_pickupLatLng ?? const LatLng(17.4483, 78.3915))
+        : (_dropLatLng ?? _pickupLatLng ?? const LatLng(17.4938, 78.3995));
+    final currentAddress = isPickup
+        ? _pickupController.text.trim()
+        : _dropController.text.trim();
+
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (_) => MapLocationPickerPage(
+          initialLatLng: currentLatLng,
+          initialAddress: currentAddress.isNotEmpty &&
+                  !currentAddress.contains('Fetching current location') &&
+                  !currentAddress.contains('Location permission') &&
+                  !currentAddress.contains('Location service')
+              ? currentAddress
+              : null,
+          isPickup: isPickup,
+          dio: _dio,
+        ),
+      ),
+    );
+
+    if (result != null && mounted) {
+      final address = result['address']?.toString() ?? '';
+      final latLng = result['latLng'] as LatLng?;
+
+      setState(() {
+        if (isPickup) {
+          _pickupController.text = address;
+          _pickupLatLng = latLng;
+          context.read<BookingBloc>().add(ChangePickupLocationEvent(address));
+          if (_dropController.text.trim().isEmpty) {
+            _isSelectingPickup = false;
+          }
+        } else {
+          _dropController.text = address;
+          _dropLatLng = latLng;
+          _isSelectingPickup = false;
+        }
+        _checkCorporateDistanceAutoSelect();
+      });
+    }
+  }
+
+  Future<void> _geocodeAddressIfNeeded({required bool isPickup}) async {
+    final text = isPickup ? _pickupController.text.trim() : _dropController.text.trim();
+    if (text.isEmpty ||
+        text.contains('Fetching current location') ||
+        text.contains('Location permission') ||
+        text.contains('Location service') ||
+        text == 'Current Location') {
+      return;
+    }
+
+    final lower = text.toLowerCase();
+    if (lower.contains('airport') || lower.contains('shamshabad')) {
+      final loc = const LatLng(17.2403, 78.4294);
+      if (mounted) {
+        setState(() {
+          if (isPickup) {
+            _pickupLatLng = loc;
+          } else {
+            _dropLatLng = loc;
+          }
+          _checkCorporateDistanceAutoSelect();
+        });
+      }
+      return;
+    } else if (lower.contains('secunderabad')) {
+      final loc = const LatLng(17.4344, 78.5017);
+      if (mounted) {
+        setState(() {
+          if (isPickup) {
+            _pickupLatLng = loc;
+          } else {
+            _dropLatLng = loc;
+          }
+          _checkCorporateDistanceAutoSelect();
+        });
+      }
+      return;
+    } else if (lower.contains('cyber') || lower.contains('hitech') || lower.contains('mindspace')) {
+      final loc = const LatLng(17.4504, 78.3808);
+      if (mounted) {
+        setState(() {
+          if (isPickup) {
+            _pickupLatLng = loc;
+          } else {
+            _dropLatLng = loc;
+          }
+          _checkCorporateDistanceAutoSelect();
+        });
+      }
+      return;
+    } else if (lower.contains('nanakramguda')) {
+      final loc = const LatLng(17.4156, 78.3427);
+      if (mounted) {
+        setState(() {
+          if (isPickup) {
+            _pickupLatLng = loc;
+          } else {
+            _dropLatLng = loc;
+          }
+          _checkCorporateDistanceAutoSelect();
+        });
+      }
+      return;
+    }
+
+    try {
+      final locations = await Geocoding().locationFromAddress(text);
+      if (locations.isNotEmpty && mounted) {
+        final loc = locations.first;
+        setState(() {
+          if (isPickup) {
+            _pickupLatLng = LatLng(loc.latitude, loc.longitude);
+          } else {
+            _dropLatLng = LatLng(loc.latitude, loc.longitude);
+          }
+          _checkCorporateDistanceAutoSelect();
+        });
+      }
+    } catch (e) {
+      debugPrint('Geocode address error: $e');
+    }
+  }
+
   void _navigateToMap() {
     if (!_isReadyToBook) return;
     final pickup = _pickupController.text.isNotEmpty
@@ -470,6 +737,43 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
         ? _dropController.text
         : 'Selected Location';
 
+    LatLng resolvedDropLatLng = _dropLatLng ?? const LatLng(17.4938, 78.3995);
+    final dropLower = drop.toLowerCase();
+    if (_dropLatLng == null) {
+      if (dropLower.contains('airport') || dropLower.contains('shamshabad')) {
+        resolvedDropLatLng = const LatLng(17.2403, 78.4294);
+      } else if (dropLower.contains('secunderabad')) {
+        resolvedDropLatLng = const LatLng(17.4344, 78.5017);
+      } else if (dropLower.contains('cyber') || dropLower.contains('hitech') || dropLower.contains('mindspace')) {
+        resolvedDropLatLng = const LatLng(17.4504, 78.3808);
+      } else if (dropLower.contains('nanakramguda')) {
+        resolvedDropLatLng = const LatLng(17.4156, 78.3427);
+      }
+    }
+
+    LatLng resolvedPickupLatLng = _pickupLatLng ?? const LatLng(17.4483, 78.3915);
+    final pickupLower = pickup.toLowerCase();
+    if (_pickupLatLng == null) {
+      if (pickupLower.contains('airport') || pickupLower.contains('shamshabad')) {
+        resolvedPickupLatLng = const LatLng(17.2403, 78.4294);
+      } else if (pickupLower.contains('mindspace') || pickupLower.contains('office') || pickupLower.contains('hitech')) {
+        resolvedPickupLatLng = const LatLng(17.4401, 78.3811);
+      } else if (pickupLower.contains('nanakramguda') || pickupLower.contains('home')) {
+        resolvedPickupLatLng = const LatLng(17.4156, 78.3427);
+      }
+    }
+
+    final distanceMeters = Geolocator.distanceBetween(
+      resolvedPickupLatLng.latitude,
+      resolvedPickupLatLng.longitude,
+      resolvedDropLatLng.latitude,
+      resolvedDropLatLng.longitude,
+    );
+    if (distanceMeters <= AppConstants.minBookingDistanceMeters) {
+      ToastUtils.showError(context, AppStrings.minDistanceError);
+      return;
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => RideRouteMapPage(
@@ -477,8 +781,8 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
           pickupAddress: pickup,
           dropTitle: drop,
           dropAddress: drop,
-          pickupLatLng: _pickupLatLng ?? const LatLng(17.4483, 78.3915),
-          dropLatLng: _dropLatLng ?? const LatLng(17.4938, 78.3995),
+          pickupLatLng: resolvedPickupLatLng,
+          dropLatLng: resolvedDropLatLng,
           bookingMode: _selectedTripMode,
           isCorporate: _isCorporateRide,
         ),
@@ -572,18 +876,13 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
                   ),
                   GestureDetector(
                     key: const Key('corporate_ride_toggle_button'),
-                    onTap: () {
-                      final prefs = sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : null;
-                      final isCorp = prefs?.getBool('is_corporate_user') ?? false;
+                    onTap: () async {
+                      final isCorp = await _verifyCorporateStatus();
+                      if (!context.mounted) return;
                       if (!isCorp) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Your account is not linked to an active corporate company.'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
                         return;
                       }
+                      final prefs = sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : null;
                       final corpLocation = prefs?.getString('corporate_location') ?? prefs?.getString('company_location') ?? '';
                       setState(() {
                         _isCorporateRide = true;
@@ -678,18 +977,108 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
                           _googleSearchResults.clear();
                         });
                       },
-                    ),
-                    const SizedBox(height: 14),
+                      onSwapTap: () {
+                        setState(() {
+                          final tempText = _pickupController.text;
+                          _pickupController.text = _dropController.text;
+                          _dropController.text = tempText;
 
-                    // Single selection Trip Mode Chips (Instant, One-Way, Round Trip)
-                    Row(
-                      children: [
-                        _buildTripModeChip('Instant', 'INSTANT', textPrimary, borderColor, isDark),
-                        const SizedBox(width: 8),
-                        _buildTripModeChip('One-Way', 'ONE_WAY', textPrimary, borderColor, isDark),
-                        const SizedBox(width: 8),
-                        _buildTripModeChip('Round Trip', 'ROUND_TRIP', textPrimary, borderColor, isDark),
-                      ],
+                          final tempLatLng = _pickupLatLng;
+                          _pickupLatLng = _dropLatLng;
+                          _dropLatLng = tempLatLng;
+                          _checkCorporateDistanceAutoSelect();
+                        });
+                      },
+                    ),
+
+                    // Single selection Trip Mode Chips (Instant, One-Way, Round Trip) - hidden in Corporate mode
+                    if (!_isCorporateRide) ...[
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          _buildTripModeChip('Instant', 'INSTANT', textPrimary, borderColor, isDark),
+                          const SizedBox(width: 8),
+                          _buildTripModeChip('One-Way', 'ONE_WAY', textPrimary, borderColor, isDark),
+                          const SizedBox(width: 8),
+                          _buildTripModeChip('Round Trip', 'ROUND_TRIP', textPrimary, borderColor, isDark),
+                        ],
+                      ),
+                    ],
+
+                    const SizedBox(height: 12),
+
+                    // "Set location on map" Interactive Action Card
+                    InkWell(
+                      key: const Key('set_location_on_map_button'),
+                      onTap: () => _openMapLocationPicker(isPickup: _isSelectingPickup),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: _isSelectingPickup
+                                    ? const Color(0xFF16A34A).withValues(alpha: 0.12)
+                                    : AppColors.primaryBlue.withValues(alpha: 0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.map_rounded,
+                                size: 18,
+                                color: _isSelectingPickup
+                                    ? const Color(0xFF16A34A)
+                                    : AppColors.primaryBlue,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _isSelectingPickup
+                                        ? 'Set pickup on map'
+                                        : 'Set drop location on map',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    'Drag pin to pinpoint exact location',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      color: isDark
+                                          ? AppColors.textSecondaryDark
+                                          : AppColors.textSecondaryLight,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 18,
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondaryLight,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -823,7 +1212,39 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
           );
         }
 
-        final places = favState.favouritesEntity?.places ?? [];
+        final allPlaces = favState.favouritesEntity?.places ?? [];
+        List<FavoritePlaceEntity> places = allPlaces.where((place) {
+          if (_isCorporateRide) {
+            return place.isCorporate || place.locationType.toUpperCase() == 'CORPORATE';
+          } else {
+            return !place.isCorporate && place.locationType.toUpperCase() != 'CORPORATE';
+          }
+        }).toList();
+
+        // If in Corporate mode and no saved corporate places or company office is not yet in list, inject company office
+        if (_isCorporateRide) {
+          final prefs = sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : null;
+          final companyLoc = (prefs?.getString('corporate_location') ?? prefs?.getString('company_location') ?? '').trim();
+          final companyName = (prefs?.getString('company_name') ?? 'Corporate Office').trim();
+          if (companyLoc.isNotEmpty) {
+            final alreadyPresent = places.any((p) =>
+                p.address.toLowerCase().contains(companyLoc.toLowerCase()) ||
+                companyLoc.toLowerCase().contains(p.address.toLowerCase()));
+            if (!alreadyPresent) {
+              places = [
+                FavoritePlaceEntity(
+                  id: 'corp_default_office',
+                  title: companyName.isNotEmpty ? companyName : 'Corporate Office',
+                  address: companyLoc,
+                  iconType: 'office',
+                  isCorporate: true,
+                  locationType: 'CORPORATE',
+                ),
+                ...places,
+              ];
+            }
+          }
+        }
 
         if (places.isEmpty) {
           return _buildEmptySavedLocations(context);
@@ -848,10 +1269,13 @@ class _LocationSearchPageState extends State<LocationSearchPage> {
                   'address': place.address,
                   'latitude': place.latitude,
                   'longitude': place.longitude,
+                  'is_favorite': true,
                 });
               },
               onHeartTap: () {
-                context.read<FavouritesBloc>().add(DeleteFavoriteEvent(place.id));
+                if (place.id != 'corp_default_office') {
+                  context.read<FavouritesBloc>().add(DeleteFavoriteEvent(place.id));
+                }
               },
             );
           },

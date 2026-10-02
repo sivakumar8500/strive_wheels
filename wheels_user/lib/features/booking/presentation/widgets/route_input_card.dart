@@ -18,6 +18,7 @@ class RouteInputCard extends StatelessWidget {
   final VoidCallback? onDropTap;
   final VoidCallback? onClearDrop;
   final VoidCallback? onClearPickup;
+  final VoidCallback? onSwapTap;
   final bool isPickupActive;
 
   const RouteInputCard({
@@ -32,6 +33,7 @@ class RouteInputCard extends StatelessWidget {
     this.onDropTap,
     this.onClearDrop,
     this.onClearPickup,
+    this.onSwapTap,
     this.isPickupActive = false,
   });
 
@@ -196,6 +198,27 @@ class RouteInputCard extends StatelessWidget {
               ],
             ),
           ),
+          if (onSwapTap != null) ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              key: const Key('route_swap_locations_button'),
+              onTap: onSwapTap,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: borderColor, width: 1),
+                ),
+                child: Icon(
+                  Icons.swap_vert_rounded,
+                  color: AppColors.primaryBlue,
+                  size: 20,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

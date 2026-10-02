@@ -6,6 +6,7 @@ class UserProfileEntity {
   final String phone;
   final String email;
   final String gender;
+  final String? profileImageUrl;
   final bool isCorporate;
   final String? companyName;
   final String? corporateEmail;
@@ -23,6 +24,7 @@ class UserProfileEntity {
     required this.phone,
     required this.email,
     required this.gender,
+    this.profileImageUrl,
     this.isCorporate = false,
     this.companyName,
     this.corporateEmail,

@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$HomeDashboardModel {
 
- String get userName; String get greetingTitle; String get greetingSubtitle; String get recentRideTitle; String get recentRideDetails; int get selectedNavIndex; bool get isCorporate; String? get companyName; String? get employeeCode; String? get spendingLimit; String? get companyLocation;
+ String get userName; String? get profileImageUrl; String get greetingTitle; String get greetingSubtitle; String get recentRideTitle; String get recentRideDetails; int get selectedNavIndex; bool get isCorporate; String? get companyName; String? get employeeCode; String? get spendingLimit; String? get companyLocation;
 /// Create a copy of HomeDashboardModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $HomeDashboardModelCopyWith<HomeDashboardModel> get copyWith => _$HomeDashboardM
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is HomeDashboardModel&&(identical(other.userName, userName) || other.userName == userName)&&(identical(other.greetingTitle, greetingTitle) || other.greetingTitle == greetingTitle)&&(identical(other.greetingSubtitle, greetingSubtitle) || other.greetingSubtitle == greetingSubtitle)&&(identical(other.recentRideTitle, recentRideTitle) || other.recentRideTitle == recentRideTitle)&&(identical(other.recentRideDetails, recentRideDetails) || other.recentRideDetails == recentRideDetails)&&(identical(other.selectedNavIndex, selectedNavIndex) || other.selectedNavIndex == selectedNavIndex)&&(identical(other.isCorporate, isCorporate) || other.isCorporate == isCorporate)&&(identical(other.companyName, companyName) || other.companyName == companyName)&&(identical(other.employeeCode, employeeCode) || other.employeeCode == employeeCode)&&(identical(other.spendingLimit, spendingLimit) || other.spendingLimit == spendingLimit)&&(identical(other.companyLocation, companyLocation) || other.companyLocation == companyLocation));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is HomeDashboardModel&&(identical(other.userName, userName) || other.userName == userName)&&(identical(other.profileImageUrl, profileImageUrl) || other.profileImageUrl == profileImageUrl)&&(identical(other.greetingTitle, greetingTitle) || other.greetingTitle == greetingTitle)&&(identical(other.greetingSubtitle, greetingSubtitle) || other.greetingSubtitle == greetingSubtitle)&&(identical(other.recentRideTitle, recentRideTitle) || other.recentRideTitle == recentRideTitle)&&(identical(other.recentRideDetails, recentRideDetails) || other.recentRideDetails == recentRideDetails)&&(identical(other.selectedNavIndex, selectedNavIndex) || other.selectedNavIndex == selectedNavIndex)&&(identical(other.isCorporate, isCorporate) || other.isCorporate == isCorporate)&&(identical(other.companyName, companyName) || other.companyName == companyName)&&(identical(other.employeeCode, employeeCode) || other.employeeCode == employeeCode)&&(identical(other.spendingLimit, spendingLimit) || other.spendingLimit == spendingLimit)&&(identical(other.companyLocation, companyLocation) || other.companyLocation == companyLocation));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,userName,greetingTitle,greetingSubtitle,recentRideTitle,recentRideDetails,selectedNavIndex,isCorporate,companyName,employeeCode,spendingLimit,companyLocation);
+int get hashCode => Object.hash(runtimeType,userName,profileImageUrl,greetingTitle,greetingSubtitle,recentRideTitle,recentRideDetails,selectedNavIndex,isCorporate,companyName,employeeCode,spendingLimit,companyLocation);
 
 @override
 String toString() {
-  return 'HomeDashboardModel(userName: $userName, greetingTitle: $greetingTitle, greetingSubtitle: $greetingSubtitle, recentRideTitle: $recentRideTitle, recentRideDetails: $recentRideDetails, selectedNavIndex: $selectedNavIndex, isCorporate: $isCorporate, companyName: $companyName, employeeCode: $employeeCode, spendingLimit: $spendingLimit, companyLocation: $companyLocation)';
+  return 'HomeDashboardModel(userName: $userName, profileImageUrl: $profileImageUrl, greetingTitle: $greetingTitle, greetingSubtitle: $greetingSubtitle, recentRideTitle: $recentRideTitle, recentRideDetails: $recentRideDetails, selectedNavIndex: $selectedNavIndex, isCorporate: $isCorporate, companyName: $companyName, employeeCode: $employeeCode, spendingLimit: $spendingLimit, companyLocation: $companyLocation)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $HomeDashboardModelCopyWith<$Res>  {
   factory $HomeDashboardModelCopyWith(HomeDashboardModel value, $Res Function(HomeDashboardModel) _then) = _$HomeDashboardModelCopyWithImpl;
 @useResult
 $Res call({
- String userName, String greetingTitle, String greetingSubtitle, String recentRideTitle, String recentRideDetails, int selectedNavIndex, bool isCorporate, String? companyName, String? employeeCode, String? spendingLimit, String? companyLocation
+ String userName, String? profileImageUrl, String greetingTitle, String greetingSubtitle, String recentRideTitle, String recentRideDetails, int selectedNavIndex, bool isCorporate, String? companyName, String? employeeCode, String? spendingLimit, String? companyLocation
 });
 
 
@@ -65,10 +65,11 @@ class _$HomeDashboardModelCopyWithImpl<$Res>
 
 /// Create a copy of HomeDashboardModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? userName = null,Object? greetingTitle = null,Object? greetingSubtitle = null,Object? recentRideTitle = null,Object? recentRideDetails = null,Object? selectedNavIndex = null,Object? isCorporate = null,Object? companyName = freezed,Object? employeeCode = freezed,Object? spendingLimit = freezed,Object? companyLocation = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? userName = null,Object? profileImageUrl = freezed,Object? greetingTitle = null,Object? greetingSubtitle = null,Object? recentRideTitle = null,Object? recentRideDetails = null,Object? selectedNavIndex = null,Object? isCorporate = null,Object? companyName = freezed,Object? employeeCode = freezed,Object? spendingLimit = freezed,Object? companyLocation = freezed,}) {
   return _then(_self.copyWith(
 userName: null == userName ? _self.userName : userName // ignore: cast_nullable_to_non_nullable
-as String,greetingTitle: null == greetingTitle ? _self.greetingTitle : greetingTitle // ignore: cast_nullable_to_non_nullable
+as String,profileImageUrl: freezed == profileImageUrl ? _self.profileImageUrl : profileImageUrl // ignore: cast_nullable_to_non_nullable
+as String?,greetingTitle: null == greetingTitle ? _self.greetingTitle : greetingTitle // ignore: cast_nullable_to_non_nullable
 as String,greetingSubtitle: null == greetingSubtitle ? _self.greetingSubtitle : greetingSubtitle // ignore: cast_nullable_to_non_nullable
 as String,recentRideTitle: null == recentRideTitle ? _self.recentRideTitle : recentRideTitle // ignore: cast_nullable_to_non_nullable
 as String,recentRideDetails: null == recentRideDetails ? _self.recentRideDetails : recentRideDetails // ignore: cast_nullable_to_non_nullable
@@ -163,10 +164,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String userName,  String greetingTitle,  String greetingSubtitle,  String recentRideTitle,  String recentRideDetails,  int selectedNavIndex,  bool isCorporate,  String? companyName,  String? employeeCode,  String? spendingLimit,  String? companyLocation)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String userName,  String? profileImageUrl,  String greetingTitle,  String greetingSubtitle,  String recentRideTitle,  String recentRideDetails,  int selectedNavIndex,  bool isCorporate,  String? companyName,  String? employeeCode,  String? spendingLimit,  String? companyLocation)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _HomeDashboardModel() when $default != null:
-return $default(_that.userName,_that.greetingTitle,_that.greetingSubtitle,_that.recentRideTitle,_that.recentRideDetails,_that.selectedNavIndex,_that.isCorporate,_that.companyName,_that.employeeCode,_that.spendingLimit,_that.companyLocation);case _:
+return $default(_that.userName,_that.profileImageUrl,_that.greetingTitle,_that.greetingSubtitle,_that.recentRideTitle,_that.recentRideDetails,_that.selectedNavIndex,_that.isCorporate,_that.companyName,_that.employeeCode,_that.spendingLimit,_that.companyLocation);case _:
   return orElse();
 
 }
@@ -184,10 +185,10 @@ return $default(_that.userName,_that.greetingTitle,_that.greetingSubtitle,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String userName,  String greetingTitle,  String greetingSubtitle,  String recentRideTitle,  String recentRideDetails,  int selectedNavIndex,  bool isCorporate,  String? companyName,  String? employeeCode,  String? spendingLimit,  String? companyLocation)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String userName,  String? profileImageUrl,  String greetingTitle,  String greetingSubtitle,  String recentRideTitle,  String recentRideDetails,  int selectedNavIndex,  bool isCorporate,  String? companyName,  String? employeeCode,  String? spendingLimit,  String? companyLocation)  $default,) {final _that = this;
 switch (_that) {
 case _HomeDashboardModel():
-return $default(_that.userName,_that.greetingTitle,_that.greetingSubtitle,_that.recentRideTitle,_that.recentRideDetails,_that.selectedNavIndex,_that.isCorporate,_that.companyName,_that.employeeCode,_that.spendingLimit,_that.companyLocation);case _:
+return $default(_that.userName,_that.profileImageUrl,_that.greetingTitle,_that.greetingSubtitle,_that.recentRideTitle,_that.recentRideDetails,_that.selectedNavIndex,_that.isCorporate,_that.companyName,_that.employeeCode,_that.spendingLimit,_that.companyLocation);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -204,10 +205,10 @@ return $default(_that.userName,_that.greetingTitle,_that.greetingSubtitle,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String userName,  String greetingTitle,  String greetingSubtitle,  String recentRideTitle,  String recentRideDetails,  int selectedNavIndex,  bool isCorporate,  String? companyName,  String? employeeCode,  String? spendingLimit,  String? companyLocation)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String userName,  String? profileImageUrl,  String greetingTitle,  String greetingSubtitle,  String recentRideTitle,  String recentRideDetails,  int selectedNavIndex,  bool isCorporate,  String? companyName,  String? employeeCode,  String? spendingLimit,  String? companyLocation)?  $default,) {final _that = this;
 switch (_that) {
 case _HomeDashboardModel() when $default != null:
-return $default(_that.userName,_that.greetingTitle,_that.greetingSubtitle,_that.recentRideTitle,_that.recentRideDetails,_that.selectedNavIndex,_that.isCorporate,_that.companyName,_that.employeeCode,_that.spendingLimit,_that.companyLocation);case _:
+return $default(_that.userName,_that.profileImageUrl,_that.greetingTitle,_that.greetingSubtitle,_that.recentRideTitle,_that.recentRideDetails,_that.selectedNavIndex,_that.isCorporate,_that.companyName,_that.employeeCode,_that.spendingLimit,_that.companyLocation);case _:
   return null;
 
 }
@@ -219,10 +220,11 @@ return $default(_that.userName,_that.greetingTitle,_that.greetingSubtitle,_that.
 @JsonSerializable()
 
 class _HomeDashboardModel implements HomeDashboardModel {
-  const _HomeDashboardModel({required this.userName, required this.greetingTitle, required this.greetingSubtitle, required this.recentRideTitle, required this.recentRideDetails, this.selectedNavIndex = 0, this.isCorporate = false, this.companyName, this.employeeCode, this.spendingLimit, this.companyLocation});
+  const _HomeDashboardModel({required this.userName, this.profileImageUrl, required this.greetingTitle, required this.greetingSubtitle, required this.recentRideTitle, required this.recentRideDetails, this.selectedNavIndex = 0, this.isCorporate = false, this.companyName, this.employeeCode, this.spendingLimit, this.companyLocation});
   factory _HomeDashboardModel.fromJson(Map<String, dynamic> json) => _$HomeDashboardModelFromJson(json);
 
 @override final  String userName;
+@override final  String? profileImageUrl;
 @override final  String greetingTitle;
 @override final  String greetingSubtitle;
 @override final  String recentRideTitle;
@@ -247,16 +249,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _HomeDashboardModel&&(identical(other.userName, userName) || other.userName == userName)&&(identical(other.greetingTitle, greetingTitle) || other.greetingTitle == greetingTitle)&&(identical(other.greetingSubtitle, greetingSubtitle) || other.greetingSubtitle == greetingSubtitle)&&(identical(other.recentRideTitle, recentRideTitle) || other.recentRideTitle == recentRideTitle)&&(identical(other.recentRideDetails, recentRideDetails) || other.recentRideDetails == recentRideDetails)&&(identical(other.selectedNavIndex, selectedNavIndex) || other.selectedNavIndex == selectedNavIndex)&&(identical(other.isCorporate, isCorporate) || other.isCorporate == isCorporate)&&(identical(other.companyName, companyName) || other.companyName == companyName)&&(identical(other.employeeCode, employeeCode) || other.employeeCode == employeeCode)&&(identical(other.spendingLimit, spendingLimit) || other.spendingLimit == spendingLimit)&&(identical(other.companyLocation, companyLocation) || other.companyLocation == companyLocation));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _HomeDashboardModel&&(identical(other.userName, userName) || other.userName == userName)&&(identical(other.profileImageUrl, profileImageUrl) || other.profileImageUrl == profileImageUrl)&&(identical(other.greetingTitle, greetingTitle) || other.greetingTitle == greetingTitle)&&(identical(other.greetingSubtitle, greetingSubtitle) || other.greetingSubtitle == greetingSubtitle)&&(identical(other.recentRideTitle, recentRideTitle) || other.recentRideTitle == recentRideTitle)&&(identical(other.recentRideDetails, recentRideDetails) || other.recentRideDetails == recentRideDetails)&&(identical(other.selectedNavIndex, selectedNavIndex) || other.selectedNavIndex == selectedNavIndex)&&(identical(other.isCorporate, isCorporate) || other.isCorporate == isCorporate)&&(identical(other.companyName, companyName) || other.companyName == companyName)&&(identical(other.employeeCode, employeeCode) || other.employeeCode == employeeCode)&&(identical(other.spendingLimit, spendingLimit) || other.spendingLimit == spendingLimit)&&(identical(other.companyLocation, companyLocation) || other.companyLocation == companyLocation));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,userName,greetingTitle,greetingSubtitle,recentRideTitle,recentRideDetails,selectedNavIndex,isCorporate,companyName,employeeCode,spendingLimit,companyLocation);
+int get hashCode => Object.hash(runtimeType,userName,profileImageUrl,greetingTitle,greetingSubtitle,recentRideTitle,recentRideDetails,selectedNavIndex,isCorporate,companyName,employeeCode,spendingLimit,companyLocation);
 
 @override
 String toString() {
-  return 'HomeDashboardModel(userName: $userName, greetingTitle: $greetingTitle, greetingSubtitle: $greetingSubtitle, recentRideTitle: $recentRideTitle, recentRideDetails: $recentRideDetails, selectedNavIndex: $selectedNavIndex, isCorporate: $isCorporate, companyName: $companyName, employeeCode: $employeeCode, spendingLimit: $spendingLimit, companyLocation: $companyLocation)';
+  return 'HomeDashboardModel(userName: $userName, profileImageUrl: $profileImageUrl, greetingTitle: $greetingTitle, greetingSubtitle: $greetingSubtitle, recentRideTitle: $recentRideTitle, recentRideDetails: $recentRideDetails, selectedNavIndex: $selectedNavIndex, isCorporate: $isCorporate, companyName: $companyName, employeeCode: $employeeCode, spendingLimit: $spendingLimit, companyLocation: $companyLocation)';
 }
 
 
@@ -267,7 +269,7 @@ abstract mixin class _$HomeDashboardModelCopyWith<$Res> implements $HomeDashboar
   factory _$HomeDashboardModelCopyWith(_HomeDashboardModel value, $Res Function(_HomeDashboardModel) _then) = __$HomeDashboardModelCopyWithImpl;
 @override @useResult
 $Res call({
- String userName, String greetingTitle, String greetingSubtitle, String recentRideTitle, String recentRideDetails, int selectedNavIndex, bool isCorporate, String? companyName, String? employeeCode, String? spendingLimit, String? companyLocation
+ String userName, String? profileImageUrl, String greetingTitle, String greetingSubtitle, String recentRideTitle, String recentRideDetails, int selectedNavIndex, bool isCorporate, String? companyName, String? employeeCode, String? spendingLimit, String? companyLocation
 });
 
 
@@ -284,10 +286,11 @@ class __$HomeDashboardModelCopyWithImpl<$Res>
 
 /// Create a copy of HomeDashboardModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? userName = null,Object? greetingTitle = null,Object? greetingSubtitle = null,Object? recentRideTitle = null,Object? recentRideDetails = null,Object? selectedNavIndex = null,Object? isCorporate = null,Object? companyName = freezed,Object? employeeCode = freezed,Object? spendingLimit = freezed,Object? companyLocation = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? userName = null,Object? profileImageUrl = freezed,Object? greetingTitle = null,Object? greetingSubtitle = null,Object? recentRideTitle = null,Object? recentRideDetails = null,Object? selectedNavIndex = null,Object? isCorporate = null,Object? companyName = freezed,Object? employeeCode = freezed,Object? spendingLimit = freezed,Object? companyLocation = freezed,}) {
   return _then(_HomeDashboardModel(
 userName: null == userName ? _self.userName : userName // ignore: cast_nullable_to_non_nullable
-as String,greetingTitle: null == greetingTitle ? _self.greetingTitle : greetingTitle // ignore: cast_nullable_to_non_nullable
+as String,profileImageUrl: freezed == profileImageUrl ? _self.profileImageUrl : profileImageUrl // ignore: cast_nullable_to_non_nullable
+as String?,greetingTitle: null == greetingTitle ? _self.greetingTitle : greetingTitle // ignore: cast_nullable_to_non_nullable
 as String,greetingSubtitle: null == greetingSubtitle ? _self.greetingSubtitle : greetingSubtitle // ignore: cast_nullable_to_non_nullable
 as String,recentRideTitle: null == recentRideTitle ? _self.recentRideTitle : recentRideTitle // ignore: cast_nullable_to_non_nullable
 as String,recentRideDetails: null == recentRideDetails ? _self.recentRideDetails : recentRideDetails // ignore: cast_nullable_to_non_nullable

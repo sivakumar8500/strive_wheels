@@ -43,7 +43,7 @@ void main() {
     );
     when(() => mockTripsBloc.state).thenReturn(TripsLoaded(tTripEntity));
     await tester.pumpWidget(createWidgetUnderTest());
-    expect(find.text('TOTAL MILEAGE'), findsOneWidget);
+    expect(find.text('Total Rides'), findsOneWidget);
     expect(find.byType(AnimatedEmptyState), findsOneWidget);
   });
 

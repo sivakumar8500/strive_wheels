@@ -83,12 +83,25 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   @override
   void sendMessageWs(int bookingId, String message) {
     try {
+      final payload = {
+        'booking_id': bookingId,
+        'message': message,
+        'text': message,
+        'content': message,
+        'sender_role': 'RIDER',
+        'role': 'RIDER',
+      };
       webSocketClient.sendMessage({
         'event': 'booking.chat_message',
-        'data': {
-          'booking_id': bookingId,
-          'message': message,
-        },
+        'data': payload,
+      });
+      webSocketClient.sendMessage({
+        'event': 'chat.message',
+        'data': payload,
+      });
+      webSocketClient.sendMessage({
+        'event': 'booking.chat',
+        'data': payload,
       });
     } catch (e) {
       debugPrint('[RiderChatRemoteDataSource] Error sending message via WS: $e');
@@ -98,19 +111,27 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   @override
   Stream<Map<String, dynamic>> listenChatEvents(int bookingId) {
     return webSocketClient.messageStream.where((eventMap) {
-      final event = eventMap['event'] as String?;
+      final event = (eventMap['event'] as String?)?.toLowerCase();
       final data = (eventMap['data'] is Map)
           ? Map<String, dynamic>.from(eventMap['data'] as Map)
           : eventMap;
-      if (event == 'booking.chat_message' ||
+
+      final isChat = event == 'booking.chat_message' ||
+          event == 'booking.chat' ||
+          event == 'chat.message' ||
+          event == 'chat_message' ||
+          event == 'chat' ||
+          event == 'booking.message' ||
+          event == 'message' ||
           event == 'booking.chat_closed' ||
           event == 'booking.cancelled' ||
           event == 'booking.customer_cancelled' ||
-          event == 'booking.rider_cancelled') {
-        final bId = data['booking_id'] ?? data['bookingId'];
-        return bId == null || bId == bookingId || bId.toString() == bookingId.toString();
-      }
-      return false;
+          event == 'booking.rider_cancelled';
+
+      if (!isChat) return false;
+
+      final bId = data['booking_id'] ?? data['bookingId'] ?? eventMap['booking_id'] ?? eventMap['bookingId'];
+      return bId == null || bId == 0 || bId == bookingId || bId.toString() == bookingId.toString();
     });
   }
 }

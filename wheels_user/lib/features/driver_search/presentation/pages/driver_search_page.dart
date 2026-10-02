@@ -16,10 +16,12 @@ import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
 import '../../../booking/presentation/pages/booking_confirmed_page.dart';
 import '../../../booking/presentation/pages/live_trip_tracking_page.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../../notifications/presentation/pages/notifications_page.dart';
 import '../bloc/driver_search_bloc.dart';
 import '../bloc/driver_search_event.dart';
 import '../bloc/driver_search_state.dart';
 import '../widgets/circular_radar_wave_widget.dart';
+import '../widgets/safety_feature_carousel_widget.dart';
 
 /// Searching for Nearby Drivers Page matching reference UI design with real-time WebSocket updates.
 class DriverSearchPage extends StatefulWidget {
@@ -41,6 +43,7 @@ class DriverSearchPage extends StatefulWidget {
   final String? vehicleInfo;
   final String? licensePlate;
   final String? routeAlignment;
+  final int? seatNumber;
 
   const DriverSearchPage({
     super.key,
@@ -62,6 +65,7 @@ class DriverSearchPage extends StatefulWidget {
     this.vehicleInfo,
     this.licensePlate,
     this.routeAlignment,
+    this.seatNumber,
   });
 
   @override
@@ -79,14 +83,25 @@ class _DriverSearchPageState extends State<DriverSearchPage>
   Map<String, dynamic>? _riderData;
   Map<String, dynamic>? _vehicleData;
   late final AnimationController _progressController;
+  Timer? _searchTimer;
+  int _searchSeconds = 0;
 
   @override
   void initState() {
     super.initState();
     _progressController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2400),
+      duration: const Duration(milliseconds: 4800),
     )..repeat();
+    _searchTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {
+          if (_searchSeconds < 90) {
+            _searchSeconds++;
+          }
+        });
+      }
+    });
     if (widget.riderId != null) {
       _notificationText = 'Assigning corporate vehicle (${widget.driverName ?? "Corporate Driver"})...';
     } else if (widget.serviceMode == 'CORPORATE') {
@@ -130,6 +145,7 @@ class _DriverSearchPageState extends State<DriverSearchPage>
         companyId: widget.companyId,
         riderId: widget.riderId,
         vehicleId: widget.vehicleId,
+        seatNumber: widget.seatNumber,
       );
 
       // Listen for server events
@@ -212,8 +228,13 @@ class _DriverSearchPageState extends State<DriverSearchPage>
                 : 'Booking #${_bookingId ?? ''} created! Scanning for nearby drivers...';
           });
         } else if (event == 'booking.rider_accepted' ||
+            event == 'booking.driver_accepted' ||
+            event == 'booking.accepted' ||
+            event == 'booking.accepted_success' ||
             event == 'booking.assigned' ||
-            event == 'corporate.booking_assigned') {
+            event == 'corporate.booking_assigned' ||
+            rawStatus == 'RIDER_ACCEPTED' ||
+            rawStatus == 'DRIVER_ACCEPTED') {
           final booking = data['booking'] ?? {};
           final rider = (booking['rider'] as Map<String, dynamic>?) ?? (data['rider'] as Map<String, dynamic>?);
           final vehicle = (booking['vehicle'] as Map<String, dynamic>?) ?? (data['vehicle'] as Map<String, dynamic>?);
@@ -259,18 +280,10 @@ class _DriverSearchPageState extends State<DriverSearchPage>
             event == 'booking.customer_cancelled' ||
             event == 'ride.cancelled' ||
             event == 'booking.cancel_success') {
-          final reason = data['reason']?.toString() ?? 'Ride request was cancelled.';
           if (sl.isRegistered<ActiveBookingService>()) {
             sl<ActiveBookingService>().clearActiveBooking();
           }
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(reason),
-                backgroundColor: const Color(0xFFEF4444),
-                duration: const Duration(seconds: 4),
-              ),
-            );
             Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
           }
         } else if (event == 'booking.no_driver_found') {
@@ -278,13 +291,6 @@ class _DriverSearchPageState extends State<DriverSearchPage>
             sl<ActiveBookingService>().clearActiveBooking();
           }
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('No nearby drivers accepted your request. Please try again.'),
-                backgroundColor: Color(0xFFEF4444),
-                duration: Duration(seconds: 4),
-              ),
-            );
             Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
           }
         } else if (event == 'notification.new') {
@@ -311,6 +317,7 @@ class _DriverSearchPageState extends State<DriverSearchPage>
   @override
   void dispose() {
     _progressController.dispose();
+    _searchTimer?.cancel();
     _wsSubscription?.cancel();
     super.dispose();
   }
@@ -342,7 +349,11 @@ class _DriverSearchPageState extends State<DriverSearchPage>
               Icons.notifications_none_outlined,
               color: isDark ? AppColors.textPrimaryDark : const Color(0xFF1E293B),
             ),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const NotificationsPage()),
+              );
+            },
           ),
         ],
       ),
@@ -367,13 +378,11 @@ class _DriverSearchPageState extends State<DriverSearchPage>
                 _buildRadarCard(context, isDark, data),
                 const SizedBox(height: 16),
 
-                // Driver & OTP Banner when accepted
-                if (_startOtp != null) ...[
-                  _buildDriverAssignedBanner(context, isDark),
-                  const SizedBox(height: 16),
-                ],
+                // 4-Card Safety & Features Carousel
+                const SafetyFeatureCarouselWidget(),
+                const SizedBox(height: 16),
 
-                // Estimated Confirmation Card
+                // Estimated Confirmation Card (0 to 90s)
                 _buildEstimatedCard(context, isDark, data),
                 const SizedBox(height: 24),
 
@@ -447,12 +456,6 @@ class _DriverSearchPageState extends State<DriverSearchPage>
                 sl<ActiveBookingService>().clearActiveBooking();
               }
               context.read<DriverSearchBloc>().add(const CancelDriverSearchEvent());
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Ride search cancelled successfully'),
-                  backgroundColor: Color(0xFFEF4444),
-                ),
-              );
               Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
             },
             style: ElevatedButton.styleFrom(
@@ -614,78 +617,10 @@ class _DriverSearchPageState extends State<DriverSearchPage>
     );
   }
 
-  Widget _buildDriverAssignedBanner(BuildContext context, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F1E36) : const Color(0xFFEFF6FF),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: AppColors.primaryBlue,
-            child: const Icon(Icons.person, color: Colors.white),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  riderName,
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: isDark ? AppColors.textPrimaryDark : AppColors.primaryBlue,
-                  ),
-                ),
-                Text(
-                  vehicleDetails,
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: isDark ? AppColors.textSecondaryDark : const Color(0xFF1E40AF),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (_startOtp != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.accentOrange,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    'OTP',
-                    style: GoogleFonts.poppins(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
-                  ),
-                  Text(
-                    _startOtp!,
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildEstimatedCard(BuildContext context, bool isDark, dynamic data) {
+    final rawText = data?.estimatedConfirmationText;
+    final displayTime = (rawText == null || rawText == '5 - 30 mins') ? '0 – 90 sec' : rawText;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
@@ -705,23 +640,51 @@ class _DriverSearchPageState extends State<DriverSearchPage>
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'ESTIMATED CONFIRMATION',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                  color: isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B),
-                ),
+              Row(
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    margin: const EdgeInsets.only(right: 6),
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color(0xFF10B981),
+                    ),
+                  ),
+                  Text(
+                    'ESTIMATED CONFIRMATION',
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                      color: isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 4),
-              Text(
-                data?.estimatedConfirmationText ?? '5 - 30 mins',
-                style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primaryBlue,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    displayTime,
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryBlue,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '(${_searchSeconds}s elapsed)',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

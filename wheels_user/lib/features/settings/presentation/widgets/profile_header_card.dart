@@ -1,19 +1,68 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/network/api_constants.dart';
 
 class ProfileHeaderCard extends StatelessWidget {
   final String name;
   final String membershipTier;
+  final String? profileImageUrl;
   final VoidCallback? onEditProfileTap;
 
   const ProfileHeaderCard({
     super.key,
     required this.name,
     required this.membershipTier,
+    this.profileImageUrl,
     this.onEditProfileTap,
   });
+
+  Widget _buildAvatarImage() {
+    final image = profileImageUrl;
+    if (image != null && image.trim().isNotEmpty) {
+      final resolved = ApiConstants.getImageUrl(image.trim());
+      if (kIsWeb ||
+          resolved.startsWith('http://') ||
+          resolved.startsWith('https://') ||
+          resolved.startsWith('blob:')) {
+        return Image.network(
+          resolved,
+          width: 90,
+          height: 90,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => _buildFallbackIcon(),
+        );
+      } else {
+        try {
+          final file = File(image);
+          if (file.existsSync()) {
+            return Image.file(
+              file,
+              width: 90,
+              height: 90,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => _buildFallbackIcon(),
+            );
+          }
+        } catch (_) {}
+      }
+    }
+    return _buildFallbackIcon();
+  }
+
+  Widget _buildFallbackIcon() {
+    return Container(
+      color: const Color(0xFF0F2027),
+      child: const Icon(
+        Icons.person_rounded,
+        size: 54,
+        color: Colors.white,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,14 +92,7 @@ class ProfileHeaderCard extends StatelessWidget {
                   ],
                 ),
                 child: ClipOval(
-                  child: Container(
-                    color: const Color(0xFF0F2027),
-                    child: const Icon(
-                      Icons.person_rounded,
-                      size: 54,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: _buildAvatarImage(),
                 ),
               ),
 

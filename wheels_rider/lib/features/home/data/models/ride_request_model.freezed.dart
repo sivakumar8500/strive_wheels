@@ -42,6 +42,8 @@ mixin _$RideRequestModel {
   String? get bookingCode;
   @JsonKey(name: 'service_mode')
   String? get serviceMode;
+  @JsonKey(name: 'seat_number')
+  int? get seatNumber;
 
   /// Create a copy of RideRequestModel
   /// with the given fields replaced by the non-null parameter values.
@@ -83,7 +85,9 @@ mixin _$RideRequestModel {
             (identical(other.bookingCode, bookingCode) ||
                 other.bookingCode == bookingCode) &&
             (identical(other.serviceMode, serviceMode) ||
-                other.serviceMode == serviceMode));
+                other.serviceMode == serviceMode) &&
+            (identical(other.seatNumber, seatNumber) ||
+                other.seatNumber == seatNumber));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -103,11 +107,12 @@ mixin _$RideRequestModel {
       estimatedDistanceKm,
       estimatedDurationMins,
       bookingCode,
-      serviceMode);
+      serviceMode,
+      seatNumber);
 
   @override
   String toString() {
-    return 'RideRequestModel(id: $id, bookingId: $bookingId, requestId: $requestId, pickupAddress: $pickupAddress, dropAddress: $dropAddress, estimatedFare: $estimatedFare, pickupLat: $pickupLat, pickupLng: $pickupLng, dropLat: $dropLat, dropLng: $dropLng, estimatedDistanceKm: $estimatedDistanceKm, estimatedDurationMins: $estimatedDurationMins, bookingCode: $bookingCode, serviceMode: $serviceMode)';
+    return 'RideRequestModel(id: $id, bookingId: $bookingId, requestId: $requestId, pickupAddress: $pickupAddress, dropAddress: $dropAddress, estimatedFare: $estimatedFare, pickupLat: $pickupLat, pickupLng: $pickupLng, dropLat: $dropLat, dropLng: $dropLng, estimatedDistanceKm: $estimatedDistanceKm, estimatedDurationMins: $estimatedDurationMins, bookingCode: $bookingCode, serviceMode: $serviceMode, seatNumber: $seatNumber)';
   }
 }
 
@@ -131,7 +136,8 @@ abstract mixin class $RideRequestModelCopyWith<$Res> {
       @JsonKey(name: 'estimated_distance_km') double? estimatedDistanceKm,
       @JsonKey(name: 'estimated_duration_mins') int? estimatedDurationMins,
       @JsonKey(name: 'booking_code') String? bookingCode,
-      @JsonKey(name: 'service_mode') String? serviceMode});
+      @JsonKey(name: 'service_mode') String? serviceMode,
+      @JsonKey(name: 'seat_number') int? seatNumber});
 }
 
 /// @nodoc
@@ -161,6 +167,7 @@ class _$RideRequestModelCopyWithImpl<$Res>
     Object? estimatedDurationMins = freezed,
     Object? bookingCode = freezed,
     Object? serviceMode = freezed,
+    Object? seatNumber = freezed,
   }) {
     return _then(_self.copyWith(
       id: freezed == id
@@ -219,6 +226,10 @@ class _$RideRequestModelCopyWithImpl<$Res>
           ? _self.serviceMode
           : serviceMode // ignore: cast_nullable_to_non_nullable
               as String?,
+      seatNumber: freezed == seatNumber
+          ? _self.seatNumber
+          : seatNumber // ignore: cast_nullable_to_non_nullable
+              as int?,
     ));
   }
 }
@@ -331,7 +342,8 @@ extension RideRequestModelPatterns on RideRequestModel {
             @JsonKey(name: 'estimated_duration_mins')
             int? estimatedDurationMins,
             @JsonKey(name: 'booking_code') String? bookingCode,
-            @JsonKey(name: 'service_mode') String? serviceMode)?
+            @JsonKey(name: 'service_mode') String? serviceMode,
+            @JsonKey(name: 'seat_number') int? seatNumber)?
         $default, {
     required TResult orElse(),
   }) {
@@ -352,7 +364,8 @@ extension RideRequestModelPatterns on RideRequestModel {
             _that.estimatedDistanceKm,
             _that.estimatedDurationMins,
             _that.bookingCode,
-            _that.serviceMode);
+            _that.serviceMode,
+            _that.seatNumber);
       case _:
         return orElse();
     }
@@ -388,7 +401,8 @@ extension RideRequestModelPatterns on RideRequestModel {
             @JsonKey(name: 'estimated_duration_mins')
             int? estimatedDurationMins,
             @JsonKey(name: 'booking_code') String? bookingCode,
-            @JsonKey(name: 'service_mode') String? serviceMode)
+            @JsonKey(name: 'service_mode') String? serviceMode,
+            @JsonKey(name: 'seat_number') int? seatNumber)
         $default,
   ) {
     final _that = this;
@@ -408,7 +422,8 @@ extension RideRequestModelPatterns on RideRequestModel {
             _that.estimatedDistanceKm,
             _that.estimatedDurationMins,
             _that.bookingCode,
-            _that.serviceMode);
+            _that.serviceMode,
+            _that.seatNumber);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -443,7 +458,8 @@ extension RideRequestModelPatterns on RideRequestModel {
             @JsonKey(name: 'estimated_duration_mins')
             int? estimatedDurationMins,
             @JsonKey(name: 'booking_code') String? bookingCode,
-            @JsonKey(name: 'service_mode') String? serviceMode)?
+            @JsonKey(name: 'service_mode') String? serviceMode,
+            @JsonKey(name: 'seat_number') int? seatNumber)?
         $default,
   ) {
     final _that = this;
@@ -463,7 +479,8 @@ extension RideRequestModelPatterns on RideRequestModel {
             _that.estimatedDistanceKm,
             _that.estimatedDurationMins,
             _that.bookingCode,
-            _that.serviceMode);
+            _that.serviceMode,
+            _that.seatNumber);
       case _:
         return null;
     }
@@ -487,7 +504,8 @@ class _RideRequestModel extends RideRequestModel {
       @JsonKey(name: 'estimated_distance_km') this.estimatedDistanceKm,
       @JsonKey(name: 'estimated_duration_mins') this.estimatedDurationMins,
       @JsonKey(name: 'booking_code') this.bookingCode,
-      @JsonKey(name: 'service_mode') this.serviceMode})
+      @JsonKey(name: 'service_mode') this.serviceMode,
+      @JsonKey(name: 'seat_number') this.seatNumber})
       : super._();
   factory _RideRequestModel.fromJson(Map<String, dynamic> json) =>
       _$RideRequestModelFromJson(json);
@@ -534,6 +552,9 @@ class _RideRequestModel extends RideRequestModel {
   @override
   @JsonKey(name: 'service_mode')
   final String? serviceMode;
+  @override
+  @JsonKey(name: 'seat_number')
+  final int? seatNumber;
 
   /// Create a copy of RideRequestModel
   /// with the given fields replaced by the non-null parameter values.
@@ -579,7 +600,9 @@ class _RideRequestModel extends RideRequestModel {
             (identical(other.bookingCode, bookingCode) ||
                 other.bookingCode == bookingCode) &&
             (identical(other.serviceMode, serviceMode) ||
-                other.serviceMode == serviceMode));
+                other.serviceMode == serviceMode) &&
+            (identical(other.seatNumber, seatNumber) ||
+                other.seatNumber == seatNumber));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -599,11 +622,12 @@ class _RideRequestModel extends RideRequestModel {
       estimatedDistanceKm,
       estimatedDurationMins,
       bookingCode,
-      serviceMode);
+      serviceMode,
+      seatNumber);
 
   @override
   String toString() {
-    return 'RideRequestModel(id: $id, bookingId: $bookingId, requestId: $requestId, pickupAddress: $pickupAddress, dropAddress: $dropAddress, estimatedFare: $estimatedFare, pickupLat: $pickupLat, pickupLng: $pickupLng, dropLat: $dropLat, dropLng: $dropLng, estimatedDistanceKm: $estimatedDistanceKm, estimatedDurationMins: $estimatedDurationMins, bookingCode: $bookingCode, serviceMode: $serviceMode)';
+    return 'RideRequestModel(id: $id, bookingId: $bookingId, requestId: $requestId, pickupAddress: $pickupAddress, dropAddress: $dropAddress, estimatedFare: $estimatedFare, pickupLat: $pickupLat, pickupLng: $pickupLng, dropLat: $dropLat, dropLng: $dropLng, estimatedDistanceKm: $estimatedDistanceKm, estimatedDurationMins: $estimatedDurationMins, bookingCode: $bookingCode, serviceMode: $serviceMode, seatNumber: $seatNumber)';
   }
 }
 
@@ -629,7 +653,8 @@ abstract mixin class _$RideRequestModelCopyWith<$Res>
       @JsonKey(name: 'estimated_distance_km') double? estimatedDistanceKm,
       @JsonKey(name: 'estimated_duration_mins') int? estimatedDurationMins,
       @JsonKey(name: 'booking_code') String? bookingCode,
-      @JsonKey(name: 'service_mode') String? serviceMode});
+      @JsonKey(name: 'service_mode') String? serviceMode,
+      @JsonKey(name: 'seat_number') int? seatNumber});
 }
 
 /// @nodoc
@@ -659,6 +684,7 @@ class __$RideRequestModelCopyWithImpl<$Res>
     Object? estimatedDurationMins = freezed,
     Object? bookingCode = freezed,
     Object? serviceMode = freezed,
+    Object? seatNumber = freezed,
   }) {
     return _then(_RideRequestModel(
       id: freezed == id
@@ -717,6 +743,10 @@ class __$RideRequestModelCopyWithImpl<$Res>
           ? _self.serviceMode
           : serviceMode // ignore: cast_nullable_to_non_nullable
               as String?,
+      seatNumber: freezed == seatNumber
+          ? _self.seatNumber
+          : seatNumber // ignore: cast_nullable_to_non_nullable
+              as int?,
     ));
   }
 }

@@ -10,6 +10,7 @@ import 'package:wheels_user/features/booking/presentation/bloc/booking_bloc.dart
 import 'package:wheels_user/features/booking/presentation/bloc/booking_event.dart';
 import 'package:wheels_user/features/booking/presentation/bloc/booking_state.dart';
 import 'package:wheels_user/features/booking/presentation/pages/location_search_page.dart';
+import 'package:wheels_user/features/booking/presentation/pages/map_location_picker_page.dart';
 import 'package:wheels_user/features/booking/presentation/pages/ride_route_map_page.dart';
 import 'package:wheels_user/features/favourites/domain/entities/favorite_place_entity.dart';
 import 'package:wheels_user/features/favourites/domain/entities/favourites_entity.dart';
@@ -176,6 +177,97 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.byType(RideRouteMapPage), findsOneWidget);
+  });
+
+  testWidgets('tapping Set location on map button opens MapLocationPickerPage', (tester) async {
+    when(() => mockBookingBloc.state).thenReturn(const BookingState(
+      isLoading: false,
+      pickupLocation: 'Mindspace Madhapur, Hyderabad',
+      destination: '',
+      recentJourneys: tJourneys,
+      availableVehicles: tVehicles,
+    ));
+
+    await tester.pumpWidget(buildTestWidget());
+
+    final setMapBtn = find.byKey(const Key('set_location_on_map_button'));
+    expect(setMapBtn, findsOneWidget);
+
+    await tester.tap(setMapBtn);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(MapLocationPickerPage), findsOneWidget);
+  });
+
+  testWidgets('shows error message and prevents navigation when distance is <= 500 meters', (tester) async {
+    // Both pickup and drop at same / close location
+    when(() => mockBookingBloc.state).thenReturn(const BookingState(
+      isLoading: false,
+      pickupLocation: 'Mindspace Madhapur, Hyderabad',
+      destination: '',
+      recentJourneys: tJourneys,
+      availableVehicles: tVehicles,
+    ));
+
+    // Create favourite place that is within 100 meters of Mindspace (17.4401, 78.3811)
+    const closeFavourites = FavouritesEntity(
+      shortcutTitle: 'Places you ride to most',
+      shortcutSubtitle: 'Tap a place to use as your destination',
+      places: [
+        FavoritePlaceEntity(
+          id: 'fav-close',
+          title: 'Nearby Gate',
+          address: 'Mindspace Gate 2',
+          iconType: 'work',
+          latitude: 17.4402, // ~15 meters away
+          longitude: 78.3812,
+        ),
+      ],
+    );
+
+    when(() => mockFavouritesBloc.state).thenReturn(
+      const FavouritesState(
+        isLoading: false,
+        favouritesEntity: closeFavourites,
+      ),
+    );
+
+    await tester.pumpWidget(buildTestWidget());
+
+    // Select the nearby location for drop
+    await tester.tap(find.text('Nearby Gate'));
+    await tester.pumpAndSettle();
+
+    final bookBtn = find.byKey(const Key('book_location_button'));
+    expect(tester.widget<ElevatedButton>(bookBtn).enabled, isTrue);
+
+    await tester.tap(bookBtn);
+    await tester.pump();
+
+    // Verify error message is shown
+    expect(find.text(AppStrings.minDistanceError), findsOneWidget);
+    // Verify navigation did NOT happen
+    expect(find.byType(RideRouteMapPage), findsNothing);
+  });
+
+  testWidgets('selecting favorite location fills the drop point with its address rather than name', (tester) async {
+    when(() => mockBookingBloc.state).thenReturn(const BookingState(
+      isLoading: false,
+      pickupLocation: 'Mindspace Madhapur, Hyderabad',
+      destination: '',
+      recentJourneys: tJourneys,
+      availableVehicles: tVehicles,
+    ));
+
+    await tester.pumpWidget(buildTestWidget());
+
+    // Tap favourite item 'home-2'
+    await tester.tap(find.text('home-2'));
+    await tester.pumpAndSettle();
+
+    // Verify drop text field contains the address, not just the name
+    expect(find.text('603, 9th Phase Rd, KPHB Phase III, KPHB Ph...'), findsWidgets);
   });
 }
 

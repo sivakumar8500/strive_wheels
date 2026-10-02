@@ -38,6 +38,11 @@ class BookingRepositoryImpl implements BookingRepository {
   }
 
   @override
+  void declineBooking(int bookingId) {
+    webSocketDataSource.declineBooking(bookingId);
+  }
+
+  @override
   void cancelBooking(int bookingId, {String reason = 'Rider cancelled trip'}) {
     webSocketDataSource.cancelBooking(bookingId, reason: reason);
   }

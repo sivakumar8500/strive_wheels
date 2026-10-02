@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$FavoritePlaceModel {
 
-@JsonKey(readValue: _readId) int get id;@JsonKey(defaultValue: 'Unknown') String get title;@JsonKey(defaultValue: '') String get address; double? get latitude; double? get longitude;
+@JsonKey(readValue: _readId) int get id;@JsonKey(defaultValue: 'Unknown') String get title;@JsonKey(defaultValue: '') String get address; double? get latitude; double? get longitude;@JsonKey(name: 'location_type', defaultValue: 'SELF') String get locationType;@JsonKey(name: 'is_corporate', defaultValue: false) bool get isCorporate;
 /// Create a copy of FavoritePlaceModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $FavoritePlaceModelCopyWith<FavoritePlaceModel> get copyWith => _$FavoritePlaceM
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is FavoritePlaceModel&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.address, address) || other.address == address)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FavoritePlaceModel&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.address, address) || other.address == address)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude)&&(identical(other.locationType, locationType) || other.locationType == locationType)&&(identical(other.isCorporate, isCorporate) || other.isCorporate == isCorporate));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,title,address,latitude,longitude);
+int get hashCode => Object.hash(runtimeType,id,title,address,latitude,longitude,locationType,isCorporate);
 
 @override
 String toString() {
-  return 'FavoritePlaceModel(id: $id, title: $title, address: $address, latitude: $latitude, longitude: $longitude)';
+  return 'FavoritePlaceModel(id: $id, title: $title, address: $address, latitude: $latitude, longitude: $longitude, locationType: $locationType, isCorporate: $isCorporate)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $FavoritePlaceModelCopyWith<$Res>  {
   factory $FavoritePlaceModelCopyWith(FavoritePlaceModel value, $Res Function(FavoritePlaceModel) _then) = _$FavoritePlaceModelCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(readValue: _readId) int id,@JsonKey(defaultValue: 'Unknown') String title,@JsonKey(defaultValue: '') String address, double? latitude, double? longitude
+@JsonKey(readValue: _readId) int id,@JsonKey(defaultValue: 'Unknown') String title,@JsonKey(defaultValue: '') String address, double? latitude, double? longitude,@JsonKey(name: 'location_type', defaultValue: 'SELF') String locationType,@JsonKey(name: 'is_corporate', defaultValue: false) bool isCorporate
 });
 
 
@@ -65,14 +65,16 @@ class _$FavoritePlaceModelCopyWithImpl<$Res>
 
 /// Create a copy of FavoritePlaceModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? address = null,Object? latitude = freezed,Object? longitude = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? title = null,Object? address = null,Object? latitude = freezed,Object? longitude = freezed,Object? locationType = null,Object? isCorporate = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
 as String,address: null == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
 as String,latitude: freezed == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
 as double?,longitude: freezed == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
-as double?,
+as double?,locationType: null == locationType ? _self.locationType : locationType // ignore: cast_nullable_to_non_nullable
+as String,isCorporate: null == isCorporate ? _self.isCorporate : isCorporate // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -157,10 +159,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(readValue: _readId)  int id, @JsonKey(defaultValue: 'Unknown')  String title, @JsonKey(defaultValue: '')  String address,  double? latitude,  double? longitude)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(readValue: _readId)  int id, @JsonKey(defaultValue: 'Unknown')  String title, @JsonKey(defaultValue: '')  String address,  double? latitude,  double? longitude, @JsonKey(name: 'location_type', defaultValue: 'SELF')  String locationType, @JsonKey(name: 'is_corporate', defaultValue: false)  bool isCorporate)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _FavoritePlaceModel() when $default != null:
-return $default(_that.id,_that.title,_that.address,_that.latitude,_that.longitude);case _:
+return $default(_that.id,_that.title,_that.address,_that.latitude,_that.longitude,_that.locationType,_that.isCorporate);case _:
   return orElse();
 
 }
@@ -178,10 +180,10 @@ return $default(_that.id,_that.title,_that.address,_that.latitude,_that.longitud
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(readValue: _readId)  int id, @JsonKey(defaultValue: 'Unknown')  String title, @JsonKey(defaultValue: '')  String address,  double? latitude,  double? longitude)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(readValue: _readId)  int id, @JsonKey(defaultValue: 'Unknown')  String title, @JsonKey(defaultValue: '')  String address,  double? latitude,  double? longitude, @JsonKey(name: 'location_type', defaultValue: 'SELF')  String locationType, @JsonKey(name: 'is_corporate', defaultValue: false)  bool isCorporate)  $default,) {final _that = this;
 switch (_that) {
 case _FavoritePlaceModel():
-return $default(_that.id,_that.title,_that.address,_that.latitude,_that.longitude);case _:
+return $default(_that.id,_that.title,_that.address,_that.latitude,_that.longitude,_that.locationType,_that.isCorporate);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -198,10 +200,10 @@ return $default(_that.id,_that.title,_that.address,_that.latitude,_that.longitud
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(readValue: _readId)  int id, @JsonKey(defaultValue: 'Unknown')  String title, @JsonKey(defaultValue: '')  String address,  double? latitude,  double? longitude)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(readValue: _readId)  int id, @JsonKey(defaultValue: 'Unknown')  String title, @JsonKey(defaultValue: '')  String address,  double? latitude,  double? longitude, @JsonKey(name: 'location_type', defaultValue: 'SELF')  String locationType, @JsonKey(name: 'is_corporate', defaultValue: false)  bool isCorporate)?  $default,) {final _that = this;
 switch (_that) {
 case _FavoritePlaceModel() when $default != null:
-return $default(_that.id,_that.title,_that.address,_that.latitude,_that.longitude);case _:
+return $default(_that.id,_that.title,_that.address,_that.latitude,_that.longitude,_that.locationType,_that.isCorporate);case _:
   return null;
 
 }
@@ -213,7 +215,7 @@ return $default(_that.id,_that.title,_that.address,_that.latitude,_that.longitud
 @JsonSerializable()
 
 class _FavoritePlaceModel implements FavoritePlaceModel {
-  const _FavoritePlaceModel({@JsonKey(readValue: _readId) required this.id, @JsonKey(defaultValue: 'Unknown') required this.title, @JsonKey(defaultValue: '') required this.address, this.latitude, this.longitude});
+  const _FavoritePlaceModel({@JsonKey(readValue: _readId) required this.id, @JsonKey(defaultValue: 'Unknown') required this.title, @JsonKey(defaultValue: '') required this.address, this.latitude, this.longitude, @JsonKey(name: 'location_type', defaultValue: 'SELF') this.locationType = 'SELF', @JsonKey(name: 'is_corporate', defaultValue: false) this.isCorporate = false});
   factory _FavoritePlaceModel.fromJson(Map<String, dynamic> json) => _$FavoritePlaceModelFromJson(json);
 
 @override@JsonKey(readValue: _readId) final  int id;
@@ -221,6 +223,8 @@ class _FavoritePlaceModel implements FavoritePlaceModel {
 @override@JsonKey(defaultValue: '') final  String address;
 @override final  double? latitude;
 @override final  double? longitude;
+@override@JsonKey(name: 'location_type', defaultValue: 'SELF') final  String locationType;
+@override@JsonKey(name: 'is_corporate', defaultValue: false) final  bool isCorporate;
 
 /// Create a copy of FavoritePlaceModel
 /// with the given fields replaced by the non-null parameter values.
@@ -235,16 +239,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _FavoritePlaceModel&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.address, address) || other.address == address)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _FavoritePlaceModel&&(identical(other.id, id) || other.id == id)&&(identical(other.title, title) || other.title == title)&&(identical(other.address, address) || other.address == address)&&(identical(other.latitude, latitude) || other.latitude == latitude)&&(identical(other.longitude, longitude) || other.longitude == longitude)&&(identical(other.locationType, locationType) || other.locationType == locationType)&&(identical(other.isCorporate, isCorporate) || other.isCorporate == isCorporate));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,title,address,latitude,longitude);
+int get hashCode => Object.hash(runtimeType,id,title,address,latitude,longitude,locationType,isCorporate);
 
 @override
 String toString() {
-  return 'FavoritePlaceModel(id: $id, title: $title, address: $address, latitude: $latitude, longitude: $longitude)';
+  return 'FavoritePlaceModel(id: $id, title: $title, address: $address, latitude: $latitude, longitude: $longitude, locationType: $locationType, isCorporate: $isCorporate)';
 }
 
 
@@ -255,7 +259,7 @@ abstract mixin class _$FavoritePlaceModelCopyWith<$Res> implements $FavoritePlac
   factory _$FavoritePlaceModelCopyWith(_FavoritePlaceModel value, $Res Function(_FavoritePlaceModel) _then) = __$FavoritePlaceModelCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(readValue: _readId) int id,@JsonKey(defaultValue: 'Unknown') String title,@JsonKey(defaultValue: '') String address, double? latitude, double? longitude
+@JsonKey(readValue: _readId) int id,@JsonKey(defaultValue: 'Unknown') String title,@JsonKey(defaultValue: '') String address, double? latitude, double? longitude,@JsonKey(name: 'location_type', defaultValue: 'SELF') String locationType,@JsonKey(name: 'is_corporate', defaultValue: false) bool isCorporate
 });
 
 
@@ -272,14 +276,16 @@ class __$FavoritePlaceModelCopyWithImpl<$Res>
 
 /// Create a copy of FavoritePlaceModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? address = null,Object? latitude = freezed,Object? longitude = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? title = null,Object? address = null,Object? latitude = freezed,Object? longitude = freezed,Object? locationType = null,Object? isCorporate = null,}) {
   return _then(_FavoritePlaceModel(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,title: null == title ? _self.title : title // ignore: cast_nullable_to_non_nullable
 as String,address: null == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
 as String,latitude: freezed == latitude ? _self.latitude : latitude // ignore: cast_nullable_to_non_nullable
 as double?,longitude: freezed == longitude ? _self.longitude : longitude // ignore: cast_nullable_to_non_nullable
-as double?,
+as double?,locationType: null == locationType ? _self.locationType : locationType // ignore: cast_nullable_to_non_nullable
+as String,isCorporate: null == isCorporate ? _self.isCorporate : isCorporate // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

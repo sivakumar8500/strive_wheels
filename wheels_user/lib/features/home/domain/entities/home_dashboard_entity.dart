@@ -45,6 +45,7 @@ class CouponEntity {
 /// Domain entity representing Home Dashboard data.
 class HomeDashboardEntity {
   final String userName;
+  final String? profileImageUrl;
   final String greetingTitle;
   final String greetingSubtitle;
   final String recentRideTitle;
@@ -61,6 +62,7 @@ class HomeDashboardEntity {
 
   const HomeDashboardEntity({
     required this.userName,
+    this.profileImageUrl,
     required this.greetingTitle,
     required this.greetingSubtitle,
     required this.recentRideTitle,

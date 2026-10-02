@@ -37,6 +37,12 @@ void main() {
     registerFallbackValue(const LoadSettingsEvent());
     registerFallbackValue(const LogoutEvent());
     registerFallbackValue(const ToggleRideNotificationsEvent(false));
+    registerFallbackValue(const UpdateUserProfileEvent(
+      name: '',
+      phone: '',
+      email: '',
+      gender: '',
+    ));
   });
 
   setUp(() {
@@ -76,7 +82,7 @@ void main() {
     expect(find.text('Rating'), findsOneWidget);
     expect(find.text('Ride notifications'), findsOneWidget);
     expect(find.text('Appearance'), findsOneWidget);
-    expect(find.text('Terms of Service'), findsOneWidget);
+    expect(find.text('Terms & Conditions'), findsOneWidget);
     expect(find.text('Logout'), findsOneWidget);
     expect(find.text('Version 2.4.12 (Build 4492)'), findsOneWidget);
   });
@@ -94,5 +100,29 @@ void main() {
     await tester.pump();
 
     verify(() => mockBloc.add(const LogoutEvent())).called(1);
+  });
+
+  testWidgets('tapping edit profile button opens Edit Personal Details bottom sheet with avatar picker and saves changes', (tester) async {
+    when(() => mockBloc.state).thenReturn(const SettingsState(
+      isLoading: false,
+      settingsEntity: tEntity,
+    ));
+
+    await tester.pumpWidget(buildTestWidget());
+
+    expect(find.byKey(const Key('edit_profile_button')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('edit_profile_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Edit Personal Details'), findsOneWidget);
+    expect(find.byKey(const Key('edit_profile_avatar_picker')), findsOneWidget);
+    expect(find.text('Tap to change photo (Optional)'), findsOneWidget);
+    expect(find.text('Full Name'), findsOneWidget);
+    expect(find.text('Save Changes'), findsOneWidget);
+
+    await tester.tap(find.text('Save Changes'));
+    await tester.pumpAndSettle();
+
+    verify(() => mockBloc.add(any(that: isA<UpdateUserProfileEvent>()))).called(1);
   });
 }

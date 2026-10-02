@@ -86,10 +86,17 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   @override
   void sendMessageWs(int bookingId, String message) {
     try {
-      webSocketService.send('booking.chat_message', {
+      final payload = {
         'booking_id': bookingId,
         'message': message,
-      });
+        'text': message,
+        'content': message,
+        'sender_role': 'CUSTOMER',
+        'role': 'CUSTOMER',
+      };
+      webSocketService.send('booking.chat_message', payload);
+      webSocketService.send('chat.message', payload);
+      webSocketService.send('booking.chat', payload);
     } catch (e) {
       debugPrint('[ChatRemoteDataSource] Error sending message via WS: $e');
     }
@@ -98,16 +105,26 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   @override
   Stream<Map<String, dynamic>> listenChatEvents(int bookingId) {
     return customerWSController.bookingEventStream.where((eventMap) {
-      final event = eventMap['event'] as String?;
-      final data = eventMap['data'] as Map<String, dynamic>? ?? {};
-      if (event == 'booking.chat_message' ||
+      final event = (eventMap['event'] as String?)?.toLowerCase();
+      final data = (eventMap['data'] is Map)
+          ? Map<String, dynamic>.from(eventMap['data'] as Map)
+          : eventMap;
+
+      final isChat = event == 'booking.chat_message' ||
+          event == 'booking.chat' ||
+          event == 'chat.message' ||
+          event == 'chat_message' ||
+          event == 'chat' ||
+          event == 'booking.message' ||
+          event == 'message' ||
           event == 'booking.chat_closed' ||
           event == 'booking.cancelled' ||
-          event == 'booking.rider_cancelled') {
-        final bId = data['booking_id'];
-        return bId == null || bId == bookingId || bId.toString() == bookingId.toString();
-      }
-      return false;
+          event == 'booking.rider_cancelled';
+
+      if (!isChat) return false;
+
+      final bId = data['booking_id'] ?? data['bookingId'] ?? eventMap['booking_id'] ?? eventMap['bookingId'];
+      return bId == null || bId == 0 || bId == bookingId || bId.toString() == bookingId.toString();
     });
   }
 }

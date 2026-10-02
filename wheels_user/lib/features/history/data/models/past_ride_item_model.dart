@@ -13,6 +13,13 @@ abstract class PastRideItemModel with _$PastRideItemModel {
     required String status,
     required String amount,
     required String serviceType,
+    @Default('SELF') String serviceMode,
+    @Default('') String pickupAddress,
+    @Default('') String dropAddress,
+    double? pickupLat,
+    double? pickupLng,
+    double? dropLat,
+    double? dropLng,
   }) = _PastRideItemModel;
 
   factory PastRideItemModel.fromJson(Map<String, dynamic> json) =>
@@ -27,5 +34,12 @@ extension PastRideItemModelX on PastRideItemModel {
         status: status,
         amount: amount,
         serviceType: serviceType,
+        serviceMode: serviceMode,
+        pickupAddress: pickupAddress,
+        dropAddress: dropAddress,
+        pickupLat: pickupLat,
+        pickupLng: pickupLng,
+        dropLat: dropLat,
+        dropLng: dropLng,
       );
 }

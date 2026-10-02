@@ -13,6 +13,7 @@ class JourneyCompletePage extends StatefulWidget {
   final String distanceText;
   final String durationText;
   final String finalPaymentText;
+  final bool isCorporate;
 
   const JourneyCompletePage({
     super.key,
@@ -21,6 +22,7 @@ class JourneyCompletePage extends StatefulWidget {
     this.distanceText = '12.4 km',
     this.durationText = '24 mins',
     this.finalPaymentText = '',
+    this.isCorporate = false,
   });
 
   @override
@@ -163,49 +165,68 @@ class _JourneyCompletePageState extends State<JourneyCompletePage> {
             ),
             const SizedBox(height: 16),
 
-            // Final Payment Card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.cardBgDark : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
+            // Final Payment / Billing Card
+            Builder(
+              builder: (context) {
+                final bool isCorp = widget.isCorporate ||
+                    widget.finalPaymentText.toUpperCase().contains('CORP');
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.cardBgDark : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.account_balance_wallet_outlined,
-                    color: AppColors.primaryBlue,
-                    size: 24,
+                  child: Column(
+                    children: [
+                      Icon(
+                        isCorp ? Icons.business_rounded : Icons.account_balance_wallet_outlined,
+                        color: isCorp ? const Color(0xFF10B981) : AppColors.primaryBlue,
+                        size: 24,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        isCorp ? 'PAYMENT METHOD' : 'FINAL PAYMENT',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.8,
+                          color: isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        isCorp ? 'Corporate Direct Billing' : widget.finalPaymentText,
+                        style: GoogleFonts.poppins(
+                          fontSize: isCorp ? 18 : 24,
+                          fontWeight: FontWeight.bold,
+                          color: isCorp
+                              ? const Color(0xFF10B981)
+                              : (isDark ? AppColors.textPrimaryDark : const Color(0xFF0F172A)),
+                        ),
+                      ),
+                      if (isCorp) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Billed to company • No payment required',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'FINAL PAYMENT',
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.8,
-                      color: isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.finalPaymentText,
-                    style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? AppColors.textPrimaryDark : const Color(0xFF0F172A),
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
             const SizedBox(height: 16),
 
@@ -313,9 +334,6 @@ class _JourneyCompletePageState extends State<JourneyCompletePage> {
                     height: 52,
                     child: ElevatedButton(
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Thank you for your feedback!')),
-                        );
                         Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
                       },
                       style: ElevatedButton.styleFrom(

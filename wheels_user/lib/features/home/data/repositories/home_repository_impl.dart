@@ -65,13 +65,60 @@ class HomeRepositoryImpl implements HomeRepository {
       }).toList();
     } catch (_) {}
 
+    String currentUserName = localModel.userName;
+    String? currentProfileImageUrl = localModel.profileImageUrl;
+
+    try {
+      final profileResp = await remoteDataSource.getCustomerProfile();
+      if (profileResp != null) {
+        final Map<String, dynamic> pData = (profileResp['data'] is Map)
+            ? Map<String, dynamic>.from(profileResp['data'])
+            : profileResp;
+        final userObj = (pData['user'] is Map) ? Map<String, dynamic>.from(pData['user']) : null;
+
+        final rawImg = pData['profile_image_url'] ??
+            pData['profile_photo_url'] ??
+            pData['profile_image'] ??
+            pData['avatar_url'] ??
+            pData['avatar'] ??
+            pData['image_url'] ??
+            pData['profile_pic'] ??
+            userObj?['profile_image_url'] ??
+            userObj?['profile_photo_url'] ??
+            userObj?['profile_image'] ??
+            userObj?['avatar_url'] ??
+            userObj?['avatar'] ??
+            userObj?['image_url'] ??
+            userObj?['profile_pic'];
+
+        if (rawImg != null && rawImg.toString().trim().isNotEmpty) {
+          currentProfileImageUrl = rawImg.toString().trim();
+        }
+
+        final rawName = pData['full_name'] ??
+            pData['name'] ??
+            pData['first_name'] ??
+            userObj?['full_name'] ??
+            userObj?['name'];
+        if (rawName != null && rawName.toString().trim().isNotEmpty && rawName.toString() != 'User') {
+          currentUserName = rawName.toString().trim();
+        }
+      }
+    } catch (_) {}
+
     return HomeDashboardEntity(
-      userName: localModel.userName,
+      userName: currentUserName,
+      profileImageUrl: currentProfileImageUrl,
       greetingTitle: localModel.greetingTitle,
       greetingSubtitle: localModel.greetingSubtitle,
       recentRideTitle: localModel.recentRideTitle,
       recentRideDetails: localModel.recentRideDetails,
       selectedNavIndex: localModel.selectedNavIndex,
+      isCorporate: localModel.isCorporate,
+      companyName: localModel.companyName,
+      employeeCode: localModel.employeeCode,
+      spendingLimit: localModel.spendingLimit,
+      companyLocation: localModel.companyLocation,
       quickServices: quickServices,
       popularLocations: popularLocations,
       coupons: coupons,

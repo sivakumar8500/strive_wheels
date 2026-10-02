@@ -19,7 +19,7 @@ void main() {
     when(() => mockBloc.close()).thenAnswer((_) async {});
   });
 
-  final tDate = DateTime(2026, 8, 30);
+  final tDate = DateTime.now();
   final tActivity = EarningsActivityEntity(
     id: '1',
     type: 'TRIP',

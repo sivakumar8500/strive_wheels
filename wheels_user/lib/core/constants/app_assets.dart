@@ -15,4 +15,5 @@ abstract class AppAssets {
   static const String vehicleForceTraveler = 'assets/images/vehicle_force_traveler.png';
   static const String vehicleMiniBus = 'assets/images/vehicle_mini_bus.png';
   static const String vehicleRangeRover = 'assets/images/vehicle_range_rover.jpg';
+  static const String movingVehicle = 'assets/images/moving_vehicle.png';
 }

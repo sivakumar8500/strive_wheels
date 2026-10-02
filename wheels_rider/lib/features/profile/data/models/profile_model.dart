@@ -57,15 +57,33 @@ abstract class ProfileModel with _$ProfileModel {
       vMap = Map<String, dynamic>.from(json['vehicle_detail'] as Map);
     } else if (json['vehicle'] is Map) {
       vMap = Map<String, dynamic>.from(json['vehicle'] as Map);
+    } else if (json['vehicle_details'] is Map) {
+      vMap = Map<String, dynamic>.from(json['vehicle_details'] as Map);
+    } else if (json['vehicles'] is List && (json['vehicles'] as List).isNotEmpty) {
+      final first = (json['vehicles'] as List).first;
+      if (first is Map) vMap = Map<String, dynamic>.from(first);
     } else if (json['driver_registration'] is Map && json['driver_registration']['vehicle_detail'] is Map) {
       vMap = Map<String, dynamic>.from(json['driver_registration']['vehicle_detail'] as Map);
+    } else if (userMap['vehicle_detail'] is Map) {
+      vMap = Map<String, dynamic>.from(userMap['vehicle_detail'] as Map);
     }
 
     Map<String, dynamic>? corpMap;
     if (json['corporate_detail'] is Map) {
       corpMap = Map<String, dynamic>.from(json['corporate_detail'] as Map);
+    } else if (json['corporate_details'] is Map) {
+      corpMap = Map<String, dynamic>.from(json['corporate_details'] as Map);
     } else if (json['corporate'] is Map) {
       corpMap = Map<String, dynamic>.from(json['corporate'] as Map);
+    } else if (json['corporate_association'] is Map) {
+      corpMap = Map<String, dynamic>.from(json['corporate_association'] as Map);
+    } else if (json['company_rider'] is Map) {
+      corpMap = Map<String, dynamic>.from(json['company_rider'] as Map);
+    } else if (json['company_associations'] is List && (json['company_associations'] as List).isNotEmpty) {
+      final first = (json['company_associations'] as List).first;
+      if (first is Map) corpMap = Map<String, dynamic>.from(first);
+    } else if (userMap['corporate_detail'] is Map) {
+      corpMap = Map<String, dynamic>.from(userMap['corporate_detail'] as Map);
     }
 
     Map<String, dynamic>? compMap;
@@ -73,6 +91,10 @@ abstract class ProfileModel with _$ProfileModel {
       compMap = Map<String, dynamic>.from(json['active_company'] as Map);
     } else if (json['company'] is Map) {
       compMap = Map<String, dynamic>.from(json['company'] as Map);
+    } else if (corpMap != null && corpMap['company'] is Map) {
+      compMap = Map<String, dynamic>.from(corpMap['company'] as Map);
+    } else if (userMap['active_company'] is Map) {
+      compMap = Map<String, dynamic>.from(userMap['active_company'] as Map);
     }
 
     return ProfileModel(
@@ -142,15 +164,46 @@ abstract class ProfileModel with _$ProfileModel {
     String vFuel = (vData['fuel_type'] ?? vData['fuelType'] ?? 'Diesel').toString();
 
     // Corporate fields parsing
-    final String? compName = compData?['name'] ?? corpData?['company_name'] ?? corpData?['name'];
-    final bool isCorp = compName != null && compName.trim().isNotEmpty;
-    final String? compRoute = (corpData?['route_from'] != null && corpData?['route_to'] != null)
-        ? "${corpData!['route_from']} ➔ ${corpData!['route_to']}"
-        : null;
-    final String? compStatus = (corpData?['approval_status'] ?? (isCorp ? 'APPROVED' : null))?.toString();
-    final String? compLoc = compData?['company_location']?.toString();
-    final String? compEmail = compData?['contact_email']?.toString();
-    final String? compPhone = compData?['contact_phone']?.toString();
+    final String? compName = compData?['name'] ??
+        corpData?['company_name'] ??
+        corpData?['name'] ??
+        (corpData?['company'] is Map ? corpData!['company']['name'] : null);
+
+    final bool isCorp = (compName != null && compName.trim().isNotEmpty) ||
+        (corpData != null && corpData.isNotEmpty) ||
+        (compData != null && compData.isNotEmpty);
+
+    String? compRoute;
+    if (corpData != null) {
+      if (corpData['route_from'] != null && corpData['route_to'] != null) {
+        compRoute = "${corpData['route_from']} ➔ ${corpData['route_to']}";
+      } else if (corpData['route_from'] != null) {
+        compRoute = corpData['route_from'].toString();
+      } else if (corpData['route_to'] != null) {
+        compRoute = corpData['route_to'].toString();
+      } else if (corpData['route'] != null) {
+        compRoute = corpData['route'].toString();
+      }
+    }
+
+    final String? compStatus = (corpData?['approval_status'] ??
+        (corpData?['is_active'] == true ? 'APPROVED' : null) ??
+        (isCorp ? 'APPROVED' : null))?.toString();
+
+    final String? compLoc = compData?['company_location']?.toString() ??
+        corpData?['company_location']?.toString() ??
+        corpData?['location']?.toString() ??
+        (corpData?['company'] is Map ? corpData!['company']['company_location']?.toString() : null);
+
+    final String? compEmail = compData?['contact_email']?.toString() ??
+        corpData?['contact_email']?.toString() ??
+        corpData?['email']?.toString() ??
+        (corpData?['company'] is Map ? corpData!['company']['contact_email']?.toString() : null);
+
+    final String? compPhone = compData?['contact_phone']?.toString() ??
+        corpData?['contact_phone']?.toString() ??
+        corpData?['phone']?.toString() ??
+        (corpData?['company'] is Map ? corpData!['company']['contact_phone']?.toString() : null);
 
     return ProfileEntity(
       id: id ?? 0,
@@ -159,11 +212,11 @@ abstract class ProfileModel with _$ProfileModel {
       totalEarnings: totalEarnings ?? 0.0,
       walletBalance: walletBalance ?? 0.0,
       profileImageUrl: imageUrl,
-      phone: (userData['phone'] ?? userData['mobile_number'] ?? '').toString(),
-      email: (userData['email'] ?? '').toString(),
-      dob: (userData['dob'] ?? '').toString(),
+      phone: (userData['phone'] ?? userData['mobile_number'] ?? userData['mobile'] ?? '').toString(),
+      email: (userData['email'] ?? userData['email_address'] ?? '').toString(),
+      dob: (userData['dob'] ?? userData['date_of_birth'] ?? '').toString(),
       gender: (userData['gender'] ?? '').toString(),
-      status: (userData['status'] ?? 'active').toString(),
+      status: (userData['status'] ?? userData['verification_status'] ?? 'active').toString(),
       vehicleMake: vMake,
       vehicleModel: vModel,
       vehicleNumber: vNum,

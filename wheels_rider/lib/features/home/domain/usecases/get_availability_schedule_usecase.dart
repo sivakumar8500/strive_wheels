@@ -5,7 +5,7 @@ class GetAvailabilityScheduleUseCase {
 
   GetAvailabilityScheduleUseCase(this.repository);
 
-  Future<List<DateTime>> call() async {
-    return await repository.getAvailabilitySchedule();
+  Future<List<DateTime>> call({DateTime? startDate}) async {
+    return await repository.getAvailabilitySchedule(startDate: startDate);
   }
 }

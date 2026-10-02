@@ -155,12 +155,6 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
           sl<ActiveBookingService>().clearActiveBooking();
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Trip cancelled'),
-              backgroundColor: Color(0xFFEF4444),
-            ),
-          );
           Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
         }
       }
@@ -227,26 +221,6 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
         if (sl.isRegistered<ActiveBookingService>()) {
           sl<ActiveBookingService>().updateBookingStatus('RIDER_ARRIVED');
         }
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.location_on, color: Colors.white, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Driver has arrived! Share OTP with driver: ${widget.startOtp ?? ""}',
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ],
-              ),
-              backgroundColor: AppColors.primaryBlue,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-        }
       }
 
       // OTP verified by rider — directly show map tracking screen
@@ -303,13 +277,6 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
           sl<ActiveBookingService>().clearActiveBooking();
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(displayMsg),
-              backgroundColor: const Color(0xFFEF4444),
-              duration: const Duration(seconds: 4),
-            ),
-          );
           Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
         }
         return;
@@ -375,12 +342,6 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
               if (sl.isRegistered<ActiveBookingService>()) {
                 sl<ActiveBookingService>().clearActiveBooking();
               }
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Ride cancelled successfully'),
-                  backgroundColor: Color(0xFFEF4444),
-                ),
-              );
               Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
             },
             style: ElevatedButton.styleFrom(

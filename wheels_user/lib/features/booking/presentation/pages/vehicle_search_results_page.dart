@@ -162,16 +162,7 @@ class VehicleSearchResultsPage extends StatelessWidget {
       backgroundColor: backgroundColor,
       body: SafeArea(
         child: BlocConsumer<BookingBloc, BookingState>(
-          listener: (context, state) {
-            if (state.actionMessage != null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(state.actionMessage!),
-                  backgroundColor: AppColors.primaryBlue,
-                ),
-              );
-            }
-          },
+          listener: (context, state) {},
           builder: (context, state) {
             final vehicles = state.availableVehicles;
 

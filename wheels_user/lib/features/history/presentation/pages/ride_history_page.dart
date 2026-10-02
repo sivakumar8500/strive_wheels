@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../booking/presentation/pages/ride_route_map_page.dart';
+import '../../domain/entities/past_ride_item_entity.dart';
 import '../bloc/ride_history_bloc.dart';
 import '../bloc/ride_history_event.dart';
 import '../bloc/ride_history_state.dart';
@@ -17,11 +21,13 @@ import '../widgets/segmented_filter_bar.dart';
 class RideHistoryPage extends StatefulWidget {
   final VoidCallback? onMenuTap;
   final VoidCallback? onNotificationTap;
+  final void Function(PastRideItemEntity ride)? onBookAgainNavigate;
 
   const RideHistoryPage({
     super.key,
     this.onMenuTap,
     this.onNotificationTap,
+    this.onBookAgainNavigate,
   });
 
   @override
@@ -49,21 +55,7 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
       ),
       body: BlocConsumer<RideHistoryBloc, RideHistoryState>(
         listener: (context, state) {
-          if (state.bookAgainMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.bookAgainMessage!),
-                backgroundColor: AppColors.primaryBlue,
-              ),
-            );
-          } else if (state.actionMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.actionMessage!),
-                backgroundColor: AppColors.primaryBlue,
-              ),
-            );
-          }
+          // No intrusive snackbars
         },
         builder: (context, state) {
           if (state.isLoading) {
@@ -191,6 +183,37 @@ class _RideHistoryPageState extends State<RideHistoryPage> {
                                 rideTitle: ride.title,
                               ),
                             );
+
+                        if (widget.onBookAgainNavigate != null) {
+                          widget.onBookAgainNavigate!(ride);
+                          return;
+                        }
+
+                        final pickup = ride.effectivePickupAddress;
+                        final drop = ride.effectiveDropAddress;
+                        final pickupLatLng = LatLng(
+                          ride.pickupLat ?? 17.4483,
+                          ride.pickupLng ?? 78.3915,
+                        );
+                        final dropLatLng = LatLng(
+                          ride.dropLat ?? 17.4938,
+                          ride.dropLng ?? 78.3995,
+                        );
+
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => RideRouteMapPage(
+                              pickupTitle: pickup,
+                              pickupAddress: pickup,
+                              dropTitle: drop,
+                              dropAddress: drop,
+                              pickupLatLng: pickupLatLng,
+                              dropLatLng: dropLatLng,
+                              bookingMode: 'INSTANT',
+                              isCorporate: ride.isCorporate,
+                            ),
+                          ),
+                        );
                       },
                     );
                   }),

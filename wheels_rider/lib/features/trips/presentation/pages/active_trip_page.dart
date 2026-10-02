@@ -9,6 +9,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/app_map_widget.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/websocket_client.dart';
+import '../../../../core/services/ride_ringtone_service.dart';
 import '../../../../features/home/data/datasources/booking_websocket_data_source.dart';
 import '../../domain/usecases/start_trip_usecase.dart';
 import '../../domain/usecases/complete_trip_usecase.dart';
@@ -28,6 +29,8 @@ class ActiveTripPage extends StatefulWidget {
   final double? dropLng;
   final double? riderLat;
   final double? riderLng;
+  final bool isCorporate;
+  final String? serviceMode;
   /// Called when OTP is verified and the trip transitions to in-progress.
   final VoidCallback? onTripStarted;
   /// Called when the trip is completed.
@@ -45,6 +48,8 @@ class ActiveTripPage extends StatefulWidget {
     this.dropLng,
     this.riderLat,
     this.riderLng,
+    this.isCorporate = false,
+    this.serviceMode,
     this.onTripStarted,
     this.onTripCompleted,
   });
@@ -121,6 +126,9 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
   @override
   void initState() {
     super.initState();
+    if (sl.isRegistered<RideRingtoneService>()) {
+      sl<RideRingtoneService>().stopCallingRingtone();
+    }
     _startTripUseCase = sl<StartTripUseCase>();
     _completeTripUseCase = sl<CompleteTripUseCase>();
     _setupDropResponseListener();
@@ -128,6 +136,9 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
 
   @override
   void dispose() {
+    if (sl.isRegistered<RideRingtoneService>()) {
+      sl<RideRingtoneService>().stopCallingRingtone();
+    }
     _wsDropSubscription?.cancel();
     _otpController.dispose();
     _dropReasonController.dispose();
@@ -182,18 +193,28 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
         return;
       }
 
-      if (event == 'booking.cancelled' ||
+      final isCancelled =
+          event == 'booking.cancelled' ||
           event == 'booking.canceled' ||
           event == 'booking.customer_cancelled' ||
-          event == 'ride.cancelled') {
-        final reason = data['reason']?.toString() ?? 'Ride was cancelled by customer';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(reason.isNotEmpty ? reason : 'Ride was cancelled by customer'),
-            backgroundColor: const Color(0xFFEF4444),
-            duration: const Duration(seconds: 4),
-          ),
-        );
+          event == 'booking.rider_cancelled' ||
+          event == 'booking.request_cancelled' ||
+          event == 'booking.request_expired' ||
+          event == 'booking_request_cancelled' ||
+          event == 'booking.cancel_success' ||
+          event == 'booking.cancel' ||
+          event == 'ride.cancelled' ||
+          event == 'ride.customer_cancelled' ||
+          event == 'ride.canceled' ||
+          event == 'cancel_booking' ||
+          event == 'cancel_ride' ||
+          rawStatus.contains('CANCEL') ||
+          rawStatus == 'EXPIRED';
+
+      if (isCancelled) {
+        if (sl.isRegistered<RideRingtoneService>()) {
+          sl<RideRingtoneService>().stopCallingRingtone();
+        }
         widget.onTripCompleted?.call();
         if (Navigator.canPop(context)) {
           Navigator.of(context).pop();
@@ -205,26 +226,20 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
           event == 'booking.drop_approved' ||
           event == 'trip.drop_accepted' ||
           event == 'trip.drop_approved') {
-        // Drop approved — navigate rider to payment collection screen
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Drop request accepted! Collect payment.',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.green.shade600,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-        Future.delayed(const Duration(milliseconds: 500), () {
+        final bool isCorp = widget.isCorporate ||
+            widget.serviceMode?.toUpperCase() == 'CORPORATE' ||
+            data['service_mode']?.toString().toUpperCase() == 'CORPORATE' ||
+            msg['service_mode']?.toString().toUpperCase() == 'CORPORATE' ||
+            data['payment_method']?.toString().toUpperCase() == 'CORPORATE_BILLING' ||
+            data['is_corporate'] == true;
+
+        final dynamic rawFare = data['final_fare'] ?? data['final_amount'] ?? msg['final_fare'] ?? msg['final_amount'] ?? data['amount'] ?? msg['amount'];
+        final double? updatedFare = rawFare != null ? (rawFare is num ? rawFare.toDouble() : double.tryParse(rawFare.toString())) : null;
+        final dynamic rawDist = data['distance_km'] ?? msg['distance_km'] ?? data['actual_distance_km'] ?? msg['actual_distance_km'];
+        final double? distanceKm = rawDist != null ? (rawDist is num ? rawDist.toDouble() : double.tryParse(rawDist.toString())) : null;
+
+        // Drop approved — navigate rider to payment/completion screen
+        Future.delayed(const Duration(milliseconds: 300), () {
           if (mounted) {
             // Pop the active trip bottom sheet first
             if (Navigator.canPop(context)) {
@@ -236,10 +251,15 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                 builder: (_) => TripPaymentPage(
                   bookingId: widget.bookingId,
                   estimatedFare: widget.estimatedFare ?? 0.0,
+                  finalFare: updatedFare,
+                  isEarlyDrop: true,
+                  actualDistanceKm: distanceKm,
                   pickupAddress: widget.pickupAddress ?? '',
                   dropAddress: widget.dropAddress ?? '',
                   riderLat: widget.riderLat,
                   riderLng: widget.riderLng,
+                  isCorporate: isCorp,
+                  serviceMode: isCorp ? 'CORPORATE' : null,
                   onCompleted: () {
                     widget.onTripCompleted?.call();
                   },
@@ -298,12 +318,6 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
     } else if (targetAddr.isNotEmpty) {
       final queryUrl = Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(targetAddr)}');
       await launchUrl(queryUrl, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Destination coordinates unavailable for external navigation.')),
-        );
-      }
     }
   }
 
@@ -673,24 +687,6 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                       },
                     });
                   }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Row(
-                        children: [
-                          const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Drop request auto-accepted (30s timeout). Completing trip...',
-                              style: GoogleFonts.inter(fontWeight: FontWeight.w500),
-                            ),
-                          ),
-                        ],
-                      ),
-                      backgroundColor: const Color(0xFF10B981),
-                      duration: const Duration(seconds: 4),
-                    ),
-                  );
                   Future.delayed(const Duration(milliseconds: 800), () {
                     if (mounted) _handleCompleteTrip();
                   });
@@ -837,24 +833,6 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                                 },
                               });
                             }
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Row(
-                                  children: [
-                                    const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        'Drop request accepted! Completing trip...',
-                                        style: GoogleFonts.inter(fontWeight: FontWeight.w500),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                backgroundColor: const Color(0xFF10B981),
-                                duration: const Duration(seconds: 4),
-                              ),
-                            );
                             Future.delayed(const Duration(milliseconds: 800), () {
                               if (mounted) _handleCompleteTrip();
                             });
@@ -984,12 +962,6 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                         reason: selectedReason,
                       );
                     }
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Trip cancelled'),
-                        backgroundColor: Color(0xFFEF4444),
-                      ),
-                    );
                     widget.onTripCompleted?.call();
                     if (Navigator.canPop(context)) {
                       Navigator.of(context).pop();
@@ -1017,9 +989,6 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
       return;
     }
     if (otp.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter valid 4-digit OTP from customer')),
-      );
       return;
     }
     setState(() => _isLoading = true);
@@ -1054,22 +1023,12 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
         _tripStatus = TripStatus.inProgress;
       });
       widget.onTripStarted?.call();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('OTP Verified! Ride Started Successfully.')),
-        );
-      }
     } catch (e) {
       setState(() {
         _isLoading = false;
         _tripStatus = TripStatus.inProgress;
       });
       widget.onTripStarted?.call();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ride Started Successfully.')),
-        );
-      }
     }
   }
 
@@ -1086,9 +1045,6 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
       setState(() => _isLoading = false);
       if (mounted) {
         widget.onTripCompleted?.call();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Trip Completed Successfully!')),
-        );
         Navigator.pop(context);
       }
     } catch (e) {
@@ -1100,9 +1056,6 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
           widget.onTripCompleted?.call();
           Navigator.pop(context);
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(userMsg), backgroundColor: Colors.orange),
-        );
       }
     }
   }
@@ -1202,9 +1155,6 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                       : () async {
                           final reason = _dropReasonController.text.trim();
                           if (reason.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please enter a reason for the drop request.')),
-                            );
                             return;
                           }
                           Navigator.pop(ctx);
@@ -1249,32 +1199,9 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
       }
       if (mounted) {
         setState(() => _isDropRequestLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Drop request sent to customer. Waiting for approval...',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 4),
-          ),
-        );
       }
     } catch (e) {
       setState(() => _isDropRequestLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send drop request: $e'), backgroundColor: Colors.red),
-        );
-      }
     }
   }
 

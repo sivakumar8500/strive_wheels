@@ -91,8 +91,18 @@ import '../../features/chat/domain/usecases/get_chat_history_usecase.dart';
 import '../../features/chat/domain/usecases/send_chat_message_usecase.dart';
 import '../../features/chat/domain/usecases/listen_chat_messages_usecase.dart';
 import '../../features/chat/presentation/bloc/chat_bloc.dart';
+import '../../features/notifications/data/datasources/notification_remote_data_source.dart';
+import '../../features/notifications/data/repositories/notification_repository_impl.dart';
+import '../../features/notifications/domain/repositories/notification_repository.dart';
+import '../../features/notifications/domain/usecases/get_notifications_usecase.dart';
+import '../../features/notifications/domain/usecases/get_unread_count_usecase.dart';
+import '../../features/notifications/domain/usecases/mark_notification_read_usecase.dart';
+import '../../features/notifications/domain/usecases/mark_all_read_usecase.dart';
+import '../../features/notifications/presentation/bloc/notification_bloc.dart';
 
 import '../services/navigation_service.dart';
+import '../services/ride_ringtone_service.dart';
+import '../services/live_journey_notification_service.dart';
 
 final sl = GetIt.instance;
 
@@ -100,6 +110,12 @@ Future<void> initDependencyInjection() async {
   // Services
   if (!sl.isRegistered<NavigationService>()) {
     sl.registerLazySingleton<NavigationService>(() => NavigationService());
+  }
+  if (!sl.isRegistered<RideRingtoneService>()) {
+    sl.registerLazySingleton<RideRingtoneService>(() => RideRingtoneServiceImpl());
+  }
+  if (!sl.isRegistered<LiveJourneyNotificationService>()) {
+    sl.registerLazySingleton<LiveJourneyNotificationService>(() => const LiveJourneyNotificationServiceImpl());
   }
 
   // External
@@ -303,6 +319,11 @@ Future<void> initDependencyInjection() async {
   if (!sl.isRegistered<AcceptBookingUseCase>()) {
     sl.registerLazySingleton<AcceptBookingUseCase>(
       () => AcceptBookingUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<DeclineBookingUseCase>()) {
+    sl.registerLazySingleton<DeclineBookingUseCase>(
+      () => DeclineBookingUseCase(sl()),
     );
   }
   if (!sl.isRegistered<GetRideRequestsStreamUseCase>()) {
@@ -515,6 +536,7 @@ Future<void> initDependencyInjection() async {
         connectToBookingSocket: sl(),
         disconnectBookingSocket: sl(),
         acceptBooking: sl(),
+        declineBookingUseCase: sl(),
         getRideRequestsStream: sl(),
         getBookingSuccessStream: sl(),
         getBookingErrorStream: sl(),
@@ -581,5 +603,48 @@ Future<void> initDependencyInjection() async {
       ),
     );
   }
+
+  // Notification Dependencies
+  if (!sl.isRegistered<NotificationRemoteDataSource>()) {
+    sl.registerLazySingleton<NotificationRemoteDataSource>(
+      () => NotificationRemoteDataSourceImpl(sl()),
+    );
+  }
+  if (!sl.isRegistered<NotificationRepository>()) {
+    sl.registerLazySingleton<NotificationRepository>(
+      () => NotificationRepositoryImpl(remoteDataSource: sl()),
+    );
+  }
+  if (!sl.isRegistered<GetNotificationsUseCase>()) {
+    sl.registerLazySingleton<GetNotificationsUseCase>(
+      () => GetNotificationsUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<GetUnreadCountUseCase>()) {
+    sl.registerLazySingleton<GetUnreadCountUseCase>(
+      () => GetUnreadCountUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<MarkNotificationReadUseCase>()) {
+    sl.registerLazySingleton<MarkNotificationReadUseCase>(
+      () => MarkNotificationReadUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<MarkAllReadUseCase>()) {
+    sl.registerLazySingleton<MarkAllReadUseCase>(
+      () => MarkAllReadUseCase(sl()),
+    );
+  }
+  if (!sl.isRegistered<NotificationBloc>()) {
+    sl.registerFactory<NotificationBloc>(
+      () => NotificationBloc(
+        getNotificationsUseCase: sl(),
+        getUnreadCountUseCase: sl(),
+        markNotificationReadUseCase: sl(),
+        markAllReadUseCase: sl(),
+      ),
+    );
+  }
 }
+
 

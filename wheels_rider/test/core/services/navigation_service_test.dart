@@ -156,5 +156,112 @@ void main() {
       expect(closest, isNotNull);
       expect(closest!.instruction, equals('Step 1'));
     });
+
+    test('optimizeCorridorSequence sorts multi-passenger pickups towards Mindspace', () {
+      const mindspace = LatLng(17.4400, 78.3800);
+      const kphb = LatLng(17.4938, 78.3995);
+      const nexusMall = LatLng(17.4830, 78.3880);
+      const madhapur = LatLng(17.4480, 78.3850);
+
+      final stops = [
+        const CorridorWaypointStop(
+          id: 'p_c',
+          label: 'Person C (Madhapur)',
+          address: 'Madhapur',
+          location: madhapur,
+          type: 'pickup',
+          passengerName: 'Person C',
+        ),
+        const CorridorWaypointStop(
+          id: 'p_a',
+          label: 'Person A (KPHB)',
+          address: 'KPHB Colony',
+          location: kphb,
+          type: 'pickup',
+          passengerName: 'Person A',
+        ),
+        const CorridorWaypointStop(
+          id: 'p_b',
+          label: 'Person B (Nexus Mall)',
+          address: 'Nexus Mall',
+          location: nexusMall,
+          type: 'pickup',
+          passengerName: 'Person B',
+        ),
+        const CorridorWaypointStop(
+          id: 'comp_drop',
+          label: 'Mindspace Drop',
+          address: 'Mindspace',
+          location: mindspace,
+          type: 'drop',
+          passengerName: 'Company HQ',
+        ),
+      ];
+
+      final sequenced = navigationService.optimizeCorridorSequence(
+        stops: stops,
+        companyLocation: mindspace,
+      );
+
+      expect(sequenced.length, equals(4));
+      expect(sequenced[0].id, equals('p_a')); // Farthest pickup
+      expect(sequenced[1].id, equals('p_b')); // Next pickup
+      expect(sequenced[2].id, equals('p_c')); // Nearest pickup to Mindspace
+      expect(sequenced[3].id, equals('comp_drop')); // Company Drop
+    });
+
+    test('fetchMultiStopRouteNavigation fetches and parses multi-waypoint path', () async {
+      when(() => mockDio.get(
+            any(),
+            options: any(named: 'options'),
+          )).thenAnswer(
+        (_) async => Response(
+          data: {
+            'routes': [
+              {
+                'distance': 15000.0,
+                'duration': 1800.0,
+                'geometry': {
+                  'coordinates': [
+                    [78.3995, 17.4938],
+                    [78.3880, 17.4830],
+                    [78.3850, 17.4480],
+                    [78.3800, 17.4400],
+                  ],
+                },
+                'legs': [
+                  {
+                    'steps': [
+                      {
+                        'maneuver': {'type': 'depart', 'location': [78.3995, 17.4938]},
+                        'name': 'KPHB 7th Phase',
+                        'distance': 3000.0,
+                        'duration': 400.0,
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          statusCode: 200,
+          requestOptions: RequestOptions(path: ''),
+        ),
+      );
+
+      final result = await navigationService.fetchMultiStopRouteNavigation(
+        waypoints: const [
+          LatLng(17.4938, 78.3995),
+          LatLng(17.4830, 78.3880),
+          LatLng(17.4480, 78.3850),
+          LatLng(17.4400, 78.3800),
+        ],
+      );
+
+      expect(result.isEmpty, isFalse);
+      expect(result.points.length, equals(4));
+      expect(result.totalDistanceMeters, equals(15000.0));
+      expect(result.totalDurationSeconds, equals(1800.0));
+    });
   });
 }

@@ -10,11 +10,19 @@ class GetCorporateAlignedVehiclesUseCase {
     double? pickupLat,
     double? pickupLng,
     String? dropAddress,
+    String? pickupAddress,
+    double? dropLat,
+    double? dropLng,
+    int? companyId,
   }) async {
     return await repository.getCorporateAlignedVehicles(
       pickupLat: pickupLat,
       pickupLng: pickupLng,
       dropAddress: dropAddress,
+      pickupAddress: pickupAddress,
+      dropLat: dropLat,
+      dropLng: dropLng,
+      companyId: companyId,
     );
   }
 }

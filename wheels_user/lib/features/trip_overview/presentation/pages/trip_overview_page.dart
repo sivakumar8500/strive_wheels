@@ -75,25 +75,12 @@ class _TripOverviewPageState extends State<TripOverviewPage> {
               Icons.notifications_none_rounded,
               color: isDark ? AppColors.white : AppColors.onboardingTextPrimaryLight,
             ),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('No new notifications')),
-              );
-            },
+            onPressed: () {},
           ),
         ],
       ),
       body: BlocConsumer<TripOverviewBloc, TripOverviewState>(
         listener: (context, state) {
-          if (state.actionMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.actionMessage!),
-                backgroundColor: AppColors.primaryBlue,
-              ),
-            );
-          }
-
           if (state.isBookingConfirmed) {
             Navigator.of(context).push(
               MaterialPageRoute(

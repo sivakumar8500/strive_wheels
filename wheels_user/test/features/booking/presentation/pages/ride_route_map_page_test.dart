@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:wheels_user/features/booking/domain/entities/corporate_aligned_vehicle_entity.dart';
 import 'package:wheels_user/features/booking/domain/entities/vehicle_type_entity.dart';
+import 'package:wheels_user/features/booking/domain/usecases/get_corporate_aligned_vehicles_usecase.dart';
 import 'package:wheels_user/features/booking/presentation/pages/ride_route_map_page.dart';
 
 class MockDio extends Mock implements Dio {}
+class MockGetCorporateAlignedVehiclesUseCase extends Mock implements GetCorporateAlignedVehiclesUseCase {}
 
 void main() {
   late MockDio mockDio;
@@ -165,5 +168,115 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(DraggableScrollableSheet), findsOneWidget);
+  });
+
+  testWidgets('Corporate Mode shows ONLY company attached vehicles and specific route, hiding standard vehicles', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final mockCorpUseCase = MockGetCorporateAlignedVehiclesUseCase();
+    const testCorpVehicle = CorporateAlignedVehicleEntity(
+      id: 101,
+      companyId: 5,
+      riderId: 20,
+      vehicleId: 30,
+      driverName: 'Corporate Driver Ramesh',
+      vehicleName: 'Toyota Etios',
+      licensePlate: 'TS09CORP01',
+      vehicleTypeId: 1,
+      vehicleTypeName: 'Cab',
+      routeFrom: 'KPHB Colony',
+      routeTo: 'Mindspace Tech Park',
+      isAligned: true,
+      alignmentLabel: 'Direct Route: KPHB Colony ➔ Mindspace Tech Park',
+      seats: 4,
+      availableSeats: 3,
+      occupiedSeats: 1,
+      availableSeatNumbers: [1, 2, 4],
+    );
+
+    when(() => mockCorpUseCase.call(
+          pickupLat: any(named: 'pickupLat'),
+          pickupLng: any(named: 'pickupLng'),
+          dropAddress: any(named: 'dropAddress'),
+          pickupAddress: any(named: 'pickupAddress'),
+          dropLat: any(named: 'dropLat'),
+          dropLng: any(named: 'dropLng'),
+          companyId: any(named: 'companyId'),
+        )).thenAnswer((_) async => [testCorpVehicle]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RideRouteMapPage(
+          pickupTitle: 'KPHB Colony',
+          pickupAddress: 'KPHB Colony, Hyderabad',
+          dropTitle: 'Mindspace',
+          dropAddress: 'Mindspace Tech Park, Hyderabad',
+          pickupLatLng: const LatLng(17.4938, 78.3995),
+          dropLatLng: const LatLng(17.4483, 78.3915),
+          dio: mockDio,
+          isCorporate: true,
+          initialVehicleTypes: testVehicleTypes,
+          getCorporateAlignedVehiclesUseCase: mockCorpUseCase,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify Corporate banner and route aligned badge are shown
+    expect(find.text('Route Aligned'), findsOneWidget);
+    expect(find.text('Company Attached Vehicles'), findsOneWidget);
+    expect(find.text('1 on Route'), findsOneWidget);
+
+    // Verify SPECIFIC ROUTE is prominently shown on the corporate vehicle card
+    expect(find.textContaining('KPHB Colony'), findsWidgets);
+    expect(find.textContaining('Mindspace Tech Park'), findsWidgets);
+    expect(find.text('Toyota Etios • TS09CORP01'), findsOneWidget);
+    expect(find.text('Corporate Driver Ramesh'), findsOneWidget);
+    expect(find.text('3/4 Seats Free'), findsOneWidget);
+
+    // Verify standard commercial vehicles are HIDDEN in corporate mode
+    expect(find.text('Auto Rickshaw'), findsNothing);
+    expect(find.text('Bike Taxi'), findsNothing);
+    expect(find.text('Rapido Wallet'), findsNothing);
+    expect(find.text('Offers'), findsNothing);
+    expect(find.byKey(const Key('confirm_ride_booking_button')), findsNothing);
+
+    // Verify Corporate Action Button
+    expect(find.byKey(const Key('confirm_corporate_ride_booking_button')), findsOneWidget);
+    expect(find.textContaining('Book Route • Seat #'), findsOneWidget);
+  });
+
+  testWidgets('One-Way and Round-Trip modes show ONLY Car/Cab vehicles', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RideRouteMapPage(
+          pickupTitle: 'Office',
+          pickupAddress: 'Hitech City, Hyderabad',
+          dropTitle: 'Home',
+          dropAddress: 'Kukatpally, Hyderabad',
+          pickupLatLng: const LatLng(17.4483, 78.3915),
+          dropLatLng: const LatLng(17.4938, 78.3995),
+          bookingMode: 'ONE_WAY',
+          dio: mockDio,
+          initialVehicleTypes: testVehicleTypes,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify Car/Cab is shown
+    expect(find.text('Cab (Sedan / Hatchback)'), findsOneWidget);
+
+    // Verify Bike and Auto are HIDDEN in ONE_WAY mode
+    expect(find.text('Auto Rickshaw'), findsNothing);
+    expect(find.text('Bike Taxi'), findsNothing);
   });
 }

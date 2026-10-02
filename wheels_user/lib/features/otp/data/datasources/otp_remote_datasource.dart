@@ -75,6 +75,22 @@ class OtpRemoteDataSourceImpl implements OtpRemoteDataSource {
             await sharedPreferences.setString('user_email', userEmail.toString());
           }
 
+          final profileImg = customerProfile?['profile_image_url'] ??
+              customerProfile?['profile_photo_url'] ??
+              customerProfile?['profile_image'] ??
+              customerProfile?['avatar_url'] ??
+              userObj?['profile_image_url'] ??
+              userObj?['profile_photo_url'] ??
+              userObj?['profile_image'] ??
+              userObj?['avatar_url'] ??
+              data['profile_image_url'] ??
+              data['profile_photo_url'] ??
+              data['profile_image'];
+          if (profileImg != null && profileImg.toString().trim().isNotEmpty) {
+            await sharedPreferences.setString('user_profile_image', profileImg.toString().trim());
+            await sharedPreferences.setString('profile_image_url', profileImg.toString().trim());
+          }
+
           final bool isCorporate = companyObj != null;
           await sharedPreferences.setBool('is_corporate_user', isCorporate);
 

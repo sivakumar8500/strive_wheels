@@ -17,5 +17,6 @@ abstract class RideRequestEntity with _$RideRequestEntity {
     int? estimatedDurationMins,
     String? bookingCode,
     String? serviceMode,
+    int? seatNumber,
   }) = _RideRequestEntity;
 }

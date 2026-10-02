@@ -3,14 +3,17 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/entities/settings_entity.dart';
 import '../../domain/entities/user_profile_entity.dart';
 import '../../domain/usecases/get_settings_usecase.dart';
+import '../../domain/usecases/update_user_profile_usecase.dart';
 import 'settings_event.dart';
 import 'settings_state.dart';
 
 class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   final GetSettingsUseCase getSettingsUseCase;
+  final UpdateUserProfileUseCase? updateUserProfileUseCase;
 
   SettingsBloc({
     required this.getSettingsUseCase,
+    this.updateUserProfileUseCase,
   }) : super(const SettingsState(isLoading: true)) {
     on<LoadSettingsEvent>(_onLoadSettings);
     on<ToggleRideNotificationsEvent>(_onToggleRideNotifications);
@@ -20,10 +23,10 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<LogoutEvent>(_onLogout);
   }
 
-  void _onUpdateUserProfile(
+  Future<void> _onUpdateUserProfile(
     UpdateUserProfileEvent event,
     Emitter<SettingsState> emit,
-  ) {
+  ) async {
     if (state.settingsEntity != null) {
       final currentProfile = state.settingsEntity!.profile;
       final updatedProfile = UserProfileEntity(
@@ -34,12 +37,17 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         phone: event.phone.trim().isNotEmpty ? event.phone.trim() : currentProfile.phone,
         email: event.email.trim().isNotEmpty ? event.email.trim() : currentProfile.email,
         gender: event.gender.trim().isNotEmpty ? event.gender.trim() : currentProfile.gender,
+        profileImageUrl: (event.profileImagePath != null && event.profileImagePath!.trim().isNotEmpty)
+            ? event.profileImagePath!.trim()
+            : currentProfile.profileImageUrl,
         isCorporate: currentProfile.isCorporate,
         companyName: currentProfile.companyName,
         corporateEmail: currentProfile.corporateEmail,
         corporateId: currentProfile.corporateId,
         department: currentProfile.department,
         designation: currentProfile.designation,
+        spendingLimit: currentProfile.spendingLimit,
+        companyLocation: currentProfile.companyLocation,
       );
 
       final updatedSettings = SettingsEntity(
@@ -54,6 +62,18 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         settingsEntity: updatedSettings,
         actionMessage: 'Profile updated successfully!',
       ));
+
+      if (updateUserProfileUseCase != null) {
+        try {
+          await updateUserProfileUseCase!(
+            name: event.name,
+            phone: event.phone,
+            email: event.email,
+            gender: event.gender,
+            profileImagePath: event.profileImagePath,
+          );
+        } catch (_) {}
+      }
     }
   }
 

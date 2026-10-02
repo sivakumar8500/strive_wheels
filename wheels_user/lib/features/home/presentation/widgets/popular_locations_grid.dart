@@ -6,7 +6,7 @@ import '../../domain/entities/home_dashboard_entity.dart';
 
 class PopularLocationsGrid extends StatelessWidget {
   final List<PopularLocationEntity> locations;
-  final Function(String locationId)? onLocationTap;
+  final Function(PopularLocationEntity location)? onLocationTap;
 
   const PopularLocationsGrid({
     super.key,
@@ -43,7 +43,7 @@ class PopularLocationsGrid extends StatelessWidget {
             itemBuilder: (context, index) {
               final loc = locations[index];
               return InkWell(
-                onTap: () => onLocationTap?.call(loc.id),
+                onTap: () => onLocationTap?.call(loc),
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
                   width: 120,

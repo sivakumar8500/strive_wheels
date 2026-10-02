@@ -27,9 +27,10 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   @override
-  Future<void> updateAvailabilitySchedule(List<DateTime> dates) async {
+  @override
+  Future<void> updateAvailabilitySchedule(List<DateTime> dates, {List<DateTime>? allWorkingDays}) async {
     try {
-      await remoteDataSource.updateAvailabilitySchedule(dates);
+      await remoteDataSource.updateAvailabilitySchedule(dates, allWorkingDays: allWorkingDays);
     } catch (e) {
       final msg = e.toString().replaceAll('Exception: ', '');
       throw Exception(msg);
@@ -37,9 +38,9 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   @override
-  Future<List<DateTime>> getAvailabilitySchedule() async {
+  Future<List<DateTime>> getAvailabilitySchedule({DateTime? startDate}) async {
     try {
-      return await remoteDataSource.getAvailabilitySchedule();
+      return await remoteDataSource.getAvailabilitySchedule(startDate: startDate);
     } catch (e) {
       final msg = e.toString().replaceAll('Exception: ', '');
       throw Exception(msg);

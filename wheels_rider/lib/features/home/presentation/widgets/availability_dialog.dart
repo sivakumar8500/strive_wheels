@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/di/injection_container.dart';
@@ -29,6 +30,48 @@ class _AvailabilityBottomSheetState extends State<AvailabilityBottomSheet> {
   void initState() {
     super.initState();
     _workingDays = _calculateNextWorkingDays(5);
+    _initializeSelectedDays();
+  }
+
+  void _initializeSelectedDays() {
+    if (widget.initiallySelectedDates.isNotEmpty) {
+      for (final id in widget.initiallySelectedDates) {
+        final match = _workingDays.firstWhere(
+          (wd) => wd.year == id.year && wd.month == id.month && wd.day == id.day,
+          orElse: () => DateTime(0),
+        );
+        if (match.year != 0) {
+          _selectedDays.add(match);
+        }
+      }
+    }
+
+    if (_selectedDays.isEmpty) {
+      _loadFromPrefs();
+    }
+  }
+
+  Future<void> _loadFromPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedStrings = prefs.getStringList('corporate_selected_dates');
+      if (savedStrings != null && savedStrings.isNotEmpty && mounted) {
+        setState(() {
+          for (final s in savedStrings) {
+            final parsed = DateTime.tryParse(s);
+            if (parsed != null) {
+              final match = _workingDays.firstWhere(
+                (wd) => wd.year == parsed.year && wd.month == parsed.month && wd.day == parsed.day,
+                orElse: () => DateTime(0),
+              );
+              if (match.year != 0) {
+                _selectedDays.add(match);
+              }
+            }
+          }
+        });
+      }
+    } catch (_) {}
   }
 
   List<DateTime> _calculateNextWorkingDays(int count) {
@@ -62,6 +105,7 @@ class _AvailabilityBottomSheetState extends State<AvailabilityBottomSheet> {
             loaded: (existingDates) {
               setState(() {
                 if (existingDates.isNotEmpty) {
+                  _selectedDays.clear();
                   // Add dates that match our working days (by year, month, day)
                   for (var ed in existingDates) {
                     for (var wd in _workingDays) {
@@ -71,29 +115,44 @@ class _AvailabilityBottomSheetState extends State<AvailabilityBottomSheet> {
                     }
                   }
                 } else if (widget.initiallySelectedDates.isNotEmpty) {
-                  _selectedDays.addAll(widget.initiallySelectedDates);
-                } else {
+                  _selectedDays.clear();
+                  for (var id in widget.initiallySelectedDates) {
+                    for (var wd in _workingDays) {
+                      if (id.year == wd.year && id.month == wd.month && id.day == wd.day) {
+                        _selectedDays.add(wd);
+                      }
+                    }
+                  }
+                } else if (_selectedDays.isEmpty) {
                   // By default select all
                   _selectedDays.addAll(_workingDays);
                 }
               });
             },
             failure: (_) {
-              setState(() {
-                if (widget.initiallySelectedDates.isNotEmpty) {
-                  _selectedDays.addAll(widget.initiallySelectedDates);
-                } else {
-                  _selectedDays.addAll(_workingDays);
-                }
-              });
+              if (_selectedDays.isEmpty) {
+                setState(() {
+                  if (widget.initiallySelectedDates.isNotEmpty) {
+                    for (var id in widget.initiallySelectedDates) {
+                      for (var wd in _workingDays) {
+                        if (id.year == wd.year && id.month == wd.month && id.day == wd.day) {
+                          _selectedDays.add(wd);
+                        }
+                      }
+                    }
+                  } else {
+                    _selectedDays.addAll(_workingDays);
+                  }
+                });
+              }
             },
             orElse: () {},
           );
         },
         builder: (context, state) {
           final isLoading = state.maybeWhen(
-            initial: () => true,
-            loading: () => true,
+            initial: () => _selectedDays.isEmpty,
+            loading: () => _selectedDays.isEmpty,
             orElse: () => false,
           );
 
@@ -137,7 +196,9 @@ class _AvailabilityBottomSheetState extends State<AvailabilityBottomSheet> {
                       )
                     else
                       ..._workingDays.map((day) {
-                        final isSelected = _selectedDays.contains(day);
+                        final isSelected = _selectedDays.any(
+                          (d) => d.year == day.year && d.month == day.month && d.day == day.day,
+                        );
                         final dayName = DateFormat('EEEE').format(day);
                         final dateStr = DateFormat('MMM d').format(day);
 
@@ -146,8 +207,11 @@ class _AvailabilityBottomSheetState extends State<AvailabilityBottomSheet> {
                           child: GestureDetector(
                             onTap: () {
                               setState(() {
-                                if (isSelected) {
-                                  _selectedDays.remove(day);
+                                final matched = _selectedDays.where(
+                                  (d) => d.year == day.year && d.month == day.month && d.day == day.day,
+                                ).toList();
+                                if (matched.isNotEmpty) {
+                                  _selectedDays.removeAll(matched);
                                 } else {
                                   _selectedDays.add(day);
                                 }
@@ -235,7 +299,17 @@ class _AvailabilityBottomSheetState extends State<AvailabilityBottomSheet> {
                             child: ElevatedButton(
                               onPressed: _selectedDays.isEmpty 
                                   ? null 
-                                  : () => Navigator.of(context).pop(_selectedDays.toList()),
+                                  : () async {
+                                      final dateList = _selectedDays.toList()..sort();
+                                      try {
+                                        final prefs = await SharedPreferences.getInstance();
+                                        final dateIsoStrings = dateList.map((d) => "${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}").toList();
+                                        await prefs.setStringList('corporate_selected_dates', dateIsoStrings);
+                                      } catch (_) {}
+                                      if (context.mounted) {
+                                        Navigator.of(context).pop(dateList);
+                                      }
+                                    },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primaryBlue,
                                 padding: const EdgeInsets.symmetric(vertical: 16),

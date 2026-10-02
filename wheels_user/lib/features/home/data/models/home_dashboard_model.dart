@@ -9,6 +9,7 @@ part 'home_dashboard_model.g.dart';
 abstract class HomeDashboardModel with _$HomeDashboardModel {
   const factory HomeDashboardModel({
     required String userName,
+    String? profileImageUrl,
     required String greetingTitle,
     required String greetingSubtitle,
     required String recentRideTitle,
@@ -28,6 +29,7 @@ abstract class HomeDashboardModel with _$HomeDashboardModel {
 extension HomeDashboardModelX on HomeDashboardModel {
   HomeDashboardEntity toEntity() => HomeDashboardEntity(
         userName: userName,
+        profileImageUrl: profileImageUrl,
         greetingTitle: greetingTitle,
         greetingSubtitle: greetingSubtitle,
         recentRideTitle: recentRideTitle,

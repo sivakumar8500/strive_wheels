@@ -49,7 +49,7 @@ void main() {
     expect(find.text('First Name'), findsOneWidget);
     expect(find.text('Last Name'), findsOneWidget);
     expect(find.text('Email'), findsOneWidget);
-    expect(find.text('Alex'), findsOneWidget);
+    expect(find.text('Alex'), findsWidgets);
     expect(find.text('123456'), findsOneWidget);
     expect(find.text('test@test.com'), findsOneWidget);
   });

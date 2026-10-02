@@ -45,19 +45,17 @@ void main() {
             arrivalEta: '10:45 AM',
             destinationAddress: 'Gachibowli Flyover, Hyderabad',
             pickupAddress: 'Hitech City Metro, Hyderabad',
-            isTripStarted: true,
+            isTripStarted: false,
             isLoading: false,
             onMainActionTap: () {},
-            onRequestDrop: () {},
             onCancelRide: () => cancelTapped = true,
           ),
         ),
       ),
     );
 
-    expect(find.text('REQUEST DROP'), findsOneWidget);
     expect(find.text('CANCEL RIDE'), findsOneWidget);
-    expect(find.text('COMPLETE TRIP'), findsOneWidget);
+    expect(find.text('ARRIVED AT PICKUP'), findsOneWidget);
 
     await tester.tap(find.text('CANCEL RIDE'));
     expect(cancelTapped, isTrue);

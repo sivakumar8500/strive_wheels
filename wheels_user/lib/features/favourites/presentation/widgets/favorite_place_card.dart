@@ -8,11 +8,13 @@ import '../../domain/entities/favorite_place_entity.dart';
 class FavoritePlaceCard extends StatelessWidget {
   final FavoritePlaceEntity place;
   final VoidCallback onRideHereTap;
+  final VoidCallback? onCategoryToggle;
 
   const FavoritePlaceCard({
     super.key,
     required this.place,
     required this.onRideHereTap,
+    this.onCategoryToggle,
   });
 
   IconData _getPlaceIcon(String iconType) {
@@ -114,15 +116,62 @@ class FavoritePlaceCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  place.title,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: isDark
-                        ? AppColors.white
-                        : AppColors.onboardingTextPrimaryLight,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        place.title,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: isDark
+                              ? AppColors.white
+                              : AppColors.onboardingTextPrimaryLight,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    GestureDetector(
+                      onTap: onCategoryToggle,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: place.isCorporate
+                              ? (isDark ? const Color(0xFF1E3A5F) : const Color(0xFFE0F2FE))
+                              : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: place.isCorporate
+                                ? AppColors.primaryBlue.withValues(alpha: 0.3)
+                                : Colors.transparent,
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              place.isCorporate ? 'CORPORATE' : 'PERSONAL',
+                              style: GoogleFonts.inter(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: place.isCorporate ? AppColors.primaryBlue : (isDark ? Colors.white60 : Colors.black54),
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                            if (onCategoryToggle != null) ...[
+                              const SizedBox(width: 2),
+                              Icon(
+                                Icons.sync_rounded,
+                                size: 10,
+                                color: place.isCorporate ? AppColors.primaryBlue : (isDark ? Colors.white60 : Colors.black54),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(

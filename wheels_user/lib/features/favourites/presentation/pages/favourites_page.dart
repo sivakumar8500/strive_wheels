@@ -36,6 +36,7 @@ class _FavouritesPageState extends State<FavouritesPage> {
   final TextEditingController _latController = TextEditingController();
   final TextEditingController _lngController = TextEditingController();
   bool _isFetchingLocation = false;
+  String _activeFilter = 'ALL'; // 'ALL', 'SELF', 'CORPORATE'
 
   @override
   void initState() {
@@ -102,7 +103,6 @@ class _FavouritesPageState extends State<FavouritesPage> {
       if (placemarks.isNotEmpty) {
         final place = placemarks.first;
         final address = '${place.street}, ${place.subLocality}, ${place.locality}, ${place.administrativeArea}';
-        // Clean up commas if some fields are null
         _addressController.text = address.replaceAll(RegExp(r',\s*,'), ',').replaceAll(RegExp(r'^,\s*|\s*,\s*$'), '');
       }
     } catch (e) {
@@ -123,6 +123,8 @@ class _FavouritesPageState extends State<FavouritesPage> {
     _addressController.clear();
     _latController.clear();
     _lngController.clear();
+    String selectedType = _activeFilter == 'CORPORATE' ? 'CORPORATE' : 'SELF';
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -132,127 +134,236 @@ class _FavouritesPageState extends State<FavouritesPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).padding.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Save New Place',
-                style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).padding.bottom + 24,
               ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _titleController,
-                decoration: InputDecoration(
-                  labelText: 'Title (e.g., Home, Work)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _addressController,
-                      decoration: InputDecoration(
-                        labelText: 'Address',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
+                  Text(
+                    'Save New Place',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  StatefulBuilder(
-                    builder: (context, setModalState) {
-                      return IconButton(
-                        onPressed: _isFetchingLocation ? null : () async {
-                          setModalState(() => _isFetchingLocation = true);
-                          await _fetchCurrentLocation();
-                          setModalState(() => _isFetchingLocation = false);
-                        },
-                        icon: _isFetchingLocation 
+                  const SizedBox(height: 16),
+
+                  // Location Category Selector: Self (Personal) vs Corporate (Business)
+                  Text(
+                    'Category',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setModalState(() {
+                              selectedType = 'SELF';
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: selectedType == 'SELF'
+                                  ? AppColors.primaryBlue
+                                  : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            alignment: Alignment.center,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.person_outline_rounded,
+                                  size: 16,
+                                  color: selectedType == 'SELF'
+                                      ? Colors.white
+                                      : (isDark ? Colors.white70 : Colors.black87),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Personal / Self',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: selectedType == 'SELF'
+                                        ? Colors.white
+                                        : (isDark ? Colors.white70 : Colors.black87),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setModalState(() {
+                              selectedType = 'CORPORATE';
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: selectedType == 'CORPORATE'
+                                  ? AppColors.primaryBlue
+                                  : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            alignment: Alignment.center,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.business_rounded,
+                                  size: 16,
+                                  color: selectedType == 'CORPORATE'
+                                      ? Colors.white
+                                      : (isDark ? Colors.white70 : Colors.black87),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Corporate',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: selectedType == 'CORPORATE'
+                                        ? Colors.white
+                                        : (isDark ? Colors.white70 : Colors.black87),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  TextField(
+                    controller: _titleController,
+                    decoration: InputDecoration(
+                      labelText: selectedType == 'CORPORATE'
+                          ? 'Title (e.g., Head Office, Client Site)'
+                          : 'Title (e.g., Home, Gym)',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _addressController,
+                          decoration: InputDecoration(
+                            labelText: 'Address',
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      IconButton(
+                        onPressed: _isFetchingLocation
+                            ? null
+                            : () async {
+                                setModalState(() => _isFetchingLocation = true);
+                                await _fetchCurrentLocation();
+                                setModalState(() => _isFetchingLocation = false);
+                              },
+                        icon: _isFetchingLocation
                             ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
                             : const Icon(Icons.my_location, color: AppColors.primaryBlue),
                         tooltip: 'Use current location',
-                      );
-                    }
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _latController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(
-                        labelText: 'Latitude',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _latController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: InputDecoration(
+                            labelText: 'Latitude',
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextField(
+                          controller: _lngController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: InputDecoration(
+                            labelText: 'Longitude',
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryBlue,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        if (_titleController.text.trim().isNotEmpty &&
+                            _addressController.text.trim().isNotEmpty) {
+                          final isCorporate = selectedType == 'CORPORATE';
+                          context.read<FavouritesBloc>().add(
+                                AddFavoriteEvent(
+                                  title: _titleController.text.trim(),
+                                  address: _addressController.text.trim(),
+                                  iconType: isCorporate ? 'office' : 'home',
+                                  latitude: double.tryParse(_latController.text.trim()) ?? 17.4312,
+                                  longitude: double.tryParse(_lngController.text.trim()) ?? 78.4069,
+                                  locationType: selectedType,
+                                  isCorporate: isCorporate,
+                                ),
+                              );
+                          Navigator.pop(ctx);
+                        }
+                      },
+                      child: Text(
+                        'Save Location',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextField(
-                      controller: _lngController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(
-                        labelText: 'Longitude',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
                 ],
               ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryBlue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () {
-                    if (_titleController.text.trim().isNotEmpty &&
-                        _addressController.text.trim().isNotEmpty) {
-                      context.read<FavouritesBloc>().add(
-                            AddFavoriteEvent(
-                              title: _titleController.text.trim(),
-                              address: _addressController.text.trim(),
-                              iconType: 'home', // Will be resolved dynamically
-                              latitude: double.tryParse(_latController.text.trim()) ?? 17.4312,
-                              longitude: double.tryParse(_lngController.text.trim()) ?? 78.4069,
-                            ),
-                          );
-                      Navigator.pop(ctx);
-                    }
-                  },
-                  child: Text(
-                    'Save Location',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -272,21 +383,7 @@ class _FavouritesPageState extends State<FavouritesPage> {
       ),
       body: BlocConsumer<FavouritesBloc, FavouritesState>(
         listener: (context, state) {
-          if (state.rideMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.rideMessage!),
-                backgroundColor: AppColors.primaryBlue,
-              ),
-            );
-          } else if (state.actionMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.actionMessage!),
-                backgroundColor: AppColors.primaryBlue,
-              ),
-            );
-          }
+          // No intrusive snackbars
         },
         builder: (context, state) {
           if (state.isLoading) {
@@ -298,7 +395,15 @@ class _FavouritesPageState extends State<FavouritesPage> {
           }
 
           final entity = state.favouritesEntity;
-          final places = entity?.places ?? [];
+          final allPlaces = entity?.places ?? [];
+          final filteredPlaces = allPlaces.where((p) {
+            if (_activeFilter == 'CORPORATE') {
+              return p.isCorporate || p.locationType.toUpperCase() == 'CORPORATE';
+            } else if (_activeFilter == 'SELF') {
+              return !p.isCorporate && p.locationType.toUpperCase() != 'CORPORATE';
+            }
+            return true;
+          }).toList();
 
           return SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
@@ -320,6 +425,31 @@ class _FavouritesPageState extends State<FavouritesPage> {
 
                 const SizedBox(height: 12),
 
+                // Category Filter Chips (All, Personal, Corporate)
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: [
+                      _buildFilterChip('ALL', 'All Places (${allPlaces.length})', isDark),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        'SELF',
+                        'Personal (${allPlaces.where((p) => !p.isCorporate && p.locationType.toUpperCase() != 'CORPORATE').length})',
+                        isDark,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        'CORPORATE',
+                        'Corporate (${allPlaces.where((p) => p.isCorporate || p.locationType.toUpperCase() == 'CORPORATE').length})',
+                        isDark,
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 14),
+
                 // 2. Shortcut Shelf Card
                 ShortcutShelfCard(
                   title: entity?.shortcutTitle ?? AppStrings.placesYouRideToMost,
@@ -329,7 +459,7 @@ class _FavouritesPageState extends State<FavouritesPage> {
                 const SizedBox(height: 14),
 
                 // 3. Saved Places List
-                if (places.isEmpty)
+                if (filteredPlaces.isEmpty)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 40),
@@ -342,7 +472,9 @@ class _FavouritesPageState extends State<FavouritesPage> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'No saved locations yet',
+                          _activeFilter == 'CORPORATE'
+                              ? 'No corporate saved locations yet'
+                              : 'No saved locations yet',
                           style: GoogleFonts.inter(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
@@ -353,7 +485,7 @@ class _FavouritesPageState extends State<FavouritesPage> {
                     ),
                   )
                 else
-                  ...places.map((place) {
+                  ...filteredPlaces.map((place) {
                     return Dismissible(
                       key: Key('place_${place.id}'),
                       direction: DismissDirection.endToStart,
@@ -379,6 +511,22 @@ class _FavouritesPageState extends State<FavouritesPage> {
                                 RideHereEvent(
                                   placeId: place.id,
                                   placeTitle: place.title,
+                                ),
+                              );
+                        },
+                        onCategoryToggle: () {
+                          final newIsCorporate = !place.isCorporate;
+                          final newType = newIsCorporate ? 'CORPORATE' : 'SELF';
+                          context.read<FavouritesBloc>().add(
+                                UpdateFavoriteEvent(
+                                  id: place.id,
+                                  title: place.title,
+                                  address: place.address,
+                                  iconType: newIsCorporate ? 'office' : 'home',
+                                  latitude: place.latitude,
+                                  longitude: place.longitude,
+                                  locationType: newType,
+                                  isCorporate: newIsCorporate,
                                 ),
                               );
                         },
@@ -439,4 +587,41 @@ class _FavouritesPageState extends State<FavouritesPage> {
       ),
     );
   }
+
+  Widget _buildFilterChip(String filterKey, String label, bool isDark) {
+    final isSelected = _activeFilter == filterKey;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _activeFilter = filterKey;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primaryBlue
+              : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? AppColors.primaryBlue
+                : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            color: isSelected
+                ? Colors.white
+                : (isDark ? Colors.white70 : const Color(0xFF475569)),
+          ),
+        ),
+      ),
+    );
+  }
 }
+

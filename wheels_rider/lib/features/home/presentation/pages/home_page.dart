@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/network/api_endpoints.dart';
@@ -14,10 +13,13 @@ import '../../../earnings/presentation/pages/earnings_page.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
 import '../bloc/home_bloc.dart';
 import '../bloc/home_event.dart';
+import '../bloc/home_state.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../profile/presentation/bloc/profile_bloc.dart';
 import '../../../profile/presentation/bloc/profile_event.dart';
 import '../../../profile/presentation/bloc/profile_state.dart';
+import '../../../profile/presentation/pages/profile_view_page.dart';
+import '../../../profile/domain/entities/profile_entity.dart';
 import '../bloc/booking_bloc.dart';
 import '../bloc/booking_event.dart';
 import '../bloc/booking_state.dart';
@@ -31,11 +33,15 @@ import '../../domain/entities/ride_request_entity.dart';
 import '../../data/models/ride_request_model.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../core/network/websocket_client.dart';
 import '../../../../core/services/navigation_service.dart';
+import '../../../../core/services/ride_ringtone_service.dart';
 import '../widgets/availability_dialog.dart';
 import '../widgets/maneuver_banner_widget.dart';
 import '../widgets/navigation_bottom_panel_widget.dart';
+import '../widgets/moving_car.dart';
+import '../../../../core/services/live_journey_notification_service.dart';
 import '../../../trips/presentation/pages/trip_payment_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -45,7 +51,8 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
+class _HomePageState extends State<HomePage>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   int _currentIndex = 0;
   bool _isOnDuty = true;
   String _rideType = 'Self'; // 'Corporate' or 'Self'
@@ -53,6 +60,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   List<DateTime> _corporateSelectedDates = [];
   bool _isRideRequestMinimized = false;
   bool _hasActiveRideRequest = false;
+  bool _isTripAccepted = false;
   /// True once the rider verifies OTP — unlocks pickup→drop route on map
   bool _isTripStarted = false;
 
@@ -75,6 +83,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   late final ProfileBloc _profileBloc;
   late final BookingBloc _bookingBloc;
   late final NavigationService _navigationService;
+  late final RideRingtoneService _ringtoneService;
 
   List<LatLng> _navigationPolylinePoints = [];
   // ignore: unused_field
@@ -97,21 +106,85 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     _homeBloc = sl<HomeBloc>();
     _profileBloc = sl<ProfileBloc>()..add(GetProfileEvent());
     _bookingBloc = sl<BookingBloc>();
     _navigationService = sl<NavigationService>();
+    _ringtoneService = sl<RideRingtoneService>();
     _loadCustomMarker();
     _startLocationTracking();
     _restoreActiveRideState();
     _setupDropRequestWebSocketListener();
     _startActiveRideHttpPolling();
+    _loadSavedRideTypeAndSchedule();
+  }
+
+  Future<void> _loadSavedRideTypeAndSchedule() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedRideType = prefs.getString('selected_ride_type');
+      final savedDateStrings = prefs.getStringList('corporate_selected_dates');
+
+      List<DateTime> parsedDates = [];
+      if (savedDateStrings != null && savedDateStrings.isNotEmpty) {
+        for (final ds in savedDateStrings) {
+          try {
+            final parsed = DateTime.parse(ds);
+            parsedDates.add(DateTime(parsed.year, parsed.month, parsed.day));
+          } catch (_) {}
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          if (savedRideType != null && (savedRideType == 'Corporate' || savedRideType == 'Self')) {
+            _rideType = savedRideType;
+          }
+          if (parsedDates.isNotEmpty) {
+            _corporateSelectedDates = parsedDates;
+          }
+        });
+
+        final initialMode = _rideType == 'Corporate' ? 'CORPORATE' : 'NORMAL';
+        _homeBloc.add(HomeEvent.updateAvailability(
+          availabilityMode: initialMode,
+          isOnline: _isOnDuty,
+          selectedDates: _corporateSelectedDates.isNotEmpty ? _corporateSelectedDates : null,
+        ));
+      }
+    } catch (_) {
+      final initialMode = _rideType == 'Corporate' ? 'CORPORATE' : 'NORMAL';
+      _homeBloc.add(HomeEvent.updateAvailability(
+        availabilityMode: initialMode,
+        isOnline: _isOnDuty,
+      ));
+    }
+  }
+
+  void _dismissRideRequestPopup({String? reason, int? bookingId}) {
+    final bId = bookingId ?? _currentRideRequest?.id;
+    debugPrint('[HomePage] Auto-disposing ride request popup for booking: $bId (reason: $reason)');
+    _ringtoneService.stopCallingRingtone();
+    _clearActiveRideState();
+    _bookingBloc.add(RideCancelledEvent(reason: reason ?? 'Ride cancelled by customer'));
+    if (mounted) {
+      setState(() {
+        _hasActiveRideRequest = false;
+        _isRideRequestMinimized = false;
+        _isTripAccepted = false;
+        _currentRideRequest = null;
+        _isTripStarted = false;
+        _isDropRequestPending = false;
+        _navigationPolylinePoints.clear();
+      });
+    }
   }
 
   void _startActiveRideHttpPolling() {
     _riderHttpCheckTimer?.cancel();
-    _riderHttpCheckTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    _riderHttpCheckTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _checkActiveRideStatusHttp();
     });
   }
@@ -127,8 +200,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (bookingId == 0) return;
 
     try {
-      final dio = sl<Dio>();
-      final response = await dio.get('${ApiEndpoints.baseUrl}/bookings/$bookingId');
+      final apiClient = sl<ApiClient>();
+      final response = await apiClient.get('${ApiEndpoints.baseUrl}/bookings/$bookingId');
       if (!mounted) return;
       if (response.statusCode == 200 && response.data != null) {
         final Map<String, dynamic> data = response.data is Map<String, dynamic>
@@ -136,24 +209,24 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             : Map<String, dynamic>.from(response.data as Map);
         final bookingData = data['booking'] is Map
             ? Map<String, dynamic>.from(data['booking'] as Map)
-            : data;
+            : (data['data'] is Map ? Map<String, dynamic>.from(data['data'] as Map) : data);
 
         final status = (bookingData['status'] ?? data['status'])?.toString().toUpperCase() ?? '';
         final isDropRequested = (bookingData['is_drop_requested'] == true || data['is_drop_requested'] == true);
         final isDropAccepted = (bookingData['is_drop_accepted'] == true || data['is_drop_accepted'] == true);
         final requestedBy = (bookingData['requested_by'] ?? data['requested_by'] ?? bookingData['requestedBy'] ?? data['requestedBy'])?.toString().toUpperCase() ?? '';
 
-        if (status == 'CANCELLED' || status == 'CUSTOMER_CANCELLED') {
-          _stopActiveRideHttpPolling();
-          _clearActiveRideState();
-          setState(() {
-            _hasActiveRideRequest = false;
-            _isRideRequestMinimized = false;
-            _currentRideRequest = null;
-            _isTripStarted = false;
-            _isDropRequestPending = false;
-            _navigationPolylinePoints.clear();
-          });
+        final isCancelled = status.contains('CANCEL') ||
+            status == 'EXPIRED' ||
+            status == 'TIMEOUT' ||
+            status == 'REJECTED';
+
+        if (isCancelled) {
+          debugPrint('[HomePage] HTTP check detected booking $bookingId is $status. Auto-disposing popup.');
+          _dismissRideRequestPopup(
+            reason: (bookingData['cancellation_reason'] ?? 'Ride cancelled by customer').toString(),
+            bookingId: bookingId,
+          );
         } else if (isDropAccepted || status == 'COMPLETED') {
           _stopActiveRideHttpPolling();
           setState(() => _isDropRequestPending = false);
@@ -164,7 +237,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         }
       }
     } catch (e) {
-      // Ignore background HTTP check errors silently
+      debugPrint('[HomePage] HTTP background booking check notice: $e');
     }
   }
 
@@ -183,6 +256,41 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
       final requestedBy = (data['requested_by'] ?? msg['requested_by'] ?? data['requestedBy'] ?? msg['requestedBy'] ?? data['user_type'] ?? msg['user_type'])?.toString() ?? '';
 
+      // 1. FAST-PATH CANCELLATION HANDLER (Auto-dispose incoming or active booking popup immediately)
+      final notifTitle = (data['notification']?['title'] ?? data['title'] ?? '')?.toString().toLowerCase() ?? '';
+      final notifBody = (data['notification']?['body'] ?? data['body'] ?? '')?.toString().toLowerCase() ?? '';
+      final isCancelNotif = event == 'notification.new' && (notifTitle.contains('cancel') || notifBody.contains('cancel'));
+
+      final isCancelled =
+          event == 'booking.cancelled' ||
+          event == 'booking.canceled' ||
+          event == 'booking.customer_cancelled' ||
+          event == 'booking.rider_cancelled' ||
+          event == 'booking.request_cancelled' ||
+          event == 'booking.request_expired' ||
+          event == 'booking_request_cancelled' ||
+          event == 'booking.cancel_success' ||
+          event == 'booking.cancel' ||
+          event == 'ride.cancelled' ||
+          event == 'ride.customer_cancelled' ||
+          event == 'ride.canceled' ||
+          event == 'cancel_booking' ||
+          event == 'cancel_ride' ||
+          isCancelNotif ||
+          data['status']?.toString().toUpperCase().contains('CANCEL') == true ||
+          data['status']?.toString().toUpperCase() == 'EXPIRED';
+
+      if (isCancelled) {
+        final reason = (data['reason'] ?? msg['reason'] ?? data['notification']?['body'] ?? 'Ride cancelled by customer').toString();
+        final cancelBookingId = data['booking_id'] ?? msg['booking_id'] ?? data['id'] ?? data['booking']?['id'];
+        debugPrint('🔔 [HomePage] Auto-disposing ride request on cancellation WS event: $event (booking: $cancelBookingId, reason: $reason)');
+        _dismissRideRequestPopup(
+          reason: reason,
+          bookingId: cancelBookingId is int ? cancelBookingId : int.tryParse(cancelBookingId?.toString() ?? ''),
+        );
+        return;
+      }
+
       final isNewRideRequest =
           event == 'booking.new_request' ||
           event == 'booking.created' ||
@@ -195,7 +303,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           event == 'ride.requested' ||
           event == 'ride_request' ||
           event == 'new_ride_request' ||
-          event == 'notification.new' ||
+          (event == 'notification.new' && !isCancelNotif) ||
           event == 'booking.status' ||
           event == 'booking.status_response' ||
           event == 'booking.status_info';
@@ -303,6 +411,34 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           if (bookingMap['estimated_distance_km'] != null) bookingMap['estimated_distance_km'] = parseDouble(bookingMap['estimated_distance_km']);
           if (bookingMap['estimated_duration_mins'] != null) bookingMap['estimated_duration_mins'] = parseInt(bookingMap['estimated_duration_mins']);
 
+          final String sMode = (bookingMap['service_mode'] ?? data['service_mode'] ?? '').toString().toUpperCase();
+          final bool isCorp = sMode == 'CORPORATE' ||
+              bookingMap['is_corporate'] == true ||
+              data['is_corporate'] == true ||
+              bookingMap['payment_method'] == 'CORPORATE_BILLING' ||
+              data['payment_method'] == 'CORPORATE_BILLING';
+
+          // If rider is offline or already in a trip / on payment screen, do not process new ride requests
+          if (!_isOnDuty) {
+            debugPrint('[HomePage] Dropping incoming ride request because rider is offline.');
+            return;
+          }
+          if (_isTripStarted || _isNavigatingToPayment) {
+            debugPrint('[HomePage] Dropping incoming ride request because rider is in a trip or on payment screen.');
+            return;
+          }
+
+          // Strictly filter out Corporate bookings when Rider is in Self mode
+          if (_rideType == 'Self' && isCorp) {
+            debugPrint('[HomePage] Dropping Corporate ride request because rider is in Self mode.');
+            return;
+          }
+          // Strictly filter out Self/Normal bookings when Rider is in Corporate mode
+          if (_rideType == 'Corporate' && !isCorp) {
+            debugPrint('[HomePage] Dropping Self/Normal ride request because rider is in Corporate mode.');
+            return;
+          }
+
           final model = RideRequestModel.fromJson(bookingMap);
           final entity = model.toEntity();
 
@@ -310,14 +446,55 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             setState(() {
               _hasActiveRideRequest = true;
               _isRideRequestMinimized = false;
+              _isTripAccepted = false;
               _currentRideRequest = entity;
             });
             _bookingBloc.add(RideRequestReceivedEvent(entity));
+            _ringtoneService.playCallingRingtone();
           }
         } catch (e) {
           debugPrint('Error handling new ride request WS event in HomePage: $e');
         }
       } else {
+        final isTripAccepted =
+            event == 'booking.accepted_success' ||
+            event == 'booking.accepted' ||
+            event == 'booking.rider_accepted' ||
+            event == 'booking.driver_accepted';
+
+        final isTripStarted =
+            event == 'booking.trip_started' ||
+            event == 'booking.started' ||
+            event == 'rider.trip_started' ||
+            event == 'trip_started' ||
+            event == 'trip.started' ||
+            event == 'booking.start_success' ||
+            event == 'booking.otp_verified' ||
+            event == 'otpverify';
+
+        if (isTripAccepted) {
+          _ringtoneService.stopCallingRingtone();
+          if (mounted) {
+            setState(() {
+              _isTripAccepted = true;
+              _hasActiveRideRequest = false;
+            });
+          }
+        } else if (isTripStarted) {
+          _ringtoneService.stopCallingRingtone();
+          if (!_isTripStarted) {
+            setState(() {
+              _isTripStarted = true;
+              _isTripAccepted = true;
+              _hasActiveRideRequest = false;
+            });
+            _saveActiveRideState();
+            _fetchNavigationRoute();
+          }
+        } else if (event == 'notification.new') {
+          // Suppress snackbar in booking flow
+        }
+
         final isDropRequested =
             event == 'booking.drop_requested' ||
             event == 'booking.drop_request' ||
@@ -342,38 +519,38 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             event == 'trip.drop_accepted' ||
             event == 'trip.drop_approved' ||
             event == 'booking.completed') {
+          _ringtoneService.stopCallingRingtone();
           setState(() => _isDropRequestPending = false);
           _navigateToPaymentScreen(bookingId: data['booking_id'] ?? msg['booking_id']);
         } else if (event == 'booking.drop_rejected') {
-          final reason = (data['reason'] ?? 'Customer declined drop request').toString();
           setState(() => _isDropRequestPending = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Drop Request Declined: $reason'),
-              backgroundColor: const Color(0xFFEF4444),
-              duration: const Duration(seconds: 4),
-            ),
-          );
-        } else if (event == 'booking.cancelled' ||
-            event == 'booking.customer_cancelled' ||
-            event == 'ride.cancelled') {
-          final reason = (data['reason'] ?? msg['reason'] ?? 'Trip was cancelled by customer').toString();
-          _clearActiveRideState();
-          setState(() {
-            _hasActiveRideRequest = false;
-            _isRideRequestMinimized = false;
-            _currentRideRequest = null;
-            _isTripStarted = false;
-            _isDropRequestPending = false;
-            _navigationPolylinePoints.clear();
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(reason),
-              backgroundColor: const Color(0xFFEF4444),
-              duration: const Duration(seconds: 4),
-            ),
-          );
+        } else {
+          final isCancelled =
+              event == 'booking.cancelled' ||
+              event == 'booking.canceled' ||
+              event == 'booking.customer_cancelled' ||
+              event == 'booking.rider_cancelled' ||
+              event == 'booking.request_cancelled' ||
+              event == 'booking.request_expired' ||
+              event == 'booking_request_cancelled' ||
+              event == 'booking.cancel_success' ||
+              event == 'booking.cancel' ||
+              event == 'ride.cancelled' ||
+              event == 'ride.customer_cancelled' ||
+              event == 'ride.canceled' ||
+              event == 'cancel_booking' ||
+              event == 'cancel_ride' ||
+              data['status']?.toString().toUpperCase().contains('CANCEL') == true ||
+              data['status']?.toString().toUpperCase() == 'EXPIRED';
+
+          if (isCancelled) {
+            final reason = (data['reason'] ?? msg['reason'] ?? 'Ride cancelled by customer').toString();
+            final cancelBookingId = data['booking_id'] ?? msg['booking_id'] ?? data['id'] ?? data['booking']?['id'];
+            _dismissRideRequestPopup(
+              reason: reason,
+              bookingId: cancelBookingId is int ? cancelBookingId : int.tryParse(cancelBookingId?.toString() ?? ''),
+            );
+          }
         }
       }
     });
@@ -402,6 +579,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   Future<void> _clearActiveRideState() async {
+    _ringtoneService.stopCallingRingtone();
+    if (sl.isRegistered<LiveJourneyNotificationService>()) {
+      sl<LiveJourneyNotificationService>().dismissJourneyNotification();
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('active_ride_request_json');
@@ -412,6 +593,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     if (mounted) {
       setState(() {
         _hasActiveRideRequest = false;
+        _isTripAccepted = false;
         _currentRideRequest = null;
         _isTripStarted = false;
         _isRideRequestMinimized = false;
@@ -420,6 +602,23 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         _currentManeuverStep = null;
       });
     }
+  }
+
+  void _declineRide([int? rideId]) {
+    final bId = rideId ?? _currentRideRequest?.id;
+    _ringtoneService.stopCallingRingtone();
+    if (bId != null && sl.isRegistered<WebSocketClient>()) {
+      sl<WebSocketClient>().sendMessage({
+        'event': 'booking.decline',
+        'data': {
+          'booking_id': bId,
+          'id': bId,
+          'rider_id': _driverId,
+        }
+      });
+    }
+    _bookingBloc.add(DeclineRideEvent(bId));
+    _clearActiveRideState();
   }
 
   Future<void> _restoreActiveRideState() async {
@@ -437,6 +636,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           setState(() {
             _currentRideRequest = entity;
             _hasActiveRideRequest = false;
+            _isTripAccepted = true;
             _isTripStarted = isStarted;
             _isOnDuty = true;
           });
@@ -447,6 +647,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         if (mounted) {
           setState(() {
             _hasActiveRideRequest = false;
+            _isTripAccepted = false;
             _currentRideRequest = null;
           });
         }
@@ -485,6 +686,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         _remainingDurationMins = (navData.totalDurationSeconds / 60.0).round();
         _etaTimeString = formattedEta;
       });
+
+      _showLiveJourneyNotification();
 
       if (!_isManualPan && _mapController != null) {
         _mapController!.animateCamera(
@@ -553,6 +756,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    if (!_isTripAccepted || _currentRideRequest == null) {
+      if (sl.isRegistered<LiveJourneyNotificationService>()) {
+        sl<LiveJourneyNotificationService>().dismissJourneyNotification();
+      }
+    }
+    _ringtoneService.stopCallingRingtone();
+    _locationTimer?.cancel();
+    _riderHttpCheckTimer?.cancel();
     _wsDropSubscription?.cancel();
     _stopLocationTracking();
     _stopActiveRideHttpPolling();
@@ -561,6 +773,56 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _profileBloc.close();
     _bookingBloc.close();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
+      _showLiveJourneyNotification();
+    } else if (state == AppLifecycleState.resumed) {
+      _showLiveJourneyNotification();
+    }
+  }
+
+  double get _riderJourneyProgressPercent {
+    if (!_isTripAccepted || _currentRideRequest == null) return 0.0;
+    if (_navigationPolylinePoints.isNotEmpty) {
+      if (!_isTripStarted) {
+        return 0.25;
+      } else {
+        return 0.65;
+      }
+    }
+    return _isTripStarted ? 0.60 : 0.25;
+  }
+
+  void _showLiveJourneyNotification() {
+    if (!sl.isRegistered<LiveJourneyNotificationService>()) return;
+    if (!_isTripAccepted || _currentRideRequest == null || !_isOnDuty) {
+      sl<LiveJourneyNotificationService>().dismissJourneyNotification();
+      return;
+    }
+
+    final req = _currentRideRequest!;
+    final etaStr = _remainingDurationMins > 0 ? '$_remainingDurationMins min' : '8 min';
+    final title = _isTripStarted
+        ? 'Driving to Destination • $etaStr'
+        : 'Driving to Pickup • $etaStr';
+
+    final progress = _riderJourneyProgressPercent;
+
+    sl<LiveJourneyNotificationService>().showJourneyNotification(
+      title: title,
+      pickupLocation: req.pickupAddress.isNotEmpty ? req.pickupAddress : 'Pickup',
+      dropLocation: req.dropAddress.isNotEmpty ? req.dropAddress : 'Destination',
+      subText: req.bookingCode != null && req.bookingCode!.isNotEmpty
+          ? 'Ride #${req.bookingCode}'
+          : (req.serviceMode ?? 'Strive Rider'),
+      progressPercent: progress,
+      remainingMins: _remainingDurationMins > 0 ? _remainingDurationMins : 8,
+    );
   }
 
   void _showPermissionSettingsDialog() {
@@ -662,6 +924,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   Future<void> _makePhoneCall(String phoneNumber) async {
+    _showLiveJourneyNotification();
     final cleanNumber = phoneNumber.replaceAll(RegExp(r'[^0-9+]'), '');
     final uri = Uri.parse('tel:$cleanNumber');
     try {
@@ -697,6 +960,21 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         backgroundColor: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFEFE9E1),
       body: MultiBlocListener(
         listeners: [
+          BlocListener<HomeBloc, HomeState>(
+            listener: (context, state) {
+              state.maybeWhen(
+                failure: (error) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to update availability: $error'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                },
+                orElse: () {},
+              );
+            },
+          ),
           BlocListener<ProfileBloc, ProfileState>(
             listener: (context, state) async {
               if (state is ProfileLoaded) {
@@ -722,24 +1000,30 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           BlocListener<BookingBloc, BookingState>(
             listener: (context, state) {
               if (state is NewRideRequestState) {
+                final bool isCorp = state.rideRequest.serviceMode?.toUpperCase() == 'CORPORATE';
+                if (_rideType == 'Self' && isCorp) {
+                  return;
+                }
+                if (_rideType == 'Corporate' && !isCorp) {
+                  return;
+                }
                 setState(() {
                   _hasActiveRideRequest = true;
                   _isRideRequestMinimized = false;
+                  _isTripAccepted = false;
                   _currentRideRequest = state.rideRequest;
                 });
               } else if (state is RideAcceptedSuccessState) {
                 setState(() {
                   _hasActiveRideRequest = false;
+                  _isTripAccepted = true;
                   _isManualPan = false;
                   _isOnDuty = true;
                 });
                 _saveActiveRideState();
-                final String mode = _rideType == 'Corporate' ? 'EMPLOYEE' : 'NORMAL';
+                final String mode = _rideType == 'Corporate' ? 'CORPORATE' : 'NORMAL';
                 _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: true));
                 _fetchNavigationRoute();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Ride accepted! Active navigation started.')),
-                );
               } else if (state is BookingErrorState) {
                 String userMessage = state.message;
                 if (userMessage.contains('is_drop_requested') ||
@@ -750,30 +1034,37 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 if (userMessage.contains('SQL') || userMessage.contains('sqlalchemy') || userMessage.contains('invalid input value')) {
                   userMessage = 'Unable to accept ride due to backend service error. Please try again.';
                 }
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(userMessage)),
-                );
               } else if (state is RideCancelledState) {
                 // User cancelled — reset all ride state on rider side
+                _ringtoneService.stopCallingRingtone();
                 _clearActiveRideState();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(state.reason.isNotEmpty ? state.reason : 'Ride cancelled by customer'),
-                    backgroundColor: const Color(0xFFEF4444),
-                    duration: const Duration(seconds: 4),
-                  ),
-                );
+                if (mounted) {
+                  setState(() {
+                    _hasActiveRideRequest = false;
+                    _isRideRequestMinimized = false;
+                    _isTripAccepted = false;
+                    _currentRideRequest = null;
+                    _isTripStarted = false;
+                    _isDropRequestPending = false;
+                    _navigationPolylinePoints.clear();
+                  });
+                }
               } else if (state is BookingConnected) {
-                setState(() {
-                  _hasActiveRideRequest = false;
-                });
+                if (mounted) {
+                  setState(() {
+                    _hasActiveRideRequest = false;
+                    _isTripAccepted = false;
+                    _currentRideRequest = null;
+                    _isRideRequestMinimized = false;
+                  });
+                }
               }
             },
           ),
         ],
         child: Builder(
           builder: (context) {
-            final isGuidanceActive = !_hasActiveRideRequest && _currentRideRequest != null;
+            final isGuidanceActive = !_hasActiveRideRequest && _currentRideRequest != null && _isTripAccepted;
 
             return Stack(
               children: [
@@ -879,81 +1170,98 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                             String name = 'Loading...';
                             String rating = '0.0';
                             String imageUrl = '';
+                            ProfileEntity? profile;
 
                             if (state is ProfileLoaded) {
+                              profile = state.profile;
                               name = state.profile.name;
                               rating = state.profile.rating.toString();
                               imageUrl = state.profile.profileImageUrl;
                             } else if (state is ProfileUpdateSuccess) {
+                              profile = state.profile;
                               name = state.profile.name;
                               rating = state.profile.rating.toString();
                               imageUrl = state.profile.profileImageUrl;
                             }
 
-                            return Row(
-                              children: [
-                                Stack(
-                                  clipBehavior: Clip.none,
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 20,
-                                      backgroundColor: Colors.grey.shade200,
-                                      backgroundImage: imageUrl.isNotEmpty
-                                          ? NetworkImage(imageUrl)
-                                          : const AssetImage('assets/images/login.png') as ImageProvider,
-                                      onBackgroundImageError: imageUrl.isNotEmpty ? (exception, stackTrace) {} : null,
+                            return InkWell(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => BlocProvider.value(
+                                      value: _profileBloc,
+                                      child: ProfileViewPage(initialProfile: profile),
                                     ),
-                                    Positioned(
-                                      bottom: 0,
-                                      right: -2,
-                                      child: Container(
-                                        width: 12,
-                                        height: 12,
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF10A142),
-                                          shape: BoxShape.circle,
-                                          border: Border.all(color: Colors.white, width: 2),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                  ),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Row(
+                                children: [
+                                  Stack(
+                                    clipBehavior: Clip.none,
                                     children: [
-                                      Text(
-                                        name,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: isDark ? Colors.white : Colors.black,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                      CircleAvatar(
+                                        radius: 20,
+                                        backgroundColor: Colors.grey.shade200,
+                                        backgroundImage: imageUrl.isNotEmpty
+                                            ? NetworkImage(imageUrl)
+                                            : const AssetImage('assets/images/login.png') as ImageProvider,
+                                        onBackgroundImageError: imageUrl.isNotEmpty ? (exception, stackTrace) {} : null,
                                       ),
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.star_outline, color: Colors.orange, size: 12),
-                                          const SizedBox(width: 2),
-                                          Expanded(
-                                            child: Text(
-                                              '$rating • Top Rated',
-                                              style: GoogleFonts.inter(
-                                                fontSize: 10,
-                                                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
+                                      Positioned(
+                                        bottom: 0,
+                                        right: -2,
+                                        child: Container(
+                                          width: 12,
+                                          height: 12,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF10A142),
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: Colors.white, width: 2),
                                           ),
-                                        ],
+                                        ),
                                       ),
                                     ],
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          name,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark ? Colors.white : Colors.black,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.star_outline, color: Colors.orange, size: 12),
+                                            const SizedBox(width: 2),
+                                            Expanded(
+                                              child: Text(
+                                                '$rating • Top Rated',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 10,
+                                                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
                             );
                           }
                         ),
@@ -1022,7 +1330,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                   setState(() {
                                     _isOnDuty = val;
                                   });
-                                  final String mode = _rideType == 'Corporate' ? 'EMPLOYEE' : 'NORMAL';
+                                  final String mode = _rideType == 'Corporate' ? 'CORPORATE' : 'NORMAL';
                                   _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: _isOnDuty));
 
                                   if (_isOnDuty) {
@@ -1109,13 +1417,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                         Expanded(
                           child: GestureDetector(
                             onTap: () async {
-                              if (_rideType == 'Corporate') return;
-
                               final selectedDates = await showModalBottomSheet<List<DateTime>>(
                                 context: context,
                                 isScrollControlled: true,
                                 backgroundColor: Colors.transparent,
-                                builder: (context) => const AvailabilityBottomSheet(),
+                                builder: (context) => AvailabilityBottomSheet(
+                                  initiallySelectedDates: _corporateSelectedDates,
+                                ),
                               );
 
                               if (selectedDates != null && selectedDates.isNotEmpty) {
@@ -1123,7 +1431,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                   _rideType = 'Corporate';
                                   _corporateSelectedDates = selectedDates;
                                 });
-                                final String mode = 'EMPLOYEE';
+                                try {
+                                  final prefs = await SharedPreferences.getInstance();
+                                  final dateIsoStrings = selectedDates.map((d) => "${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}").toList();
+                                  await prefs.setStringList('corporate_selected_dates', dateIsoStrings);
+                                  await prefs.setString('selected_ride_type', 'Corporate');
+                                } catch (_) {}
+
+                                const String mode = 'CORPORATE';
                                 _homeBloc.add(HomeEvent.updateAvailability(
                                   availabilityMode: mode, 
                                   isOnline: _isOnDuty,
@@ -1162,12 +1477,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                         ),
                         Expanded(
                           child: GestureDetector(
-                            onTap: () {
+                            onTap: () async {
                               setState(() {
                                 _rideType = 'Self';
-                                _corporateSelectedDates = [];
                               });
-                              final String mode = 'NORMAL';
+                              try {
+                                final prefs = await SharedPreferences.getInstance();
+                                await prefs.setString('selected_ride_type', 'Self');
+                              } catch (_) {}
+                              const String mode = 'NORMAL';
                               _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: _isOnDuty));
                             },
                             child: Container(
@@ -1210,7 +1528,18 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
           // 5. Bottom Ride Request Card
           if (_hasActiveRideRequest && _isOnDuty)
-            BlocBuilder<BookingBloc, BookingState>(
+            BlocConsumer<BookingBloc, BookingState>(
+              listener: (context, state) {
+                if (state is NewRideRequestState) {
+                  _ringtoneService.playCallingRingtone();
+                } else if (state is AcceptingRideState ||
+                    state is RideAcceptedSuccessState ||
+                    state is BookingConnected ||
+                    state is RideCancelledState ||
+                    state is BookingErrorState) {
+                  _ringtoneService.stopCallingRingtone();
+                }
+              },
               builder: (context, state) {
                 if (state is NewRideRequestState) {
                   return _isRideRequestMinimized
@@ -1225,7 +1554,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       : _buildMaximizedRideRequestCard(isDark, reqState);
                 }
                 return const SizedBox.shrink();
-              }
+              },
             ),
 
           if (isGuidanceActive && _isOnDuty)
@@ -1237,8 +1566,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 remainingMins: _remainingDurationMins > 0 ? _remainingDurationMins : 8,
                 remainingKm: _remainingDistanceKm > 0 ? _remainingDistanceKm : 2.4,
                 arrivalEta: _etaTimeString.isEmpty ? '10:45 AM' : _etaTimeString,
-                destinationAddress: _currentRideRequest!.dropAddress,
-                pickupAddress: _currentRideRequest!.pickupAddress,
+                destinationAddress: _currentRideRequest?.dropAddress ?? '',
+                pickupAddress: _currentRideRequest?.pickupAddress ?? '',
                 isTripStarted: _isTripStarted,
                 isLoading: _isLoadingAction,
                 isDropPending: _isDropRequestPending,
@@ -1260,6 +1589,22 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 },
               ),
             ),
+
+          // Moving bike riding on top of the bottom navigation bar
+          if (!_hasActiveRideRequest && _currentRideRequest == null)
+            const Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: SizedBox(
+                height: 28,
+                child: MovingCar(
+                  height: 28,
+                  carWidth: 56,
+                  repeat: false,
+                ),
+              ),
+            ),
         ],
       );
     }),
@@ -1267,51 +1612,51 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       bottomNavigationBar: (!_hasActiveRideRequest && _currentRideRequest != null)
           ? null
           : Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: BottomNavigationBar(
+                currentIndex: _currentIndex,
+                onTap: (index) {
+                  if (index == 1) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const TripsPage()),
+                    );
+                  } else if (index == 2) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const EarningsPage()),
+                    );
+                  } else if (index == 3) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SettingsPage()),
+                    );
+                  } else {
+                    setState(() => _currentIndex = index);
+                  }
+                },
+                type: BottomNavigationBarType.fixed,
+                backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
+                selectedItemColor: AppColors.primaryBlue,
+                unselectedItemColor: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
+                selectedLabelStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
+                unselectedLabelStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500),
+                items: const [
+                  BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.home)), label: 'Home'),
+                  BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.history)), label: 'Trips'),
+                  BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.currency_rupee)), label: 'Earnings'),
+                  BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.settings_outlined)), label: 'Settings'),
+                ],
+              ),
             ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            if (index == 1) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const TripsPage()),
-              );
-            } else if (index == 2) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const EarningsPage()),
-              );
-            } else if (index == 3) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsPage()),
-              );
-            } else {
-              setState(() => _currentIndex = index);
-            }
-          },
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: isDark ? AppColors.surfaceDark : Colors.white,
-          selectedItemColor: AppColors.primaryBlue,
-          unselectedItemColor: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
-          selectedLabelStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
-          unselectedLabelStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500),
-          items: const [
-            BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.home)), label: 'Home'),
-            BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.history)), label: 'Trips'),
-            BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.currency_rupee)), label: 'Earnings'),
-            BottomNavigationBarItem(icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.settings_outlined)), label: 'Settings'),
-          ],
-        ),
-      ),
     ));
   }
 
@@ -1374,44 +1719,120 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'EST. PAYOUT',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+                  if (ride.serviceMode?.toUpperCase() == 'CORPORATE') ...[
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: Colors.deepPurple.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.business_rounded, size: 15, color: Colors.deepPurple),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'Corporate Ride',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.deepPurple,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        Text(
-                          '₹${ride.estimatedFare}',
-                          style: GoogleFonts.inter(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF0D6EFD),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Company Direct Billing',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'Self',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF0D6EFD),
+                        ],
                       ),
                     ),
-                  ),
+                  ] else ...[
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'EST. PAYOUT',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+                            ),
+                          ),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              '₹${ride.estimatedFare}',
+                              maxLines: 1,
+                              style: GoogleFonts.inter(
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF0D6EFD),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D6EFD).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        'Self',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF0D6EFD),
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (ride.seatNumber != null) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.green.shade600, width: 1),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.airline_seat_recline_normal, size: 14, color: Colors.green.shade700),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Seat #${ride.seatNumber}',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(width: 12),
                   GestureDetector(
                     onTap: () {
@@ -1603,9 +2024,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   Expanded(
                     flex: 1,
                     child: OutlinedButton(
-                      onPressed: () {
-                        _bookingBloc.add(DeclineRideEvent());
-                      },
+                      onPressed: () => _declineRide(ride.id),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         side: BorderSide(color: Colors.grey.shade300),
@@ -1628,9 +2047,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     flex: 2,
                     child: ElevatedButton(
                       onPressed: () {
+                        _ringtoneService.stopCallingRingtone();
                         setState(() => _isOnDuty = true);
                         _saveActiveRideState();
-                        final String mode = _rideType == 'Corporate' ? 'EMPLOYEE' : 'NORMAL';
+                        final String mode = _rideType == 'Corporate' ? 'CORPORATE' : 'NORMAL';
                         _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: true));
                         _bookingBloc.add(AcceptRideEvent(ride.id));
                       },
@@ -1689,28 +2109,76 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           child: Row(
             children: [
               // Amount
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'PAYOUT',
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+              // Amount / Header
+              if (ride.serviceMode?.toUpperCase() == 'CORPORATE') ...[
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'CORPORATE',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepPurple,
+                      ),
                     ),
-                  ),
-                  Text(
-                    '₹${ride.estimatedFare}',
-                    style: GoogleFonts.inter(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF0D6EFD),
+                    Text(
+                      'Ride Request',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF1E293B),
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                    if (ride.seatNumber != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Seat #${ride.seatNumber}',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ] else ...[
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'PAYOUT',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+                      ),
+                    ),
+                    Text(
+                      '₹${ride.estimatedFare}',
+                      style: GoogleFonts.inter(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF0D6EFD),
+                      ),
+                    ),
+                    if (ride.seatNumber != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Seat #${ride.seatNumber}',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
               
               Container(
                 width: 1,
@@ -1780,9 +2248,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               Row(
                 children: [
                   GestureDetector(
-                    onTap: () {
-                      _bookingBloc.add(DeclineRideEvent());
-                    },
+                    onTap: () => _declineRide(ride.id),
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
@@ -1799,9 +2265,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   const SizedBox(width: 8),
                   GestureDetector(
                     onTap: () {
+                      _ringtoneService.stopCallingRingtone();
                       setState(() => _isOnDuty = true);
                       _saveActiveRideState();
-                      final String mode = _rideType == 'Corporate' ? 'EMPLOYEE' : 'NORMAL';
+                      final String mode = _rideType == 'Corporate' ? 'CORPORATE' : 'NORMAL';
                       _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: true));
                       _bookingBloc.add(AcceptRideEvent(ride.id));
                     },
@@ -1924,70 +2391,86 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   void _showActiveTripBottomSheet(BuildContext ctx) {
-    if (_currentRideRequest == null) return;
+    final ride = _currentRideRequest;
+    if (ride == null) return;
     showModalBottomSheet(
       context: ctx,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.88,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (_, scrollController) => Container(
-          decoration: BoxDecoration(
-            color: Theme.of(ctx).brightness == Brightness.dark
-                ? const Color(0xFF121212)
-                : const Color(0xFFF7F8FC),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            children: [
-              // Drag handle
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.only(top: 10, bottom: 4),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade400,
-                    borderRadius: BorderRadius.circular(2),
+      builder: (sheetContext) {
+        final activeRide = _currentRideRequest ?? ride;
+        if (_currentRideRequest == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (sheetContext.mounted && Navigator.of(sheetContext).canPop()) {
+              Navigator.of(sheetContext).pop();
+            }
+          });
+          return const SizedBox.shrink();
+        }
+
+        return DraggableScrollableSheet(
+          initialChildSize: 0.88,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          builder: (_, scrollController) => Container(
+            decoration: BoxDecoration(
+              color: Theme.of(ctx).brightness == Brightness.dark
+                  ? const Color(0xFF121212)
+                  : const Color(0xFFF7F8FC),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                // Drag handle
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 10, bottom: 4),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                  child: ActiveTripPage(
-                    bookingId: _currentRideRequest!.id,
-                    pickupAddress: _currentRideRequest!.pickupAddress,
-                    dropAddress: _currentRideRequest!.dropAddress,
-                    estimatedFare: _currentRideRequest!.estimatedFare,
-                    pickupLat: _currentRideRequest!.pickupLat,
-                    pickupLng: _currentRideRequest!.pickupLng,
-                    dropLat: _currentRideRequest!.dropLat,
-                    dropLng: _currentRideRequest!.dropLng,
-                    riderLat: _currentLatLng?.latitude,
-                    riderLng: _currentLatLng?.longitude,
-                    onTripStarted: () {
-                      // OTP verified — unlock pickup→drop route on the home map
-                      if (mounted) {
-                        setState(() => _isTripStarted = true);
-                        _saveActiveRideState();
-                        _fetchNavigationRoute();
-                      }
-                    },
-                    onTripCompleted: () {
-                      if (mounted) {
-                        _clearActiveRideState();
-                      }
-                    },
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                    child: ActiveTripPage(
+                      bookingId: activeRide.id,
+                      pickupAddress: activeRide.pickupAddress,
+                      dropAddress: activeRide.dropAddress,
+                      estimatedFare: activeRide.estimatedFare,
+                      pickupLat: activeRide.pickupLat,
+                      pickupLng: activeRide.pickupLng,
+                      dropLat: activeRide.dropLat,
+                      dropLng: activeRide.dropLng,
+                      riderLat: _currentLatLng?.latitude,
+                      riderLng: _currentLatLng?.longitude,
+                      onTripStarted: () {
+                        // OTP verified — unlock pickup→drop route on the home map
+                        if (mounted) {
+                          setState(() => _isTripStarted = true);
+                          _saveActiveRideState();
+                          _fetchNavigationRoute();
+                        }
+                      },
+                      onTripCompleted: () {
+                        if (sheetContext.mounted && Navigator.of(sheetContext).canPop()) {
+                          Navigator.of(sheetContext).pop();
+                        }
+                        if (mounted) {
+                          _clearActiveRideState();
+                        }
+                      },
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -2069,9 +2552,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               onPressed: () {
                 final reason = _dropReasonController.text.trim();
                 if (reason.isEmpty) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('Please enter a reason for the drop request.')),
-                  );
                   return;
                 }
                 Navigator.pop(dialogCtx);
@@ -2081,22 +2561,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   sl<WebSocketClient>().sendMessage({
                     'event': 'booking.drop_requested',
                     'data': {
-                      'booking_id': _currentRideRequest!.id,
+                      'booking_id': _currentRideRequest?.id ?? 0,
                       'requested_by': 'RIDER',
                       'reason': reason,
                     },
                   });
                 }
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Drop request sent. Waiting for customer approval...',
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w500),
-                    ),
-                    backgroundColor: Colors.orange,
-                    duration: const Duration(seconds: 4),
-                  ),
-                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
@@ -2282,25 +2752,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       },
                     });
                   }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Row(
-                        children: [
-                          const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Drop request auto-accepted. Collect payment.',
-                              style: GoogleFonts.inter(fontWeight: FontWeight.w500),
-                            ),
-                          ),
-                        ],
-                      ),
-                      backgroundColor: const Color(0xFF10B981),
-                      duration: const Duration(seconds: 4),
-                    ),
-                  );
-                  Future.delayed(const Duration(milliseconds: 500), () {
+                  Future.delayed(const Duration(milliseconds: 300), () {
                     if (mounted) _navigateToPaymentScreen(bookingId: bookingId);
                   });
                 }
@@ -2420,15 +2872,22 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                             timer?.cancel();
                             Navigator.pop(ctx);
                             _isCustomerDropModalShowing = false;
+                            final bId = bookingId ?? _currentRideRequest?.id;
+                            final bIdInt = bId is String ? int.tryParse(bId.replaceAll(RegExp(r'[^0-9]'), '')) : bId;
+                            final curLat = _currentLatLng?.latitude;
+                            final curLng = _currentLatLng?.longitude;
+
                             if (sl.isRegistered<WebSocketClient>()) {
-                              final bId = bookingId ?? _currentRideRequest?.id;
-                              final bIdInt = bId is String ? int.tryParse(bId.replaceAll(RegExp(r'[^0-9]'), '')) : bId;
                               sl<WebSocketClient>().sendMessage({
                                 'event': 'booking.drop_accepted',
                                 'data': {
                                   'booking_id': bIdInt ?? bId,
                                   'accepted_by': 'RIDER',
                                   'is_drop_accepted': true,
+                                  'lat': curLat,
+                                  'lng': curLng,
+                                  'rider_lat': curLat,
+                                  'rider_lng': curLng,
                                 },
                               });
                               sl<WebSocketClient>().sendMessage({
@@ -2437,37 +2896,26 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                   'booking_id': bIdInt ?? bId,
                                   'accepted_by': 'RIDER',
                                   'is_drop_accepted': true,
+                                  'lat': curLat,
+                                  'lng': curLng,
                                 },
                               });
                               sl<WebSocketClient>().sendMessage({
                                 'event': 'booking.complete',
                                 'data': {
                                   'booking_id': bIdInt ?? bId,
-                                  'rider_lat': _currentLatLng?.latitude,
-                                  'rider_lng': _currentLatLng?.longitude,
+                                  'rider_lat': curLat,
+                                  'rider_lng': curLng,
                                 },
                               });
                             }
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Row(
-                                  children: [
-                                    const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        'Drop request accepted! Collect payment.',
-                                        style: GoogleFonts.inter(fontWeight: FontWeight.w500),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                backgroundColor: const Color(0xFF10B981),
-                                duration: const Duration(seconds: 4),
-                              ),
-                            );
-                            Future.delayed(const Duration(milliseconds: 500), () {
-                              if (mounted) _navigateToPaymentScreen(bookingId: bookingId);
+                            Future.delayed(const Duration(milliseconds: 300), () {
+                              if (mounted) {
+                                _navigateToPaymentScreen(
+                                  bookingId: bookingId,
+                                  isEarlyDrop: true,
+                                );
+                              }
                             });
                           },
                           style: ElevatedButton.styleFrom(
@@ -2494,11 +2942,17 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   bool _isNavigatingToPayment = false;
 
-  void _navigateToPaymentScreen({dynamic bookingId}) {
+  void _navigateToPaymentScreen({
+    dynamic bookingId,
+    double? updatedFare,
+    bool isEarlyDrop = false,
+    double? distanceKm,
+  }) {
     if (_isNavigatingToPayment) return;
     _isNavigatingToPayment = true;
 
     final req = _currentRideRequest;
+    _ringtoneService.stopCallingRingtone();
     _clearActiveRideState();
 
     final id = bookingId is int
@@ -2510,17 +2964,25 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         builder: (_) => TripPaymentPage(
           bookingId: id,
           estimatedFare: req?.estimatedFare ?? 0.0,
+          finalFare: updatedFare,
+          isEarlyDrop: isEarlyDrop,
+          actualDistanceKm: distanceKm,
           pickupAddress: req?.pickupAddress ?? '',
           dropAddress: req?.dropAddress ?? '',
           riderLat: _currentLatLng?.latitude,
           riderLng: _currentLatLng?.longitude,
+          isCorporate: req?.serviceMode?.toUpperCase() == 'CORPORATE',
+          serviceMode: req?.serviceMode,
           onCompleted: () {
+            _ringtoneService.stopCallingRingtone();
             _clearActiveRideState();
           },
         ),
       ),
     ).then((_) {
       _isNavigatingToPayment = false;
+      _ringtoneService.stopCallingRingtone();
+      _clearActiveRideState();
     });
   }
 
