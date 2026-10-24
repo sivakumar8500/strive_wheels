@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -62,12 +63,14 @@ class BookingConfirmedPage extends StatefulWidget {
 class _BookingConfirmedPageState extends State<BookingConfirmedPage> with WidgetsBindingObserver {
   bool _isRideCompleted = false;
   bool _isDriverArrived = false;
+  String? _currentOtp;
   StreamSubscription? _wsSubscription;
   Timer? _httpCheckTimer;
 
   @override
   void initState() {
     super.initState();
+    _currentOtp = widget.startOtp;
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -88,7 +91,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
 
   void _startHttpPolling() {
     _httpCheckTimer?.cancel();
-    _httpCheckTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    _httpCheckTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       _checkBookingStatusHttp();
     });
   }
@@ -104,7 +107,16 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
       final data = res.data is Map ? res.data['data'] ?? res.data : {};
       final status = (data['status'] ?? data['booking']?['status'])?.toString().toUpperCase() ?? '';
 
-      debugPrint('[BookingConfirmedPage] HTTP poll status: $status');
+      final otp = (data['start_otp'] ?? data['booking']?['start_otp'])?.toString();
+      if (otp != null && otp.isNotEmpty && otp != _currentOtp) {
+        if (mounted) {
+          setState(() {
+            _currentOtp = otp;
+          });
+        }
+      }
+
+      debugPrint('[BookingConfirmedPage] HTTP poll status: $status, otp: $otp');
 
       if (status == 'DRIVER_ARRIVED' || status == 'RIDER_ARRIVED' || status == 'ARRIVED') {
         if (!_isDriverArrived && mounted) {
@@ -143,7 +155,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
                 dropAddress: widget.dropAddress,
                 pickupLatLng: widget.pickupLatLng,
                 dropLatLng: widget.dropLatLng,
-                startOtp: widget.startOtp,
+                startOtp: _currentOtp ?? widget.startOtp,
                 initialStatus: 'TRIP_STARTED',
               ),
             ),
@@ -179,6 +191,16 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
       final event = message['event'] as String? ?? '';
       final data = message['data'] as Map<String, dynamic>? ?? {};
       final rawStatus = (data['status'] ?? data['booking']?['status'] ?? message['status'])?.toString().toUpperCase() ?? '';
+
+      // Update OTP if received in any message payload
+      final incomingOtp = (data['start_otp'] ?? data['booking']?['start_otp'] ?? message['start_otp'])?.toString();
+      if (incomingOtp != null && incomingOtp.isNotEmpty && incomingOtp != _currentOtp) {
+        if (mounted) {
+          setState(() {
+            _currentOtp = incomingOtp;
+          });
+        }
+      }
 
       final isTripStarted =
           // 1. Dedicated OTP Verification & Multi-Broadcast Events
@@ -252,7 +274,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
                 dropAddress: widget.dropAddress,
                 pickupLatLng: widget.pickupLatLng,
                 dropLatLng: widget.dropLatLng,
-                startOtp: widget.startOtp,
+                startOtp: _currentOtp ?? widget.startOtp,
                 initialStatus: 'TRIP_STARTED',
               ),
             ),
@@ -277,6 +299,12 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
           sl<ActiveBookingService>().clearActiveBooking();
         }
         if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(displayMsg),
+              backgroundColor: const Color(0xFFEF4444),
+            ),
+          );
           Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
         }
         return;
@@ -305,7 +333,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
           pickupLatLng: widget.pickupLatLng,
           dropLatLng: widget.dropLatLng,
           totalAmount: widget.totalAmount,
-          startOtp: widget.startOtp,
+          startOtp: _currentOtp ?? widget.startOtp,
           status: 'RIDER_ACCEPTED',
         ),
       );
@@ -471,7 +499,11 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+
+            // Prominent Dedicated OTP Card
+            _buildOtpCard(context, isDark, cardBg),
+            const SizedBox(height: 16),
 
             // Map Preview Card with Floating Arrival Badge
             _buildMapCard(context, isDark),
@@ -498,6 +530,172 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
             Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
           }
         },
+      ),
+    );
+  }
+
+  Widget _buildOtpCard(BuildContext context, bool isDark, Color cardBg) {
+    final effectiveOtp = _currentOtp ?? widget.startOtp;
+    final otpDigits = (effectiveOtp != null && effectiveOtp.isNotEmpty)
+        ? effectiveOtp.split('')
+        : <String>[];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: AppColors.primaryBlue.withValues(alpha: 0.35),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryBlue.withValues(alpha: isDark ? 0.2 : 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryBlue.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.pin_rounded,
+                      color: AppColors.primaryBlue,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'START TRIP OTP',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                          color: AppColors.primaryBlue,
+                        ),
+                      ),
+                      Text(
+                        'Share with rider at pickup',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              if (effectiveOtp != null && effectiveOtp.isNotEmpty)
+                IconButton(
+                  tooltip: 'Copy OTP',
+                  icon: const Icon(Icons.copy_rounded, size: 20, color: AppColors.primaryBlue),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: effectiveOtp));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                            const SizedBox(width: 8),
+                            Text('OTP $effectiveOtp copied to clipboard!'),
+                          ],
+                        ),
+                        backgroundColor: AppColors.primaryBlue,
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (otpDigits.isNotEmpty) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: otpDigits.map((digit) {
+                return Container(
+                  width: 52,
+                  height: 60,
+                  margin: const EdgeInsets.symmetric(horizontal: 6),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: AppColors.primaryBlue.withValues(alpha: 0.5),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    digit,
+                    style: GoogleFonts.poppins(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryBlue),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Generating pickup OTP...',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Text(
+            'The driver will request this code before starting your journey.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 11,
+              fontStyle: FontStyle.italic,
+              color: isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -617,6 +815,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
   }
 
   Widget _buildDriverVehicleCard(BuildContext context, bool isDark, Color cardBg) {
+    final effectiveOtp = _currentOtp ?? widget.startOtp;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -669,7 +868,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (widget.startOtp != null && widget.startOtp!.isNotEmpty) ...[
+                        if (effectiveOtp != null && effectiveOtp.isNotEmpty) ...[
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -690,7 +889,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
                                   ),
                                 ),
                                 Text(
-                                  widget.startOtp!,
+                                  effectiveOtp,
                                   style: GoogleFonts.poppins(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,

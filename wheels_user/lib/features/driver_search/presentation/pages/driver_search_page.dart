@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dio/dio.dart';
 
+import '../../../../core/network/api_constants.dart';
 import '../../../../core/utils/jwt_utils.dart';
 
 import '../../../../core/constants/app_colors.dart';
@@ -73,10 +75,12 @@ class DriverSearchPage extends StatefulWidget {
 }
 
 class _DriverSearchPageState extends State<DriverSearchPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   int _currentStep = 1;
   CustomerWSController? _wsController;
   StreamSubscription? _wsSubscription;
+  Timer? _httpPollTimer;
+  bool _hasNavigated = false;
   int? _bookingId;
   String _notificationText = 'Searching for nearby drivers...';
   String? _startOtp;
@@ -89,10 +93,12 @@ class _DriverSearchPageState extends State<DriverSearchPage>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _progressController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 4800),
     )..repeat();
+
     _searchTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) {
         setState(() {
@@ -102,13 +108,82 @@ class _DriverSearchPageState extends State<DriverSearchPage>
         });
       }
     });
+
     if (widget.riderId != null) {
       _notificationText = 'Assigning corporate vehicle (${widget.driverName ?? "Corporate Driver"})...';
     } else if (widget.serviceMode == 'CORPORATE') {
       _notificationText = 'Connecting with dedicated corporate partner drivers...';
     }
+
     context.read<DriverSearchBloc>().add(const LoadDriverSearchEvent());
     _setupWebSocket();
+    _startHttpPolling();
+  }
+
+  void _startHttpPolling() {
+    _httpPollTimer?.cancel();
+    // Poll immediately after 1 second, then every 2.5 seconds as a bulletproof fallback
+    _httpPollTimer = Timer.periodic(const Duration(milliseconds: 2500), (_) {
+      _checkBookingStatusHttp();
+    });
+  }
+
+  Future<void> _checkBookingStatusHttp() async {
+    if (!mounted || _hasNavigated) return;
+    try {
+      final dio = sl.isRegistered<Dio>() ? sl<Dio>() : Dio();
+      final prefs = sl.isRegistered<SharedPreferences>() ? sl<SharedPreferences>() : null;
+      final rawToken = prefs?.getString('access_token') ??
+          prefs?.getString('auth_token') ??
+          prefs?.getString('user_token') ??
+          '';
+      final options = Options(headers: {
+        'Accept': 'application/json',
+        if (rawToken.isNotEmpty) 'Authorization': 'Bearer $rawToken',
+      });
+
+      Response? res;
+      if (_bookingId != null) {
+        try {
+          res = await dio.get('${ApiConstants.baseUrl}/api/v1/bookings/$_bookingId', options: options);
+        } catch (_) {}
+      }
+
+      if (res == null || res.statusCode != 200 || res.data == null) {
+        try {
+          res = await dio.get('${ApiConstants.baseUrl}/api/v1/bookings/active', options: options);
+        } catch (_) {}
+      }
+
+      if (res == null || res.data == null) return;
+
+      final resData = res.data is Map ? res.data['data'] ?? res.data : null;
+      if (resData == null || resData is! Map) return;
+
+      final bookingMap = Map<String, dynamic>.from(resData);
+      final rawStatus = (bookingMap['status'] ?? bookingMap['booking']?['status'])?.toString().toUpperCase() ?? '';
+
+      final bId = bookingMap['id'] ?? bookingMap['booking_id'];
+      if (bId != null) {
+        _bookingId ??= int.tryParse(bId.toString());
+      }
+      final otp = bookingMap['start_otp'] ?? bookingMap['booking']?['start_otp'];
+      if (otp != null && otp.toString().isNotEmpty) {
+        _startOtp ??= otp.toString();
+      }
+
+      debugPrint('[DriverSearchPage HTTP poll] Status: $rawStatus, bId: $bId, otp: $otp');
+
+      if (_isAcceptedStatus(rawStatus)) {
+        _handleRideAccepted(bookingMap, rawStatus);
+      } else if (_isTripStartedStatus(rawStatus)) {
+        _handleTripStarted(bookingMap, rawStatus);
+      } else if (_isCancelledStatus(rawStatus)) {
+        _handleTripCancelled();
+      }
+    } catch (e) {
+      debugPrint('[DriverSearchPage HTTP check error]: $e');
+    }
   }
 
   void _setupWebSocket() {
@@ -126,6 +201,10 @@ class _DriverSearchPageState extends State<DriverSearchPage>
         userId = JwtUtils.getUserIdFromJwt(rawToken);
       }
       userId ??= 1;
+
+      // Subscribe to stream BEFORE sending requestRide so broadcast stream does not drop events
+      _wsSubscription?.cancel();
+      _wsSubscription = _wsController!.bookingEventStream.listen(_onWebSocketEvent);
 
       _wsController!.initCustomerWebSocket(userId, token);
 
@@ -147,166 +226,303 @@ class _DriverSearchPageState extends State<DriverSearchPage>
         vehicleId: widget.vehicleId,
         seatNumber: widget.seatNumber,
       );
+    }
+  }
 
-      // Listen for server events
-      _wsSubscription = _wsController!.bookingEventStream.listen((eventData) {
-        final event = eventData['event'];
-        final data = eventData['data'] ?? {};
-        final rawStatus = (data['status'] ?? data['booking']?['status'] ?? eventData['status'])?.toString().toUpperCase() ?? '';
+  void _onWebSocketEvent(Map<String, dynamic> eventData) {
+    if (!mounted || _hasNavigated) return;
 
-        if (!mounted) return;
+    final event = (eventData['event'] ?? '').toString();
+    final data = (eventData['data'] is Map ? eventData['data'] as Map<String, dynamic> : eventData);
+    final rawStatus = (data['status'] ?? data['booking']?['status'] ?? eventData['status'])?.toString().toUpperCase() ?? '';
 
-        final isTripStarted =
-            event == 'booking.verify' ||
-            event == 'booking.verified' ||
-            event == 'otpverify' ||
-            event == 'booking.otp_verified' ||
-            event == 'otp_verified' ||
-            event == 'booking.trip_started' ||
-            event == 'booking.started' ||
-            event == 'rider.trip_started' ||
-            event == 'trip_started' ||
-            event == 'trip.started' ||
-            event == 'booking.start_success' ||
-            event == 'ride.started' ||
-            event == 'booking.start' ||
-            data['otp_verified'] == true ||
-            rawStatus == 'TRIP_STARTED' ||
-            rawStatus == 'TRIP_IN_PROGRESS' ||
-            rawStatus == 'IN_TRANSIT' ||
-            rawStatus == 'STARTED';
+    debugPrint('[DriverSearchPage WS Received] Event: $event, Status: $rawStatus');
 
-        if (isTripStarted) {
-          final booking = data['booking'] as Map<String, dynamic>? ?? {};
-          final rider = booking['rider'] as Map<String, dynamic>?;
-          final vehicle = booking['vehicle'] as Map<String, dynamic>?;
-          final dName = rider?['full_name']?.toString() ?? _riderData?['full_name']?.toString() ?? 'Marcus Thorne';
-          final dRating = (rider?['rating'] is num) ? (rider!['rating'] as num).toDouble() : 4.9;
-          final vMake = vehicle?['make']?.toString() ?? '';
-          final vModel = vehicle?['model']?.toString() ?? 'BMW i7';
-          final lPlate = vehicle?['license_plate']?.toString() ?? '7396';
-          final vInfo = (vMake.isNotEmpty && vModel.isNotEmpty && !vModel.contains(vMake))
-              ? '$vMake $vModel'
-              : vModel;
+    if (_isTripStartedEvent(event) || _isTripStartedStatus(rawStatus)) {
+      _handleTripStarted(data, rawStatus);
+      return;
+    }
 
-          if (sl.isRegistered<ActiveBookingService>()) {
-            sl<ActiveBookingService>().updateBookingStatus('TRIP_STARTED');
-          }
-
-          if (mounted) {
-            final effectiveBId = _bookingId != null ? 'ER-$_bookingId' : null;
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => LiveTripTrackingPage(
-                  bookingId: effectiveBId,
-                  driverName: dName,
-                  driverRating: dRating,
-                  vehicleInfo: '$vInfo • $lPlate',
-                  pickupAddress: widget.pickupAddress,
-                  dropAddress: widget.dropAddress,
-                  pickupLatLng: LatLng(widget.pickupLat, widget.pickupLng),
-                  dropLatLng: LatLng(widget.dropLat, widget.dropLng),
-                  startOtp: _startOtp,
-                  initialStatus: 'TRIP_STARTED',
-                ),
-              ),
-            );
-          }
-          return;
+    if (event == 'booking.created' || event == 'booking.create_success') {
+      final booking = data['booking'] is Map ? data['booking'] as Map<String, dynamic> : data;
+      setState(() {
+        final bId = booking['id'] ?? data['booking_id'] ?? data['id'];
+        if (bId != null) {
+          _bookingId = int.tryParse(bId.toString()) ?? _bookingId;
         }
-
-        if (event == 'booking.created') {
-          final booking = data['booking'] ?? {};
-          setState(() {
-            _bookingId = booking['id'];
-            if (booking['start_otp'] != null) {
-              _startOtp = booking['start_otp'].toString();
-            }
-            _currentStep = 2;
-            _notificationText = widget.riderId != null
-                ? 'Corporate route vehicle assigned! Preparing trip...'
-                : 'Booking #${_bookingId ?? ''} created! Scanning for nearby drivers...';
-          });
-        } else if (event == 'booking.rider_accepted' ||
-            event == 'booking.driver_accepted' ||
-            event == 'booking.accepted' ||
-            event == 'booking.accepted_success' ||
-            event == 'booking.assigned' ||
-            event == 'corporate.booking_assigned' ||
-            rawStatus == 'RIDER_ACCEPTED' ||
-            rawStatus == 'DRIVER_ACCEPTED') {
-          final booking = data['booking'] ?? {};
-          final rider = (booking['rider'] as Map<String, dynamic>?) ?? (data['rider'] as Map<String, dynamic>?);
-          final vehicle = (booking['vehicle'] as Map<String, dynamic>?) ?? (data['vehicle'] as Map<String, dynamic>?);
-          final bId = booking['id']?.toString() ?? _bookingId?.toString() ?? '9921-X4B';
-          final dName = rider?['full_name']?.toString() ?? widget.driverName ?? 'Marcus Thorne';
-          final dRating = (rider?['rating'] is num) ? (rider!['rating'] as num).toDouble() : 4.9;
-          final vMake = vehicle?['make']?.toString() ?? '';
-          final vModel = vehicle?['model']?.toString() ?? widget.vehicleInfo ?? 'Cab';
-          final lPlate = vehicle?['license_plate']?.toString() ?? widget.licensePlate ?? 'TS09CORP';
-          final estFare = (booking['estimated_fare'] != null)
-              ? '₹${booking['estimated_fare']}'
-              : (widget.serviceMode == 'CORPORATE' ? 'Corporate Account' : '₹124.00');
-
-          setState(() {
-            _bookingId = booking['id'] ?? _bookingId;
-            _startOtp = booking['start_otp']?.toString() ?? _startOtp;
-            _riderData = rider;
-            _vehicleData = vehicle;
-            _currentStep = 4;
-            _notificationText = 'Vehicle assigned! $dName is ready.';
-          });
-
-          // Navigate to BookingConfirmedPage
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => BookingConfirmedPage(
-                bookingId: 'ER-$bId',
-                driverName: dName,
-                driverRating: dRating,
-                vehicleModel: ('$vMake $vModel').trim().isEmpty ? 'Corporate Vehicle' : ('$vMake $vModel').trim(),
-                licensePlate: lPlate,
-                pickupAddress: widget.pickupAddress,
-                dropAddress: widget.dropAddress,
-                pickupLatLng: LatLng(widget.pickupLat, widget.pickupLng),
-                dropLatLng: LatLng(widget.dropLat, widget.dropLng),
-                totalAmount: estFare,
-                startOtp: _startOtp,
-              ),
-            ),
-          );
-        } else if (event == 'booking.cancelled' ||
-            event == 'booking.rider_cancelled' ||
-            event == 'booking.customer_cancelled' ||
-            event == 'ride.cancelled' ||
-            event == 'booking.cancel_success') {
-          if (sl.isRegistered<ActiveBookingService>()) {
-            sl<ActiveBookingService>().clearActiveBooking();
-          }
-          if (mounted) {
-            Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
-          }
-        } else if (event == 'booking.no_driver_found') {
-          if (sl.isRegistered<ActiveBookingService>()) {
-            sl<ActiveBookingService>().clearActiveBooking();
-          }
-          if (mounted) {
-            Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
-          }
-        } else if (event == 'notification.new') {
-          final notif = data['notification'] ?? {};
-          final body = notif['body']?.toString();
-          if (body != null) {
-            final match = RegExp(r'OTP:\s*(\d{4,6})', caseSensitive: false).firstMatch(body);
-            if (match != null) {
-              _startOtp = match.group(1);
-            }
-            setState(() {
-              _notificationText = body;
-            });
-          }
+        final otp = booking['start_otp'] ?? data['start_otp'];
+        if (otp != null && otp.toString().isNotEmpty) {
+          _startOtp = otp.toString();
         }
+        _currentStep = 2;
+        _notificationText = widget.riderId != null
+            ? 'Corporate route vehicle assigned! Preparing trip...'
+            : 'Booking #${_bookingId ?? ''} created! Scanning for nearby drivers...';
       });
+      return;
+    }
+
+    if (_isAcceptedEvent(event) || _isAcceptedStatus(rawStatus)) {
+      _handleRideAccepted(data, rawStatus);
+      return;
+    }
+
+    if (_isCancelledEvent(event) || _isCancelledStatus(rawStatus)) {
+      _handleTripCancelled();
+      return;
+    }
+
+    if (event == 'notification.new') {
+      final notif = data['notification'] is Map ? data['notification'] as Map<String, dynamic> : {};
+      final body = notif['body']?.toString();
+      if (body != null) {
+        final match = RegExp(r'OTP:\s*(\d{4,6})', caseSensitive: false).firstMatch(body);
+        if (match != null) {
+          _startOtp = match.group(1);
+        }
+        setState(() {
+          _notificationText = body;
+        });
+      }
+    }
+  }
+
+  bool _isAcceptedEvent(String event) {
+    final e = event.toLowerCase().trim();
+    return e == 'booking.rider_accepted' ||
+        e == 'booking.driver_accepted' ||
+        e == 'booking.accepted' ||
+        e == 'booking.accepted_success' ||
+        e == 'booking.assigned' ||
+        e == 'booking.driver_assigned' ||
+        e == 'booking.rider_assigned' ||
+        e == 'corporate.booking_assigned' ||
+        e == 'booking.arrived' ||
+        e == 'booking.rider_arrived' ||
+        e == 'rider.arrived' ||
+        e == 'driver.arrived';
+  }
+
+  bool _isAcceptedStatus(String status) {
+    final s = status.toUpperCase().trim();
+    return s == 'RIDER_ACCEPTED' ||
+        s == 'DRIVER_ACCEPTED' ||
+        s == 'ACCEPTED' ||
+        s == 'RIDER_ASSIGNED' ||
+        s == 'DRIVER_ASSIGNED' ||
+        s == 'ASSIGNED' ||
+        s == 'RIDER_ARRIVING' ||
+        s == 'DRIVER_ARRIVING' ||
+        s == 'ARRIVING' ||
+        s == 'RIDER_ARRIVED' ||
+        s == 'DRIVER_ARRIVED' ||
+        s == 'ARRIVED';
+  }
+
+  bool _isTripStartedEvent(String event) {
+    final e = event.toLowerCase().trim();
+    return e == 'booking.verify' ||
+        e == 'booking.verified' ||
+        e == 'otpverify' ||
+        e == 'booking.otp_verified' ||
+        e == 'otp_verified' ||
+        e == 'booking.trip_started' ||
+        e == 'booking.started' ||
+        e == 'rider.trip_started' ||
+        e == 'trip_started' ||
+        e == 'trip.started' ||
+        e == 'booking.start_success' ||
+        e == 'ride.started' ||
+        e == 'booking.start';
+  }
+
+  bool _isTripStartedStatus(String status) {
+    final s = status.toUpperCase().trim();
+    return s == 'TRIP_STARTED' ||
+        s == 'TRIP_IN_PROGRESS' ||
+        s == 'IN_TRANSIT' ||
+        s == 'STARTED';
+  }
+
+  bool _isCancelledEvent(String event) {
+    final e = event.toLowerCase().trim();
+    return e == 'booking.cancelled' ||
+        e == 'booking.rider_cancelled' ||
+        e == 'booking.customer_cancelled' ||
+        e == 'ride.cancelled' ||
+        e == 'booking.cancel_success' ||
+        e == 'booking.no_driver_found';
+  }
+
+  bool _isCancelledStatus(String status) {
+    final s = status.toUpperCase().trim();
+    return s == 'CANCELLED' ||
+        s == 'RIDER_CANCELLED' ||
+        s == 'CUSTOMER_CANCELLED' ||
+        s == 'CANCELLED_BY_CUSTOMER' ||
+        s == 'CANCELLED_BY_DRIVER' ||
+        s == 'EXPIRED' ||
+        s == 'NO_DRIVER_AVAILABLE';
+  }
+
+  void _handleRideAccepted(Map<String, dynamic> rawData, String? overrideStatus) {
+    if (!mounted || _hasNavigated) return;
+    _hasNavigated = true;
+
+    _httpPollTimer?.cancel();
+    _searchTimer?.cancel();
+    _wsSubscription?.cancel();
+
+    final data = (rawData['data'] is Map ? rawData['data'] as Map<String, dynamic> : rawData);
+    final booking = (data['booking'] is Map ? data['booking'] as Map<String, dynamic> : data);
+    final rider = (booking['rider'] is Map ? booking['rider'] as Map<String, dynamic> : null) ??
+        (data['rider'] is Map ? data['rider'] as Map<String, dynamic> : null) ??
+        _riderData;
+    final vehicle = (booking['vehicle'] is Map ? booking['vehicle'] as Map<String, dynamic> : null) ??
+        (data['vehicle'] is Map ? data['vehicle'] as Map<String, dynamic> : null) ??
+        _vehicleData;
+
+    final rawBId = booking['id'] ?? data['id'] ?? data['booking_id'] ?? _bookingId;
+    final bId = rawBId?.toString() ?? '9921-X4B';
+    final effectiveBId = bId.startsWith('ER-') ? bId : 'ER-$bId';
+
+    final dName = rider?['full_name']?.toString() ?? widget.driverName ?? 'Marcus Thorne';
+    final dRating = (rider?['rating'] is num) ? (rider!['rating'] as num).toDouble() : 4.9;
+    final vMake = vehicle?['make']?.toString() ?? '';
+    final vModel = vehicle?['model']?.toString() ?? widget.vehicleInfo ?? 'Cab';
+    final lPlate = vehicle?['license_plate']?.toString() ?? widget.licensePlate ?? 'TS09CORP';
+    final vDisplayModel = ('$vMake $vModel').trim().isEmpty ? 'Corporate Vehicle' : ('$vMake $vModel').trim();
+
+    final estFare = (booking['estimated_fare'] != null)
+        ? '₹${booking['estimated_fare']}'
+        : (data['estimated_fare'] != null
+            ? '₹${data['estimated_fare']}'
+            : (widget.serviceMode == 'CORPORATE' ? 'Corporate Account' : '₹124.00'));
+
+    final effectiveOtp = booking['start_otp']?.toString() ??
+        data['start_otp']?.toString() ??
+        rawData['start_otp']?.toString() ??
+        _startOtp;
+
+    final effectiveStatus = overrideStatus ?? (data['status']?.toString().toUpperCase() ?? 'RIDER_ACCEPTED');
+
+    if (sl.isRegistered<ActiveBookingService>()) {
+      sl<ActiveBookingService>().setActiveBooking(
+        ActiveBookingData(
+          bookingId: effectiveBId,
+          driverName: dName,
+          driverRating: dRating,
+          vehicleInfo: '$vDisplayModel • $lPlate',
+          pickupAddress: widget.pickupAddress,
+          dropAddress: widget.dropAddress,
+          pickupLatLng: LatLng(widget.pickupLat, widget.pickupLng),
+          dropLatLng: LatLng(widget.dropLat, widget.dropLng),
+          totalAmount: estFare,
+          startOtp: effectiveOtp,
+          status: effectiveStatus,
+        ),
+      );
+    }
+
+    debugPrint('🚀 [DriverSearchPage] Navigating to BookingConfirmedPage (OTP screen)! OTP: $effectiveOtp, Driver: $dName');
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => BookingConfirmedPage(
+          bookingId: effectiveBId,
+          driverName: dName,
+          driverRating: dRating,
+          vehicleModel: vDisplayModel,
+          licensePlate: lPlate,
+          pickupAddress: widget.pickupAddress,
+          dropAddress: widget.dropAddress,
+          pickupLatLng: LatLng(widget.pickupLat, widget.pickupLng),
+          dropLatLng: LatLng(widget.dropLat, widget.dropLng),
+          totalAmount: estFare,
+          startOtp: effectiveOtp,
+        ),
+      ),
+    );
+  }
+
+  void _handleTripStarted(Map<String, dynamic> rawData, String? overrideStatus) {
+    if (!mounted || _hasNavigated) return;
+    _hasNavigated = true;
+
+    _httpPollTimer?.cancel();
+    _searchTimer?.cancel();
+    _wsSubscription?.cancel();
+
+    final data = (rawData['data'] is Map ? rawData['data'] as Map<String, dynamic> : rawData);
+    final booking = (data['booking'] is Map ? data['booking'] as Map<String, dynamic> : data);
+    final rider = (booking['rider'] is Map ? booking['rider'] as Map<String, dynamic> : null) ??
+        (data['rider'] is Map ? data['rider'] as Map<String, dynamic> : null) ??
+        _riderData;
+    final vehicle = (booking['vehicle'] is Map ? booking['vehicle'] as Map<String, dynamic> : null) ??
+        (data['vehicle'] is Map ? data['vehicle'] as Map<String, dynamic> : null) ??
+        _vehicleData;
+
+    final rawBId = booking['id'] ?? data['id'] ?? data['booking_id'] ?? _bookingId;
+    final bId = rawBId?.toString() ?? '9921-X4B';
+    final effectiveBId = bId.startsWith('ER-') ? bId : 'ER-$bId';
+
+    final dName = rider?['full_name']?.toString() ?? _riderData?['full_name']?.toString() ?? widget.driverName ?? 'Marcus Thorne';
+    final dRating = (rider?['rating'] is num) ? (rider!['rating'] as num).toDouble() : 4.9;
+    final vMake = vehicle?['make']?.toString() ?? '';
+    final vModel = vehicle?['model']?.toString() ?? 'BMW i7';
+    final lPlate = vehicle?['license_plate']?.toString() ?? '7396';
+    final vInfo = (vMake.isNotEmpty && vModel.isNotEmpty && !vModel.contains(vMake))
+        ? '$vMake $vModel'
+        : vModel;
+
+    final effectiveOtp = booking['start_otp']?.toString() ??
+        data['start_otp']?.toString() ??
+        rawData['start_otp']?.toString() ??
+        _startOtp;
+
+    if (sl.isRegistered<ActiveBookingService>()) {
+      sl<ActiveBookingService>().updateBookingStatus('TRIP_STARTED');
+    }
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => LiveTripTrackingPage(
+          bookingId: effectiveBId,
+          driverName: dName,
+          driverRating: dRating,
+          vehicleInfo: '$vInfo • $lPlate',
+          pickupAddress: widget.pickupAddress,
+          dropAddress: widget.dropAddress,
+          pickupLatLng: LatLng(widget.pickupLat, widget.pickupLng),
+          dropLatLng: LatLng(widget.dropLat, widget.dropLng),
+          startOtp: effectiveOtp,
+          initialStatus: 'TRIP_STARTED',
+        ),
+      ),
+    );
+  }
+
+  void _handleTripCancelled() {
+    if (!mounted || _hasNavigated) return;
+    _hasNavigated = true;
+
+    _httpPollTimer?.cancel();
+    _searchTimer?.cancel();
+    _wsSubscription?.cancel();
+
+    if (sl.isRegistered<ActiveBookingService>()) {
+      sl<ActiveBookingService>().clearActiveBooking();
+    }
+    Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (sl.isRegistered<CustomerWSController>()) {
+        sl<CustomerWSController>().reconnectIfNeeded();
+      }
+      _checkBookingStatusHttp();
     }
   }
 
@@ -316,8 +532,10 @@ class _DriverSearchPageState extends State<DriverSearchPage>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _progressController.dispose();
     _searchTimer?.cancel();
+    _httpPollTimer?.cancel();
     _wsSubscription?.cancel();
     super.dispose();
   }

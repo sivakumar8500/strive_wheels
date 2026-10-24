@@ -382,7 +382,17 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   void _resumeActiveRide(BuildContext context, ActiveBookingData? data) {
     if (data == null) return;
-    if (data.status == 'RIDER_ACCEPTED') {
+    final status = data.status.toUpperCase();
+    final isConfirmedState = status == 'RIDER_ACCEPTED' ||
+        status == 'DRIVER_ACCEPTED' ||
+        status == 'ACCEPTED' ||
+        status == 'RIDER_ASSIGNED' ||
+        status == 'DRIVER_ASSIGNED' ||
+        status == 'RIDER_ARRIVED' ||
+        status == 'DRIVER_ARRIVED' ||
+        status == 'CONFIRMED';
+
+    if (isConfirmedState) {
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => BookingConfirmedPage(
