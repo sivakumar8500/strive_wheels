@@ -145,9 +145,15 @@ class OtpRemoteDataSourceImpl implements OtpRemoteDataSource {
       if (response.statusCode == 200 || response.statusCode == 201) {
         debugPrint('====== RESEND OTP SUCCESS ======');
         debugPrint(response.data.toString());
-        final otp = response.data['data']?['otp'] ?? response.data['otp'];
+        final clean = fullPhoneNumber.replaceAll(RegExp(r'\D'), '');
+        final isTest = clean.endsWith('9988774411');
+        final otp = isTest
+            ? '123456'
+            : (response.data['data']?['dev_otp'] ??
+                response.data['data']?['otp'] ??
+                response.data['otp']);
         debugPrint('=================================');
-        debugPrint('NEW OTP FOR LOGIN: $otp');
+        debugPrint('NEW OTP FOR LOGIN: $otp${isTest ? " (Play Console Default)" : ""}');
         debugPrint('=================================');
         return true;
       }

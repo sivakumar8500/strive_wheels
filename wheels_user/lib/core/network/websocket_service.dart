@@ -49,9 +49,9 @@ class WebSocketService {
 
     final candidateUrls = [
       '$cleanBase/ws/$role/$userId?token=$encodedToken',
-      'ws://15.252.129.37:8200/ws/$role/$userId?token=$encodedToken',
-      'ws://15.252.129.37:8200/ws/customer/$userId?token=$encodedToken',
-      'ws://15.252.129.37:8200/ws/v1/connect?token=$encodedToken',
+      'ws://13.234.75.204:8200/ws/$role/$userId?token=$encodedToken',
+      'ws://13.234.75.204:8200/ws/customer/$userId?token=$encodedToken',
+      'ws://13.234.75.204:8200/ws/v1/connect?token=$encodedToken',
     ];
 
     _establishConnectionWithCandidates(candidateUrls);
@@ -200,7 +200,7 @@ class WebSocketService {
         },
       ));
 
-      const refreshUrl = 'http://15.252.129.37:8200/api/v1/auth/refresh';
+      const refreshUrl = 'http://13.234.75.204:8200/api/v1/auth/refresh';
       final response = await refreshDio.post(
         refreshUrl,
         data: {'refresh_token': refreshToken},

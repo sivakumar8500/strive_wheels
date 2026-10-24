@@ -1,7 +1,7 @@
 class ApiConstants {
   // Base URLs
-  static const String baseUrl = 'http://15.252.129.37:8200';
-  static const String wsBaseUrl = 'ws://15.252.129.37:8200/api/v1';
+  static const String baseUrl = 'http://13.234.75.204:8200';
+  static const String wsBaseUrl = 'ws://13.234.75.204:8200/api/v1';
 
   /// Returns full image URL by prepending baseUrl if the path is relative.
   static String getImageUrl(String? path) {

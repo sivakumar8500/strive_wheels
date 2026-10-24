@@ -39,9 +39,9 @@ class WebSocketClient {
 
     final candidateUrls = [
       '${ApiEndpoints.wsCustomerConnect(_currentCustomerId!)}?token=$_currentToken',
-      'ws://15.252.129.37:8200/ws/customer/$_currentCustomerId?token=$_currentToken',
+      'ws://13.234.75.204:8200/ws/customer/$_currentCustomerId?token=$_currentToken',
       '${ApiEndpoints.wsConnect}?token=$_currentToken',
-      'ws://15.252.129.37:8200/ws/v1/connect?token=$_currentToken',
+      'ws://13.234.75.204:8200/ws/v1/connect?token=$_currentToken',
     ];
 
     for (final url in candidateUrls) {

@@ -7,12 +7,14 @@ import '../constants/app_colors.dart';
 /// Reusable 6-digit OTP input widget matching exact design specifications.
 class AppOtpInput extends StatefulWidget {
   final int length;
+  final String? initialValue;
   final ValueChanged<String> onChanged;
   final ValueChanged<String>? onCompleted;
 
   const AppOtpInput({
     super.key,
     this.length = 6,
+    this.initialValue,
     required this.onChanged,
     this.onCompleted,
   });
@@ -28,11 +30,26 @@ class _AppOtpInputState extends State<AppOtpInput> {
   @override
   void initState() {
     super.initState();
-    _controllers = List.generate(widget.length, (_) => TextEditingController());
+    _controllers = List.generate(widget.length, (index) {
+      final initialChar = (widget.initialValue != null && index < widget.initialValue!.length)
+          ? widget.initialValue![index]
+          : '';
+      return TextEditingController(text: initialChar);
+    });
     _focusNodes = List.generate(widget.length, (_) => FocusNode());
 
     for (int i = 0; i < widget.length; i++) {
       _focusNodes[i].addListener(() => setState(() {}));
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant AppOtpInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialValue != oldWidget.initialValue && widget.initialValue != null) {
+      for (int i = 0; i < widget.length && i < widget.initialValue!.length; i++) {
+        _controllers[i].text = widget.initialValue![i];
+      }
     }
   }
 

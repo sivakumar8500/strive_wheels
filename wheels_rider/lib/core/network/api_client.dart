@@ -133,7 +133,7 @@ class ApiClient {
         },
       ));
 
-      const refreshUrl = 'http://15.252.129.37:8200/api/v1/auth/refresh';
+      const refreshUrl = 'http://13.234.75.204:8200/api/v1/auth/refresh';
       debugPrint('[ApiClient] Triggering token refresh: $refreshUrl');
 
       final response = await refreshDio.post(

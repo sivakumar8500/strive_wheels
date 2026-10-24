@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../models/login_request_model.dart';
 
 import 'package:dio/dio.dart';
@@ -19,19 +20,25 @@ class LoginRemoteDataSourceImpl implements LoginRemoteDataSource {
         data: model.toJson(),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print('====== SEND OTP SUCCESS ======');
-        print(response.data);
-        final otp = response.data['data']?['otp'] ?? response.data['otp'];
-        print('=================================');
-        print('OTP FOR LOGIN: $otp');
-        print('=================================');
+        debugPrint('====== SEND OTP SUCCESS ======');
+        debugPrint(response.data.toString());
+        final cleanPhone = model.phoneNumber.replaceAll(RegExp(r'\D'), '');
+        final isTestNumber = cleanPhone.endsWith('9988774411');
+        final otp = isTestNumber
+            ? '123456'
+            : (response.data['data']?['dev_otp'] ??
+                response.data['data']?['otp'] ??
+                response.data['otp']);
+        debugPrint('=================================');
+        debugPrint('OTP FOR LOGIN: $otp${isTestNumber ? " (Play Console Default)" : ""}');
+        debugPrint('=================================');
         return true;
       }
-      print('====== SEND OTP FAILED: ${response.statusCode} ======');
+      debugPrint('====== SEND OTP FAILED: ${response.statusCode} ======');
       return false;
     } catch (e) {
-      print('====== SEND OTP ERROR ======');
-      print(e);
+      debugPrint('====== SEND OTP ERROR ======');
+      debugPrint(e.toString());
       throw Exception('Failed to send OTP: $e');
     }
   }
