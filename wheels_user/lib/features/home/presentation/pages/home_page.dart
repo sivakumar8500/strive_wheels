@@ -701,10 +701,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   child: DraggableScrollableSheet(
                     key: const Key('home_draggable_sheet'),
                     initialChildSize: 0.35,
-                    minChildSize: 0.25,
-                    maxChildSize: 0.9,
+                    minChildSize: 0.20,
+                    maxChildSize: 0.88,
                     snap: true,
-                    snapSizes: const [0.25, 0.35, 0.9],
+                    snapSizes: const [0.20, 0.35, 0.88],
                     builder: (BuildContext context, ScrollController scrollController) {
                       return Container(
                         decoration: BoxDecoration(

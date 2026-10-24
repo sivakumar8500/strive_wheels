@@ -58,9 +58,9 @@ class WebSocketClient {
     final candidateUrls = [
       '${ApiEndpoints.wsRiderConnect(_currentDriverId!)}?token=$_currentToken',
       '${ApiEndpoints.wsDriverConnect(_currentDriverId!)}?token=$_currentToken',
-      'ws://15.252.129.37:8200/api/v1/ws/rider/$_currentDriverId?token=$_currentToken',
-      'ws://15.252.129.37:8200/api/v1/ws/driver/$_currentDriverId?token=$_currentToken',
-      'ws://15.252.129.37:8200/api/v1/ws/connect?token=$_currentToken',
+      'ws://13.234.75.204:8200/api/v1/ws/rider/$_currentDriverId?token=$_currentToken',
+      'ws://13.234.75.204:8200/api/v1/ws/driver/$_currentDriverId?token=$_currentToken',
+      'ws://13.234.75.204:8200/api/v1/ws/connect?token=$_currentToken',
     ];
 
     for (final url in candidateUrls) {
@@ -228,7 +228,7 @@ class WebSocketClient {
         },
       ));
 
-      const refreshUrl = 'http://15.252.129.37:8200/api/v1/auth/refresh';
+      const refreshUrl = 'http://13.234.75.204:8200/api/v1/auth/refresh';
       final response = await refreshDio.post(
         refreshUrl,
         data: {'refresh_token': refreshToken},

@@ -1,4 +1,4 @@
-package com.example.wheels_rider
+package com.sg.user
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -22,9 +22,9 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "showJourneyNotification" -> {
-                    val title = call.argument<String>("title") ?: "Ride in Progress"
+                    val title = call.argument<String>("title") ?: "Journey in Progress"
                     val body = call.argument<String>("body") ?: ""
-                    val subText = call.argument<String>("subText") ?: "Strive Rider"
+                    val subText = call.argument<String>("subText") ?: "Strive Wheels"
                     val progress = call.argument<Int>("progress") ?: 0
                     val maxProgress = call.argument<Int>("maxProgress") ?: 100
                     showNotification(title, body, subText, progress, maxProgress)

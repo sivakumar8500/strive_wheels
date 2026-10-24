@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+
+# IDE & Editor caches
+.idea/caches/
+.idea/workspace.xml
+.idea/shelf/
+.idea/markdown.xml
+
+# Build artifacts & release binaries
+release_bundles/
+*.apk
+*.aab

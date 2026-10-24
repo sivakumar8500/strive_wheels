@@ -1,6 +1,6 @@
 class ApiEndpoints {
   // Base Server Host & API Base URL
-  static const String serverHost = 'http://15.252.129.37:8200';
+  static const String serverHost = 'http://13.234.75.204:8200';
   static const String baseUrl = '$serverHost/api/v1';
 
   /// Returns full image URL by prepending serverHost if the path is relative.
@@ -33,7 +33,7 @@ class ApiEndpoints {
 
   // WebSocket
   // Note: For staging/prod, change to wss:// if applicable.
-  static const String wsBaseUrl = 'ws://15.252.129.37:8200/api/v1';
+  static const String wsBaseUrl = 'ws://13.234.75.204:8200/api/v1';
   static const String wsConnect = '$wsBaseUrl/ws/connect';
   static String wsRiderConnect(int riderId) => '$wsBaseUrl/ws/rider/$riderId';
   static String wsDriverConnect(int driverId) => '$wsBaseUrl/ws/driver/$driverId';

@@ -24,7 +24,7 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   @override
   Future<List<ChatMessageModel>> getChatHistory(int bookingId) async {
     try {
-      final response = await dio.get('http://15.252.129.37:8200/api/v1/bookings/$bookingId/chat');
+      final response = await dio.get('http://13.234.75.204:8200/api/v1/bookings/$bookingId/chat');
       if (response.statusCode == 200 && response.data != null) {
         final data = response.data;
         List<dynamic> list = [];
@@ -56,7 +56,7 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   Future<ChatMessageModel?> sendMessageHttp(int bookingId, String message) async {
     try {
       final response = await dio.post(
-        'http://15.252.129.37:8200/api/v1/bookings/$bookingId/chat',
+        'http://13.234.75.204:8200/api/v1/bookings/$bookingId/chat',
         data: {'message': message},
       );
       if (response.statusCode == 200 && response.data != null) {
