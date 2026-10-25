@@ -46,6 +46,7 @@ class DriverSearchPage extends StatefulWidget {
   final String? licensePlate;
   final String? routeAlignment;
   final int? seatNumber;
+  final int? existingBookingId;
 
   const DriverSearchPage({
     super.key,
@@ -68,6 +69,7 @@ class DriverSearchPage extends StatefulWidget {
     this.licensePlate,
     this.routeAlignment,
     this.seatNumber,
+    this.existingBookingId,
   });
 
   @override
@@ -93,6 +95,7 @@ class _DriverSearchPageState extends State<DriverSearchPage>
   @override
   void initState() {
     super.initState();
+    _bookingId = widget.existingBookingId;
     WidgetsBinding.instance.addObserver(this);
     _progressController = AnimationController(
       vsync: this,
@@ -176,6 +179,13 @@ class _DriverSearchPageState extends State<DriverSearchPage>
 
       if (_isAcceptedStatus(rawStatus)) {
         _handleRideAccepted(bookingMap, rawStatus);
+      } else if (rawStatus == 'RIDER_ASSIGNED' || rawStatus == 'DRIVER_ASSIGNED' || rawStatus == 'ASSIGNED') {
+        if (mounted && _notificationText != 'Driver found! Waiting for driver to accept...') {
+          setState(() {
+            _currentStep = 2;
+            _notificationText = 'Driver found! Waiting for driver to accept...';
+          });
+        }
       } else if (_isTripStartedStatus(rawStatus)) {
         _handleTripStarted(bookingMap, rawStatus);
       } else if (_isCancelledStatus(rawStatus)) {
@@ -262,6 +272,21 @@ class _DriverSearchPageState extends State<DriverSearchPage>
       return;
     }
 
+    if (event == 'booking.assigned' ||
+        event == 'booking.driver_assigned' ||
+        event == 'booking.rider_assigned' ||
+        rawStatus == 'RIDER_ASSIGNED' ||
+        rawStatus == 'DRIVER_ASSIGNED' ||
+        rawStatus == 'ASSIGNED') {
+      if (mounted && _notificationText != 'Driver found! Waiting for driver to accept...') {
+        setState(() {
+          _currentStep = 2;
+          _notificationText = 'Driver found! Waiting for driver to accept...';
+        });
+      }
+      return;
+    }
+
     if (_isAcceptedEvent(event) || _isAcceptedStatus(rawStatus)) {
       _handleRideAccepted(data, rawStatus);
       return;
@@ -293,9 +318,6 @@ class _DriverSearchPageState extends State<DriverSearchPage>
         e == 'booking.driver_accepted' ||
         e == 'booking.accepted' ||
         e == 'booking.accepted_success' ||
-        e == 'booking.assigned' ||
-        e == 'booking.driver_assigned' ||
-        e == 'booking.rider_assigned' ||
         e == 'corporate.booking_assigned' ||
         e == 'booking.arrived' ||
         e == 'booking.rider_arrived' ||
@@ -308,9 +330,6 @@ class _DriverSearchPageState extends State<DriverSearchPage>
     return s == 'RIDER_ACCEPTED' ||
         s == 'DRIVER_ACCEPTED' ||
         s == 'ACCEPTED' ||
-        s == 'RIDER_ASSIGNED' ||
-        s == 'DRIVER_ASSIGNED' ||
-        s == 'ASSIGNED' ||
         s == 'RIDER_ARRIVING' ||
         s == 'DRIVER_ARRIVING' ||
         s == 'ARRIVING' ||

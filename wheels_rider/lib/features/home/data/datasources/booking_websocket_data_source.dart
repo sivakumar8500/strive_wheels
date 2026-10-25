@@ -63,10 +63,6 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
         case 'booking.assigned':
         case 'corporate.booking_assigned':
         case 'corporate.booking_created':
-        case 'notification.new':
-        case 'booking.status':
-        case 'booking.status_response':
-        case 'booking.status_info':
           try {
             Map<String, dynamic> bookingMap = {};
             if (data['booking'] is Map) {
@@ -161,12 +157,21 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
                 parseInt(data['booking_id']) ??
                 parseInt(data['id']);
 
+            if (trueBookingId == null || trueBookingId <= 0) {
+              return;
+            }
+
+            final fare = parseDouble(bookingMap['estimated_fare']) ?? 0.0;
+            if (fare <= 0.0) {
+              debugPrint('[BookingWebSocket] Skipping ride request with missing or zero fare: #$trueBookingId');
+              return;
+            }
+
             final int? reqId = parseInt(data['request_id']) ?? parseInt(bookingMap['request_id']);
 
-            if (trueBookingId != null) {
-              bookingMap['id'] = trueBookingId;
-              bookingMap['booking_id'] = trueBookingId;
-            }
+            bookingMap['id'] = trueBookingId;
+            bookingMap['booking_id'] = trueBookingId;
+            bookingMap['estimated_fare'] = fare;
             if (reqId != null) {
               bookingMap['request_id'] = reqId;
             }

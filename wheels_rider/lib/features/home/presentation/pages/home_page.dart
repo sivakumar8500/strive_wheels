@@ -29,6 +29,9 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../chat/presentation/pages/ride_chat_page.dart';
 import '../../../trips/presentation/pages/active_trip_page.dart';
+import '../../../trips/domain/usecases/mark_arrived_usecase.dart';
+import '../../../trips/domain/usecases/start_trip_usecase.dart';
+import '../../../trips/domain/usecases/complete_trip_usecase.dart';
 import '../../domain/entities/ride_request_entity.dart';
 import '../../data/models/ride_request_model.dart';
 
@@ -61,6 +64,8 @@ class _HomePageState extends State<HomePage>
   bool _isRideRequestMinimized = false;
   bool _hasActiveRideRequest = false;
   bool _isTripAccepted = false;
+  /// True once rider arrives at pickup
+  bool _isArrived = false;
   /// True once the rider verifies OTP — unlocks pickup→drop route on map
   bool _isTripStarted = false;
 
@@ -118,6 +123,7 @@ class _HomePageState extends State<HomePage>
     _restoreActiveRideState();
     _setupDropRequestWebSocketListener();
     _startActiveRideHttpPolling();
+    _startIncomingRidesPolling();
     _loadSavedRideTypeAndSchedule();
   }
 
@@ -194,6 +200,238 @@ class _HomePageState extends State<HomePage>
     _riderHttpCheckTimer = null;
   }
 
+  Timer? _incomingRidesCheckTimer;
+  int _lastDiscoveredBookingId = 326;
+  bool _isCheckingIncomingRides = false;
+
+  void _startIncomingRidesPolling() {
+    _incomingRidesCheckTimer?.cancel();
+    _incomingRidesCheckTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      _checkIncomingRidesHttp();
+    });
+  }
+
+  void _stopIncomingRidesPolling() {
+    _incomingRidesCheckTimer?.cancel();
+    _incomingRidesCheckTimer = null;
+  }
+
+  Future<void> _checkIncomingRidesHttp() async {
+    if (!mounted || !_isOnDuty || _hasActiveRideRequest || _isTripStarted || _isNavigatingToPayment) {
+      return;
+    }
+    if (_isCheckingIncomingRides) return;
+    _isCheckingIncomingRides = true;
+
+    try {
+      final apiClient = sl<ApiClient>();
+      for (int bid = _lastDiscoveredBookingId; bid <= _lastDiscoveredBookingId + 5; bid++) {
+        if (!mounted || !_isOnDuty || _hasActiveRideRequest || _isTripStarted) break;
+        try {
+          final response = await apiClient.get('${ApiEndpoints.baseUrl}/bookings/$bid');
+          if (response.statusCode == 200 && response.data != null) {
+            final Map<String, dynamic> data = response.data is Map<String, dynamic>
+                ? response.data
+                : Map<String, dynamic>.from(response.data as Map);
+
+            if (data['success'] == false || data['data'] == null) {
+              // Booking does not exist yet. Stop scanning further.
+              break;
+            }
+
+            final bookingData = data['data'] is Map
+                ? Map<String, dynamic>.from(data['data'] as Map)
+                : (data['booking'] is Map ? Map<String, dynamic>.from(data['booking'] as Map) : data);
+
+            final status = (bookingData['status'] ?? '')?.toString().toUpperCase() ?? '';
+            final riderId = bookingData['rider_id'];
+
+            if (bid > _lastDiscoveredBookingId) {
+              _lastDiscoveredBookingId = bid;
+            }
+
+            if ((status == 'RIDER_ASSIGNED' || status == 'SEARCHING_RIDER' || status == 'CREATED') &&
+                (riderId == null || riderId == 14)) {
+              debugPrint('⚡ [HomePage] Found incoming ride request via polling: #$bid (status: $status)');
+              _handleIncomingRideRequestData(bookingData);
+              break;
+            }
+          } else {
+            break;
+          }
+        } catch (_) {
+          break;
+        }
+      }
+    } catch (e) {
+      debugPrint('[HomePage] Incoming rides check notice: $e');
+    } finally {
+      _isCheckingIncomingRides = false;
+    }
+  }
+
+  void _handleIncomingRideRequestData(Map<String, dynamic> data) {
+    try {
+      Map<String, dynamic> bookingMap = {};
+      if (data['booking'] is Map) {
+        bookingMap = Map<String, dynamic>.from(data['booking'] as Map);
+      } else if (data['notification'] is Map) {
+        final notif = Map<String, dynamic>.from(data['notification'] as Map);
+        if (notif['metadata_json'] is String) {
+          try {
+            final meta = jsonDecode(notif['metadata_json'] as String);
+            if (meta is Map) bookingMap = Map<String, dynamic>.from(meta);
+          } catch (_) {}
+        }
+        if (notif['metadata'] is Map) {
+          bookingMap = Map<String, dynamic>.from(notif['metadata'] as Map);
+        }
+      } else {
+        bookingMap = Map<String, dynamic>.from(data);
+      }
+
+      int? parseInt(dynamic val) {
+        if (val == null) return null;
+        if (val is int) return val;
+        if (val is num) return val.toInt();
+        return int.tryParse(val.toString());
+      }
+
+      double? parseDouble(dynamic val) {
+        if (val == null) return null;
+        if (val is double) return val;
+        if (val is num) return val.toDouble();
+        return double.tryParse(val.toString());
+      }
+
+      String? parseString(dynamic val) {
+        if (val == null) return null;
+        return val.toString();
+      }
+
+      if (bookingMap['pickup_address'] == null && data['pickup_address'] != null) {
+        bookingMap['pickup_address'] = data['pickup_address'];
+      }
+      if (bookingMap['drop_address'] == null && data['drop_address'] != null) {
+        bookingMap['drop_address'] = data['drop_address'];
+      }
+      if (bookingMap['estimated_fare'] == null && data['estimated_fare'] != null) {
+        bookingMap['estimated_fare'] = data['estimated_fare'];
+      }
+      if (bookingMap['pickup_lat'] == null && data['pickup_lat'] != null) {
+        bookingMap['pickup_lat'] = data['pickup_lat'];
+      }
+      if (bookingMap['pickup_lng'] == null && data['pickup_lng'] != null) {
+        bookingMap['pickup_lng'] = data['pickup_lng'];
+      }
+      if (bookingMap['drop_lat'] == null && data['drop_lat'] != null) {
+        bookingMap['drop_lat'] = data['drop_lat'];
+      }
+      if (bookingMap['drop_lng'] == null && data['drop_lng'] != null) {
+        bookingMap['drop_lng'] = data['drop_lng'];
+      }
+      if (bookingMap['estimated_distance_km'] == null && data['estimated_distance_km'] != null) {
+        bookingMap['estimated_distance_km'] = data['estimated_distance_km'];
+      }
+      if (bookingMap['estimated_duration_mins'] == null && data['estimated_duration_mins'] != null) {
+        bookingMap['estimated_duration_mins'] = data['estimated_duration_mins'];
+      }
+      if (bookingMap['booking_code'] == null && data['booking_code'] != null) {
+        bookingMap['booking_code'] = data['booking_code'];
+      }
+      if (bookingMap['service_mode'] == null && data['service_mode'] != null) {
+        bookingMap['service_mode'] = data['service_mode'];
+      }
+
+      if (bookingMap['pickup_address'] != null) bookingMap['pickup_address'] = parseString(bookingMap['pickup_address']);
+      if (bookingMap['drop_address'] != null) bookingMap['drop_address'] = parseString(bookingMap['drop_address']);
+      if (bookingMap['booking_code'] != null) bookingMap['booking_code'] = parseString(bookingMap['booking_code']);
+      if (bookingMap['service_mode'] != null) bookingMap['service_mode'] = parseString(bookingMap['service_mode']);
+
+      if (bookingMap['pickup_lat'] != null) bookingMap['pickup_lat'] = parseDouble(bookingMap['pickup_lat']);
+      if (bookingMap['pickup_lng'] != null) bookingMap['pickup_lng'] = parseDouble(bookingMap['pickup_lng']);
+      if (bookingMap['drop_lat'] != null) bookingMap['drop_lat'] = parseDouble(bookingMap['drop_lat']);
+      if (bookingMap['drop_lng'] != null) bookingMap['drop_lng'] = parseDouble(bookingMap['drop_lng']);
+      if (bookingMap['estimated_fare'] != null) bookingMap['estimated_fare'] = parseDouble(bookingMap['estimated_fare']);
+      if (bookingMap['estimated_distance_km'] != null) bookingMap['estimated_distance_km'] = parseDouble(bookingMap['estimated_distance_km']);
+      if (bookingMap['estimated_duration_mins'] != null) bookingMap['estimated_duration_mins'] = parseInt(bookingMap['estimated_duration_mins']);
+
+      final int? trueBookingId = parseInt(bookingMap['booking_id']) ??
+          parseInt(bookingMap['id']) ??
+          parseInt(data['booking_id']) ??
+          parseInt(data['id']);
+
+      if (trueBookingId != null) {
+        bookingMap['id'] = trueBookingId;
+        bookingMap['booking_id'] = trueBookingId;
+      }
+
+      final int? reqId = parseInt(data['request_id']) ?? parseInt(bookingMap['request_id']);
+      if (reqId != null) {
+        bookingMap['request_id'] = reqId;
+      }
+      if (bookingMap['estimated_distance_km'] != null) bookingMap['estimated_distance_km'] = parseDouble(bookingMap['estimated_distance_km']);
+      if (bookingMap['estimated_duration_mins'] != null) bookingMap['estimated_duration_mins'] = parseInt(bookingMap['estimated_duration_mins']);
+
+      final String sMode = (bookingMap['service_mode'] ?? data['service_mode'] ?? '').toString().toUpperCase();
+      final bool isCorp = sMode == 'CORPORATE' ||
+          bookingMap['is_corporate'] == true ||
+          data['is_corporate'] == true ||
+          bookingMap['payment_method'] == 'CORPORATE_BILLING' ||
+          data['payment_method'] == 'CORPORATE_BILLING';
+
+      // If rider is offline or already in a trip / on payment screen, do not process new ride requests
+      if (!_isOnDuty) {
+        debugPrint('[HomePage] Dropping incoming ride request because rider is offline.');
+        return;
+      }
+      if (_isTripStarted || _isNavigatingToPayment) {
+        debugPrint('[HomePage] Dropping incoming ride request because rider is in a trip or on payment screen.');
+        return;
+      }
+
+      // Strictly filter out Corporate bookings when Rider is in Self mode
+      if (_rideType == 'Self' && isCorp) {
+        debugPrint('[HomePage] Dropping Corporate ride request because rider is in Self mode.');
+        return;
+      }
+      // Strictly filter out Self/Normal bookings when Rider is in Corporate mode
+      if (_rideType == 'Corporate' && !isCorp) {
+        debugPrint('[HomePage] Dropping Self/Normal ride request because rider is in Corporate mode.');
+        return;
+      }
+
+      final model = RideRequestModel.fromJson(bookingMap);
+      final entity = model.toEntity();
+
+      if (entity.id <= 0) {
+        debugPrint('[HomePage] Dropping ride request with invalid ID: ${entity.id}');
+        return;
+      }
+      if (entity.estimatedFare <= 0.0) {
+        debugPrint('[HomePage] Dropping ride request with zero fare: #${entity.id}');
+        return;
+      }
+      if (_hasActiveRideRequest && _currentRideRequest?.id == entity.id) {
+        debugPrint('[HomePage] Ride request #${entity.id} already active, ignoring duplicate.');
+        return;
+      }
+
+      if (mounted) {
+        setState(() {
+          _hasActiveRideRequest = true;
+          _isRideRequestMinimized = false;
+          _isTripAccepted = false;
+          _currentRideRequest = entity;
+        });
+        _bookingBloc.add(RideRequestReceivedEvent(entity));
+        _ringtoneService.playCallingRingtone();
+      }
+    } catch (e) {
+      debugPrint('Error handling new ride request in HomePage: $e');
+    }
+  }
+
   Future<void> _checkActiveRideStatusHttp() async {
     if (!mounted || _currentRideRequest == null) return;
     final bookingId = _currentRideRequest!.id;
@@ -234,6 +472,20 @@ class _HomePageState extends State<HomePage>
         } else if (isDropRequested && requestedBy != 'RIDER' && !_isCustomerDropModalShowing) {
           final reason = (bookingData['reason'] ?? data['reason'] ?? 'Early drop requested by customer').toString();
           _showCustomerDropRequestModal(reason: reason, bookingId: bookingId);
+        } else if (status == 'RIDER_ARRIVED') {
+          if (!_isArrived && mounted) {
+            setState(() => _isArrived = true);
+            _saveActiveRideState();
+          }
+        } else if (status == 'TRIP_STARTED') {
+          if (!_isTripStarted && mounted) {
+            setState(() {
+              _isTripStarted = true;
+              _isArrived = true;
+            });
+            _saveActiveRideState();
+            _fetchNavigationRoute();
+          }
         }
       }
     } catch (e) {
@@ -309,152 +561,7 @@ class _HomePageState extends State<HomePage>
           event == 'booking.status_info';
 
       if (isNewRideRequest) {
-        try {
-          Map<String, dynamic> bookingMap = {};
-          if (data['booking'] is Map) {
-            bookingMap = Map<String, dynamic>.from(data['booking'] as Map);
-          } else if (data['notification'] is Map) {
-            final notif = Map<String, dynamic>.from(data['notification'] as Map);
-            if (notif['metadata_json'] is String) {
-              try {
-                final meta = jsonDecode(notif['metadata_json'] as String);
-                if (meta is Map) bookingMap = Map<String, dynamic>.from(meta);
-              } catch (_) {}
-            }
-            if (notif['metadata'] is Map) {
-              bookingMap = Map<String, dynamic>.from(notif['metadata'] as Map);
-            }
-          } else {
-            bookingMap = Map<String, dynamic>.from(data);
-          }
-
-          int? parseInt(dynamic val) {
-            if (val == null) return null;
-            if (val is int) return val;
-            if (val is num) return val.toInt();
-            return int.tryParse(val.toString());
-          }
-
-          double? parseDouble(dynamic val) {
-            if (val == null) return null;
-            if (val is double) return val;
-            if (val is num) return val.toDouble();
-            return double.tryParse(val.toString());
-          }
-
-          String? parseString(dynamic val) {
-            if (val == null) return null;
-            return val.toString();
-          }
-
-          if (bookingMap['pickup_address'] == null && data['pickup_address'] != null) {
-            bookingMap['pickup_address'] = data['pickup_address'];
-          }
-          if (bookingMap['drop_address'] == null && data['drop_address'] != null) {
-            bookingMap['drop_address'] = data['drop_address'];
-          }
-          if (bookingMap['estimated_fare'] == null && data['estimated_fare'] != null) {
-            bookingMap['estimated_fare'] = data['estimated_fare'];
-          }
-          if (bookingMap['pickup_lat'] == null && data['pickup_lat'] != null) {
-            bookingMap['pickup_lat'] = data['pickup_lat'];
-          }
-          if (bookingMap['pickup_lng'] == null && data['pickup_lng'] != null) {
-            bookingMap['pickup_lng'] = data['pickup_lng'];
-          }
-          if (bookingMap['drop_lat'] == null && data['drop_lat'] != null) {
-            bookingMap['drop_lat'] = data['drop_lat'];
-          }
-          if (bookingMap['drop_lng'] == null && data['drop_lng'] != null) {
-            bookingMap['drop_lng'] = data['drop_lng'];
-          }
-          if (bookingMap['estimated_distance_km'] == null && data['estimated_distance_km'] != null) {
-            bookingMap['estimated_distance_km'] = data['estimated_distance_km'];
-          }
-          if (bookingMap['estimated_duration_mins'] == null && data['estimated_duration_mins'] != null) {
-            bookingMap['estimated_duration_mins'] = data['estimated_duration_mins'];
-          }
-          if (bookingMap['booking_code'] == null && data['booking_code'] != null) {
-            bookingMap['booking_code'] = data['booking_code'];
-          }
-          if (bookingMap['service_mode'] == null && data['service_mode'] != null) {
-            bookingMap['service_mode'] = data['service_mode'];
-          }
-
-          if (bookingMap['pickup_address'] != null) bookingMap['pickup_address'] = parseString(bookingMap['pickup_address']);
-          if (bookingMap['drop_address'] != null) bookingMap['drop_address'] = parseString(bookingMap['drop_address']);
-          if (bookingMap['booking_code'] != null) bookingMap['booking_code'] = parseString(bookingMap['booking_code']);
-          if (bookingMap['service_mode'] != null) bookingMap['service_mode'] = parseString(bookingMap['service_mode']);
-
-          if (bookingMap['pickup_lat'] != null) bookingMap['pickup_lat'] = parseDouble(bookingMap['pickup_lat']);
-          if (bookingMap['pickup_lng'] != null) bookingMap['pickup_lng'] = parseDouble(bookingMap['pickup_lng']);
-          if (bookingMap['drop_lat'] != null) bookingMap['drop_lat'] = parseDouble(bookingMap['drop_lat']);
-          if (bookingMap['drop_lng'] != null) bookingMap['drop_lng'] = parseDouble(bookingMap['drop_lng']);
-          if (bookingMap['estimated_fare'] != null) bookingMap['estimated_fare'] = parseDouble(bookingMap['estimated_fare']);
-          if (bookingMap['estimated_distance_km'] != null) bookingMap['estimated_distance_km'] = parseDouble(bookingMap['estimated_distance_km']);
-          if (bookingMap['estimated_duration_mins'] != null) bookingMap['estimated_duration_mins'] = parseInt(bookingMap['estimated_duration_mins']);
-
-          final int? trueBookingId = parseInt(bookingMap['booking_id']) ??
-              parseInt(bookingMap['id']) ??
-              parseInt(data['booking_id']) ??
-              parseInt(data['id']);
-
-          if (trueBookingId != null) {
-            bookingMap['id'] = trueBookingId;
-            bookingMap['booking_id'] = trueBookingId;
-          }
-
-          final int? reqId = parseInt(data['request_id']) ?? parseInt(bookingMap['request_id']);
-          if (reqId != null) {
-            bookingMap['request_id'] = reqId;
-          }
-          if (bookingMap['estimated_distance_km'] != null) bookingMap['estimated_distance_km'] = parseDouble(bookingMap['estimated_distance_km']);
-          if (bookingMap['estimated_duration_mins'] != null) bookingMap['estimated_duration_mins'] = parseInt(bookingMap['estimated_duration_mins']);
-
-          final String sMode = (bookingMap['service_mode'] ?? data['service_mode'] ?? '').toString().toUpperCase();
-          final bool isCorp = sMode == 'CORPORATE' ||
-              bookingMap['is_corporate'] == true ||
-              data['is_corporate'] == true ||
-              bookingMap['payment_method'] == 'CORPORATE_BILLING' ||
-              data['payment_method'] == 'CORPORATE_BILLING';
-
-          // If rider is offline or already in a trip / on payment screen, do not process new ride requests
-          if (!_isOnDuty) {
-            debugPrint('[HomePage] Dropping incoming ride request because rider is offline.');
-            return;
-          }
-          if (_isTripStarted || _isNavigatingToPayment) {
-            debugPrint('[HomePage] Dropping incoming ride request because rider is in a trip or on payment screen.');
-            return;
-          }
-
-          // Strictly filter out Corporate bookings when Rider is in Self mode
-          if (_rideType == 'Self' && isCorp) {
-            debugPrint('[HomePage] Dropping Corporate ride request because rider is in Self mode.');
-            return;
-          }
-          // Strictly filter out Self/Normal bookings when Rider is in Corporate mode
-          if (_rideType == 'Corporate' && !isCorp) {
-            debugPrint('[HomePage] Dropping Self/Normal ride request because rider is in Corporate mode.');
-            return;
-          }
-
-          final model = RideRequestModel.fromJson(bookingMap);
-          final entity = model.toEntity();
-
-          if (mounted) {
-            setState(() {
-              _hasActiveRideRequest = true;
-              _isRideRequestMinimized = false;
-              _isTripAccepted = false;
-              _currentRideRequest = entity;
-            });
-            _bookingBloc.add(RideRequestReceivedEvent(entity));
-            _ringtoneService.playCallingRingtone();
-          }
-        } catch (e) {
-          debugPrint('Error handling new ride request WS event in HomePage: $e');
-        }
+        _handleIncomingRideRequestData(data);
       } else {
         final isTripAccepted =
             event == 'booking.accepted_success' ||
@@ -573,6 +680,7 @@ class _HomePageState extends State<HomePage>
       };
       await prefs.setString('active_ride_request_json', jsonEncode(map));
       await prefs.setBool('active_trip_started', _isTripStarted);
+      await prefs.setBool('active_trip_arrived', _isArrived);
     } catch (e) {
       debugPrint('Error saving active ride state: $e');
     }
@@ -587,6 +695,7 @@ class _HomePageState extends State<HomePage>
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('active_ride_request_json');
       await prefs.remove('active_trip_started');
+      await prefs.remove('active_trip_arrived');
     } catch (e) {
       debugPrint('Error clearing active ride state: $e');
     }
@@ -594,6 +703,7 @@ class _HomePageState extends State<HomePage>
       setState(() {
         _hasActiveRideRequest = false;
         _isTripAccepted = false;
+        _isArrived = false;
         _currentRideRequest = null;
         _isTripStarted = false;
         _isRideRequestMinimized = false;
@@ -626,17 +736,38 @@ class _HomePageState extends State<HomePage>
       final prefs = await SharedPreferences.getInstance();
       final jsonStr = prefs.getString('active_ride_request_json');
       final isStarted = prefs.getBool('active_trip_started') ?? false;
+      bool isArrived = prefs.getBool('active_trip_arrived') ?? false;
 
       if (jsonStr != null && jsonStr.isNotEmpty) {
         final Map<String, dynamic> jsonMap = jsonDecode(jsonStr);
         final model = RideRequestModel.fromJson(jsonMap);
         final entity = model.toEntity();
 
+        // Validate with server if restored booking is actually active
+        try {
+          final apiClient = sl<ApiClient>();
+          final checkRes = await apiClient.get('${ApiEndpoints.baseUrl}/bookings/${entity.id}');
+          if (checkRes.statusCode == 200 && checkRes.data != null) {
+            final st = (checkRes.data['data']?['status'] ?? checkRes.data['status'])?.toString().toUpperCase() ?? '';
+            if (st.contains('CANCEL') || st == 'COMPLETED' || st == 'REJECTED' || st == 'EXPIRED') {
+              debugPrint('[HomePage] Restored booking ${entity.id} is $st on server. Clearing stale state.');
+              await _clearActiveRideState();
+              return;
+            }
+            if (st == 'RIDER_ARRIVED') {
+              isArrived = true;
+            } else if (st == 'TRIP_STARTED') {
+              isArrived = true;
+            }
+          }
+        } catch (_) {}
+
         if (mounted) {
           setState(() {
             _currentRideRequest = entity;
             _hasActiveRideRequest = false;
             _isTripAccepted = true;
+            _isArrived = isArrived;
             _isTripStarted = isStarted;
             _isOnDuty = true;
           });
@@ -768,6 +899,7 @@ class _HomePageState extends State<HomePage>
     _wsDropSubscription?.cancel();
     _stopLocationTracking();
     _stopActiveRideHttpPolling();
+    _stopIncomingRidesPolling();
     _dropReasonController.dispose();
     _homeBloc.close();
     _profileBloc.close();
@@ -1000,6 +1132,12 @@ class _HomePageState extends State<HomePage>
           BlocListener<BookingBloc, BookingState>(
             listener: (context, state) {
               if (state is NewRideRequestState) {
+                if (state.rideRequest.id <= 0 || state.rideRequest.estimatedFare <= 0.0) {
+                  return;
+                }
+                if (_hasActiveRideRequest && _currentRideRequest?.id == state.rideRequest.id) {
+                  return;
+                }
                 final bool isCorp = state.rideRequest.serviceMode?.toUpperCase() == 'CORPORATE';
                 if (_rideType == 'Self' && isCorp) {
                   return;
@@ -1569,9 +1707,11 @@ class _HomePageState extends State<HomePage>
                 destinationAddress: _currentRideRequest?.dropAddress ?? '',
                 pickupAddress: _currentRideRequest?.pickupAddress ?? '',
                 isTripStarted: _isTripStarted,
+                isArrived: _isArrived,
                 isLoading: _isLoadingAction,
                 isDropPending: _isDropRequestPending,
-                onMainActionTap: () => _showActiveTripBottomSheet(context),
+                onMainActionTap: _handleMainNavigationAction,
+                onDetailsTap: () => _showActiveTripBottomSheet(context),
                 onRequestDrop: _isTripStarted ? () => _showDropRequestDialog(context) : null,
                 onCancelRide: () => _showRiderCancelDialog(context),
                 onCallTap: () => _makePhoneCall('6366557766'),
@@ -2438,6 +2578,7 @@ class _HomePageState extends State<HomePage>
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                     child: ActiveTripPage(
                       bookingId: activeRide.id,
+                      bookingCode: activeRide.bookingCode,
                       pickupAddress: activeRide.pickupAddress,
                       dropAddress: activeRide.dropAddress,
                       estimatedFare: activeRide.estimatedFare,
@@ -2447,10 +2588,23 @@ class _HomePageState extends State<HomePage>
                       dropLng: activeRide.dropLng,
                       riderLat: _currentLatLng?.latitude,
                       riderLng: _currentLatLng?.longitude,
+                      isCorporate: (activeRide.serviceMode ?? '').toUpperCase() == 'CORPORATE',
+                      serviceMode: activeRide.serviceMode,
+                      isArrived: _isArrived,
+                      isTripStartedInitial: _isTripStarted,
+                      onMarkArrived: () {
+                        if (mounted) {
+                          setState(() => _isArrived = true);
+                          _saveActiveRideState();
+                        }
+                      },
                       onTripStarted: () {
                         // OTP verified — unlock pickup→drop route on the home map
                         if (mounted) {
-                          setState(() => _isTripStarted = true);
+                          setState(() {
+                            _isTripStarted = true;
+                            _isArrived = true;
+                          });
                           _saveActiveRideState();
                           _fetchNavigationRoute();
                         }
@@ -2472,6 +2626,196 @@ class _HomePageState extends State<HomePage>
         );
       },
     );
+  }
+
+  Future<void> _handleMainNavigationAction() async {
+    final ride = _currentRideRequest;
+    if (ride == null) return;
+
+    if (!_isArrived && !_isTripStarted) {
+      // Step 1: Mark Arrived at Pickup
+      setState(() => _isLoadingAction = true);
+      await _markRiderArrived(ride.id);
+      setState(() => _isLoadingAction = false);
+      if (mounted) {
+        _showStartTripOtpDialog(context, ride.id);
+      }
+    } else if (_isArrived && !_isTripStarted) {
+      // Step 2: Show OTP Dialog to Start Ride
+      _showStartTripOtpDialog(context, ride.id);
+    } else if (_isTripStarted) {
+      // Step 3: Complete Trip
+      _completeTrip(ride.id);
+    }
+  }
+
+  Future<void> _markRiderArrived(int bookingId) async {
+    try {
+      if (sl.isRegistered<MarkArrivedUseCase>()) {
+        await sl<MarkArrivedUseCase>()(bookingId);
+      }
+      if (sl.isRegistered<WebSocketClient>()) {
+        sl<WebSocketClient>().sendMessage({
+          'event': 'booking.rider_arrived',
+          'data': {'booking_id': bookingId, 'status': 'RIDER_ARRIVED'},
+        });
+      }
+    } catch (e) {
+      debugPrint('[HomePage] markArrived notice: $e');
+    }
+    if (mounted) {
+      setState(() => _isArrived = true);
+      _saveActiveRideState();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Marked arrived at pickup location!'),
+          backgroundColor: Color(0xFF0D6EFD),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _showStartTripOtpDialog(BuildContext context, int bookingId) {
+    final otpController = TextEditingController();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.pin_rounded, color: AppColors.primaryBlue),
+            const SizedBox(width: 8),
+            Text('Enter Start OTP', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Ask customer for the 4-digit start OTP shown on their screen.',
+              style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: otpController,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              autofocus: true,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 8),
+              decoration: InputDecoration(
+                counterText: '',
+                hintText: '• • • •',
+                hintStyle: TextStyle(letterSpacing: 8, color: Colors.grey.shade400),
+                filled: true,
+                fillColor: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey.shade900
+                    : Colors.grey.shade100,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text('Cancel', style: GoogleFonts.inter(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final otp = otpController.text.trim();
+              if (otp.length == 4) {
+                Navigator.pop(dialogContext);
+                await _submitStartTripOtp(bookingId, otp);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryBlue,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            child: Text('Start Ride', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _submitStartTripOtp(int bookingId, String otp) async {
+    setState(() => _isLoadingAction = true);
+    try {
+      if (sl.isRegistered<StartTripUseCase>()) {
+        await sl<StartTripUseCase>()(bookingId: bookingId, otp: otp);
+      }
+      if (sl.isRegistered<WebSocketClient>()) {
+        sl<WebSocketClient>().sendMessage({
+          'event': 'booking.start',
+          'data': {'booking_id': bookingId, 'otp': otp},
+        });
+        sl<WebSocketClient>().sendMessage({
+          'event': 'booking.trip_started',
+          'data': {'booking_id': bookingId, 'status': 'TRIP_STARTED'},
+        });
+      }
+      if (mounted) {
+        setState(() {
+          _isTripStarted = true;
+          _isArrived = true;
+          _isLoadingAction = false;
+        });
+        _saveActiveRideState();
+        _fetchNavigationRoute();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ride started! Navigating to drop location.'),
+            backgroundColor: Color(0xFF10B981),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingAction = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to start ride: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _completeTrip(int bookingId) async {
+    setState(() => _isLoadingAction = true);
+    try {
+      if (sl.isRegistered<CompleteTripUseCase>()) {
+        await sl<CompleteTripUseCase>()(
+          bookingId: bookingId,
+          distanceKm: _remainingDistanceKm > 0 ? _remainingDistanceKm : 2.5,
+          durationMins: _remainingDurationMins > 0 ? _remainingDurationMins : 10,
+          riderLat: _currentLatLng?.latitude,
+          riderLng: _currentLatLng?.longitude,
+        );
+      }
+      if (sl.isRegistered<WebSocketClient>()) {
+        sl<WebSocketClient>().sendMessage({
+          'event': 'booking.completed',
+          'data': {'booking_id': bookingId, 'status': 'COMPLETED'},
+        });
+      }
+    } catch (e) {
+      debugPrint('[HomePage] completeTrip error: $e');
+    }
+    if (mounted) {
+      setState(() => _isLoadingAction = false);
+      _navigateToPaymentScreen(bookingId: bookingId);
+    }
   }
 
   void _showDropRequestDialog(BuildContext ctx) {

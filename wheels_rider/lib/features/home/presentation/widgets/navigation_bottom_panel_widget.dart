@@ -12,8 +12,10 @@ class NavigationBottomPanelWidget extends StatefulWidget {
   final String customerName;
   final double customerRating;
   final bool isTripStarted;
+  final bool isArrived;
   final bool isLoading;
   final VoidCallback onMainActionTap;
+  final VoidCallback? onDetailsTap;
   final VoidCallback? onRequestDrop;
   final VoidCallback? onCancelRide;
   final VoidCallback? onCallTap;
@@ -31,9 +33,11 @@ class NavigationBottomPanelWidget extends StatefulWidget {
     this.customerName = 'John Doe',
     this.customerRating = 4.9,
     required this.isTripStarted,
+    this.isArrived = false,
     required this.isLoading,
     this.isDropPending = false,
     required this.onMainActionTap,
+    this.onDetailsTap,
     this.onRequestDrop,
     this.onCancelRide,
     this.onCallTap,
@@ -52,12 +56,18 @@ class _NavigationBottomPanelWidgetState extends State<NavigationBottomPanelWidge
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
 
-    final actionLabel = widget.isTripStarted
-        ? 'COMPLETE TRIP'
-        : 'ARRIVED AT PICKUP';
-    final actionColor = widget.isTripStarted
-        ? const Color(0xFF10B981)
-        : AppColors.primaryBlue;
+    final String actionLabel;
+    final Color actionColor;
+    if (widget.isTripStarted) {
+      actionLabel = 'COMPLETE TRIP';
+      actionColor = const Color(0xFF10B981);
+    } else if (widget.isArrived) {
+      actionLabel = 'START RIDE (ENTER OTP)';
+      actionColor = AppColors.primaryBlue;
+    } else {
+      actionLabel = 'ARRIVED AT PICKUP';
+      actionColor = AppColors.primaryBlue;
+    }
 
     return Container(
       padding: const EdgeInsets.only(left: 18, right: 18, top: 12, bottom: 16),
@@ -77,7 +87,7 @@ class _NavigationBottomPanelWidgetState extends State<NavigationBottomPanelWidge
         children: [
           // Drag handle pill
           GestureDetector(
-            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            onTap: widget.onDetailsTap ?? () => setState(() => _isExpanded = !_isExpanded),
             child: Container(
               width: 36,
               height: 4,
@@ -125,43 +135,46 @@ class _NavigationBottomPanelWidgetState extends State<NavigationBottomPanelWidge
 
               // Target Destination Address
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          widget.isTripStarted ? 'DESTINATION' : 'PICKUP LOCATION',
-                          style: GoogleFonts.poppins(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.8,
-                            color: isDark ? AppColors.textSecondaryDark : const Color(0xFF94A3B8),
+                child: GestureDetector(
+                  onTap: widget.onDetailsTap,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            widget.isTripStarted ? 'DESTINATION' : 'PICKUP LOCATION',
+                            style: GoogleFonts.poppins(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.8,
+                              color: isDark ? AppColors.textSecondaryDark : const Color(0xFF94A3B8),
+                            ),
                           ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          'ETA ${widget.arrivalEta}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? AppColors.textPrimaryDark : const Color(0xFF0F172A),
+                          const Spacer(),
+                          Text(
+                            'ETA ${widget.arrivalEta}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? AppColors.textPrimaryDark : const Color(0xFF0F172A),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.isTripStarted ? widget.destinationAddress : widget.pickupAddress,
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? AppColors.textPrimaryDark : const Color(0xFF0F172A),
+                        ],
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.isTripStarted ? widget.destinationAddress : widget.pickupAddress,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? AppColors.textPrimaryDark : const Color(0xFF0F172A),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
               ),
 

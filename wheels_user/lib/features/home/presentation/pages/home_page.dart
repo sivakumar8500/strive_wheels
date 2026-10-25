@@ -21,6 +21,7 @@ import '../../../booking/presentation/pages/booking_confirmed_page.dart';
 import '../../../booking/presentation/pages/journey_complete_page.dart';
 import '../../../booking/presentation/pages/live_trip_tracking_page.dart';
 import '../../../booking/presentation/pages/location_search_page.dart';
+import '../../../driver_search/presentation/pages/driver_search_page.dart';
 import '../../../favourites/presentation/bloc/favourites_bloc.dart';
 import '../../../favourites/presentation/pages/favourites_page.dart';
 import '../../../history/presentation/bloc/ride_history_bloc.dart';
@@ -383,11 +384,34 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   void _resumeActiveRide(BuildContext context, ActiveBookingData? data) {
     if (data == null) return;
     final status = data.status.toUpperCase();
+    final isSearchingState = status == 'SEARCHING_RIDER' ||
+        status == 'SEARCHING_DRIVER' ||
+        status == 'RIDER_ASSIGNED' ||
+        status == 'DRIVER_ASSIGNED' ||
+        status == 'CREATED';
+
+    if (isSearchingState) {
+      final cleanId = int.tryParse(data.bookingId.replaceAll(RegExp(r'[^0-9]'), ''));
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => DriverSearchPage(
+            existingBookingId: cleanId,
+            vehicleTypeId: 1,
+            pickupAddress: data.pickupAddress,
+            dropAddress: data.dropAddress,
+            pickupLat: data.pickupLatLng.latitude,
+            pickupLng: data.pickupLatLng.longitude,
+            dropLat: data.dropLatLng.latitude,
+            dropLng: data.dropLatLng.longitude,
+          ),
+        ),
+      );
+      return;
+    }
+
     final isConfirmedState = status == 'RIDER_ACCEPTED' ||
         status == 'DRIVER_ACCEPTED' ||
         status == 'ACCEPTED' ||
-        status == 'RIDER_ASSIGNED' ||
-        status == 'DRIVER_ASSIGNED' ||
         status == 'RIDER_ARRIVED' ||
         status == 'DRIVER_ARRIVED' ||
         status == 'CONFIRMED';

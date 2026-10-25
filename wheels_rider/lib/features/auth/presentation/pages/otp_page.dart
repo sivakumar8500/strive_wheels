@@ -36,7 +36,7 @@ class _OtpPageState extends State<OtpPage> {
     super.initState();
     startTimer();
     final cleanPhone = widget.phoneNumber.replaceAll(RegExp(r'\D'), '');
-    if (cleanPhone.endsWith('9900990099')) {
+    if (cleanPhone.endsWith('9900990099') || cleanPhone.endsWith('9988774411')) {
       _pinController.text = '123456';
     }
     _pinController.addListener(_onPinChanged);

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_colors.dart';
@@ -12,14 +11,16 @@ import '../../../../core/network/websocket_client.dart';
 import '../../../../core/services/ride_ringtone_service.dart';
 import '../../../../features/home/data/datasources/booking_websocket_data_source.dart';
 import '../../domain/usecases/start_trip_usecase.dart';
+import '../../domain/usecases/mark_arrived_usecase.dart';
 import '../../domain/usecases/complete_trip_usecase.dart';
 import 'trip_payment_page.dart';
 import '../../../chat/presentation/pages/ride_chat_page.dart';
 
-enum TripStatus { arrived, inProgress, completed }
+enum TripStatus { accepted, arrived, inProgress, completed }
 
 class ActiveTripPage extends StatefulWidget {
   final int bookingId;
+  final String? bookingCode;
   final String? pickupAddress;
   final String? dropAddress;
   final double? estimatedFare;
@@ -31,6 +32,12 @@ class ActiveTripPage extends StatefulWidget {
   final double? riderLng;
   final bool isCorporate;
   final String? serviceMode;
+  final bool isArrived;
+  final bool isTripStartedInitial;
+  final bool isPendingAccept;
+  final VoidCallback? onAcceptRide;
+  final VoidCallback? onDeclineRide;
+  final VoidCallback? onMarkArrived;
   /// Called when OTP is verified and the trip transitions to in-progress.
   final VoidCallback? onTripStarted;
   /// Called when the trip is completed.
@@ -39,6 +46,7 @@ class ActiveTripPage extends StatefulWidget {
   const ActiveTripPage({
     super.key,
     required this.bookingId,
+    this.bookingCode,
     this.pickupAddress,
     this.dropAddress,
     this.estimatedFare,
@@ -50,6 +58,12 @@ class ActiveTripPage extends StatefulWidget {
     this.riderLng,
     this.isCorporate = false,
     this.serviceMode,
+    this.isArrived = false,
+    this.isTripStartedInitial = false,
+    this.isPendingAccept = false,
+    this.onAcceptRide,
+    this.onDeclineRide,
+    this.onMarkArrived,
     this.onTripStarted,
     this.onTripCompleted,
   });
@@ -59,43 +73,7 @@ class ActiveTripPage extends StatefulWidget {
 }
 
 class _ActiveTripPageState extends State<ActiveTripPage> {
-  TripStatus _tripStatus = TripStatus.arrived;
-
-  bool get _isRiderNearCustomer {
-    if (widget.pickupLat == null || widget.pickupLng == null || widget.pickupLat == 0.0) {
-      return true; // Default enable fallback
-    }
-    if (widget.riderLat == null || widget.riderLng == null || widget.riderLat == 0.0) {
-      return true; // Default enable fallback
-    }
-
-    final distanceMeters = Geolocator.distanceBetween(
-      widget.riderLat!,
-      widget.riderLng!,
-      widget.pickupLat!,
-      widget.pickupLng!,
-    );
-
-    return distanceMeters <= 500.0;
-  }
-
-  bool get _isRiderNearDropLocation {
-    if (widget.dropLat == null || widget.dropLng == null || widget.dropLat == 0.0) {
-      return true; // Default enable fallback
-    }
-    if (widget.riderLat == null || widget.riderLng == null || widget.riderLat == 0.0) {
-      return true; // Default enable fallback
-    }
-
-    final distanceMeters = Geolocator.distanceBetween(
-      widget.riderLat!,
-      widget.riderLng!,
-      widget.dropLat!,
-      widget.dropLng!,
-    );
-
-    return distanceMeters <= 500.0;
-  }
+  TripStatus _tripStatus = TripStatus.accepted;
   bool _isLoading = false;
   bool _isDropRequestLoading = false;
   final _otpController = TextEditingController();
@@ -126,6 +104,13 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
   @override
   void initState() {
     super.initState();
+    if (widget.isTripStartedInitial) {
+      _tripStatus = TripStatus.inProgress;
+    } else if (widget.isArrived) {
+      _tripStatus = TripStatus.arrived;
+    } else {
+      _tripStatus = TripStatus.accepted;
+    }
     if (sl.isRegistered<RideRingtoneService>()) {
       sl<RideRingtoneService>().stopCallingRingtone();
     }
@@ -859,11 +844,28 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
     ).whenComplete(() => _isCustomerDropModalShowing = false);
   }
 
-  Future<void> _handleMainAction() async {
-    if (_tripStatus == TripStatus.arrived) {
+  Future<void> _handleMarkArrived() async {
+    setState(() => _isLoading = true);
+    try {
+      if (sl.isRegistered<MarkArrivedUseCase>()) {
+        await sl<MarkArrivedUseCase>()(widget.bookingId);
+      }
+      if (sl.isRegistered<WebSocketClient>()) {
+        sl<WebSocketClient>().sendMessage({
+          'event': 'booking.rider_arrived',
+          'data': {'booking_id': widget.bookingId, 'status': 'RIDER_ARRIVED'},
+        });
+      }
+    } catch (e) {
+      debugPrint('[ActiveTripPage] markArrived error: $e');
+    }
+    if (mounted) {
+      widget.onMarkArrived?.call();
+      setState(() {
+        _isLoading = false;
+        _tripStatus = TripStatus.arrived;
+      });
       _showOtpDialog();
-    } else if (_tripStatus == TripStatus.inProgress) {
-      _handleCompleteTrip();
     }
   }
 
@@ -1262,7 +1264,7 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Corporate Fleet Banner
+                    // Fleet / Ride Banner
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -1277,8 +1279,8 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                               color: const Color(0xFF0D6EFD),
                               borderRadius: BorderRadius.circular(14),
                             ),
-                            child: const Icon(
-                              Icons.business_rounded,
+                            child: Icon(
+                              widget.isCorporate ? Icons.business_rounded : Icons.directions_car_rounded,
                               color: Colors.white,
                               size: 24,
                             ),
@@ -1289,7 +1291,11 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Axle Logistics',
+                                  widget.isCorporate
+                                      ? 'Corporate Ride'
+                                      : (widget.bookingCode != null && widget.bookingCode!.isNotEmpty
+                                          ? widget.bookingCode!
+                                          : 'Ride #${widget.bookingId}'),
                                   style: GoogleFonts.inter(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -1297,7 +1303,7 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                                   ),
                                 ),
                                 Text(
-                                  'CORPORATE FLEET',
+                                  widget.isCorporate ? 'CORPORATE FLEET' : 'INSTANT RIDE',
                                   style: GoogleFonts.inter(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
@@ -1319,7 +1325,7 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                                 const Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF0D6EFD)),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'Admin Assigned',
+                                  widget.isCorporate ? 'Admin Assigned' : 'Confirmed',
                                   style: GoogleFonts.inter(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
@@ -1353,8 +1359,12 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                         children: [
                           CircleAvatar(
                             radius: 28,
-                            backgroundColor: Colors.grey.shade200,
-                            backgroundImage: const AssetImage('assets/images/login.png'),
+                            backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                            child: Icon(
+                              Icons.person_rounded,
+                              size: 32,
+                              color: isDark ? Colors.white70 : Colors.grey.shade700,
+                            ),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -1362,7 +1372,7 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'John Doe',
+                                  'Customer',
                                   style: GoogleFonts.inter(
                                     fontSize: 17,
                                     fontWeight: FontWeight.bold,
@@ -1372,10 +1382,10 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                                 const SizedBox(height: 2),
                                 Row(
                                   children: [
-                                    const Icon(Icons.assignment_ind_outlined, size: 14, color: Colors.grey),
+                                    const Icon(Icons.star_rounded, size: 15, color: Colors.orange),
                                     const SizedBox(width: 4),
                                     Text(
-                                      'Engineering Dept',
+                                      '4.9 Rating',
                                       style: GoogleFonts.inter(
                                         fontSize: 12,
                                         color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
@@ -1391,7 +1401,7 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
-                                    'Shift: 09:00 - 18:00',
+                                    'Booking #${widget.bookingId}',
                                     style: GoogleFonts.inter(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w500,
@@ -1402,7 +1412,6 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                               ],
                             ),
                           ),
-                          const SizedBox(width: 6),
                           IconButton(
                             constraints: const BoxConstraints(),
                             padding: EdgeInsets.zero,
@@ -1416,7 +1425,7 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                             ),
                             onPressed: () => _showEmergencyCallModal(context),
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 8),
                           IconButton(
                             constraints: const BoxConstraints(),
                             padding: EdgeInsets.zero,
@@ -1491,7 +1500,9 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                                     const Icon(Icons.location_on_outlined, color: Colors.white, size: 16),
                                     const SizedBox(width: 4),
                                     Text(
-                                      'Gate 2 Pickup',
+                                      widget.pickupAddress ?? 'Pickup Point',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: GoogleFonts.inter(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
@@ -1545,7 +1556,7 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                                             ),
                                           ),
                                           Text(
-                                            widget.dropAddress ?? 'Office Campus - North',
+                                            widget.dropAddress ?? 'Destination',
                                             style: GoogleFonts.inter(
                                               fontSize: 13,
                                               fontWeight: FontWeight.bold,
@@ -1554,11 +1565,11 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
-                                         ],
-                                       ),
-                                     ),
-                                     ElevatedButton(
-                                       onPressed: _launchExternalNavigation,
+                                        ],
+                                      ),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: _launchExternalNavigation,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: const Color(0xFF0D6EFD),
                                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -1628,18 +1639,11 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  widget.pickupAddress ?? 'Office Parking',
+                                  widget.pickupAddress ?? 'Pickup Point',
                                   style: GoogleFonts.inter(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                     color: isDark ? Colors.white : Colors.black87,
-                                  ),
-                                ),
-                                Text(
-                                  'Gate 2 • Main Entrance Side',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 11,
-                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                                   ),
                                 ),
                               ],
@@ -1652,7 +1656,7 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
 
                     const SizedBox(height: 16),
 
-                    // Departure & Capacity Row
+                    // Fare & Payment Info Row
                     Row(
                       children: [
                         Expanded(
@@ -1667,7 +1671,7 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'DEPARTURE',
+                                  'ESTIMATED FARE',
                                   style: GoogleFonts.inter(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
@@ -1677,12 +1681,12 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                                 const SizedBox(height: 6),
                                 Row(
                                   children: [
-                                    const Icon(Icons.access_time_rounded, size: 18, color: Color(0xFF0D6EFD)),
-                                    const SizedBox(width: 6),
+                                    const Icon(Icons.currency_rupee, size: 18, color: Color(0xFF0D6EFD)),
+                                    const SizedBox(width: 4),
                                     Text(
-                                      '08:45 AM',
+                                      '₹${widget.estimatedFare?.toStringAsFixed(2) ?? '95.55'}',
                                       style: GoogleFonts.inter(
-                                        fontSize: 15,
+                                        fontSize: 16,
                                         fontWeight: FontWeight.bold,
                                         color: isDark ? Colors.white : Colors.black87,
                                       ),
@@ -1706,7 +1710,7 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'CAPACITY',
+                                  'PAYMENT',
                                   style: GoogleFonts.inter(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
@@ -1716,12 +1720,12 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                                 const SizedBox(height: 6),
                                 Row(
                                   children: [
-                                    const Icon(Icons.people_outline_rounded, size: 18, color: Color(0xFF0D6EFD)),
+                                    const Icon(Icons.payment_rounded, size: 18, color: Color(0xFF0D6EFD)),
                                     const SizedBox(width: 6),
                                     Text(
-                                      '4 Seats',
+                                      'Online / Cash',
                                       style: GoogleFonts.inter(
-                                        fontSize: 15,
+                                        fontSize: 14,
                                         fontWeight: FontWeight.bold,
                                         color: isDark ? Colors.white : Colors.black87,
                                       ),
@@ -1733,20 +1737,6 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                           ),
                         ),
                       ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Main Start Trip / Complete Trip Slide Action Button
-                    SlideToStartButton(
-                      isEnabled: (_tripStatus == TripStatus.arrived && _isRiderNearCustomer) ||
-                                 (_tripStatus == TripStatus.inProgress && _isRiderNearDropLocation),
-                      isLoading: _isLoading,
-                      tripStatus: _tripStatus,
-                      onSlideComplete: _handleMainAction,
-                      disabledText: _tripStatus == TripStatus.arrived
-                          ? 'Navigate to pickup to unlock Start Ride'
-                          : 'Navigate to drop to unlock Complete Trip',
                     ),
 
                     const SizedBox(height: 20),
@@ -1777,6 +1767,117 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
               ),
             ),
           ],
+        ),
+      ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1E2C) : Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 15,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.isPendingAccept) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 1,
+                      child: OutlinedButton(
+                        onPressed: widget.onDeclineRide ?? () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          side: const BorderSide(color: Color(0xFFEF4444)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: Text(
+                          'Decline',
+                          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xFFEF4444)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        onPressed: widget.onAcceptRide,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0D6EFD),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: Text(
+                          'Accept Ride',
+                          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ] else if (_tripStatus == TripStatus.accepted) ...[
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _handleMarkArrived,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0D6EFD),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white))
+                        : Text(
+                            'ARRIVED AT PICKUP',
+                            style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                  ),
+                ),
+              ] else if (_tripStatus == TripStatus.arrived) ...[
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _showOtpDialog,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0D6EFD),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white))
+                        : Text(
+                            'START RIDE (ENTER OTP)',
+                            style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                  ),
+                ),
+              ] else if (_tripStatus == TripStatus.inProgress) ...[
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _handleCompleteTrip,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white))
+                        : Text(
+                            'COMPLETE TRIP',
+                            style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
