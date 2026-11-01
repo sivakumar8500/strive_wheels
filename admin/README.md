@@ -73,7 +73,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to view th
 ## 🔐 Login Credentials
 
 ### Backend API
-- **Base URL**: `http://15.252.129.37:8200/api/v1`
+- **Base URL**: `http://13.234.75.204:8200/api/v1`
 - **Login Endpoint**: `POST /auth/admin/login`
 
 ### Test Accounts by Role
