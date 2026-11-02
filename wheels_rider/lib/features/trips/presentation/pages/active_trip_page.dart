@@ -78,6 +78,8 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
   bool _isDropRequestLoading = false;
   final _otpController = TextEditingController();
   final _dropReasonController = TextEditingController();
+  bool _isRiderDropRequestPending = false;
+  Timer? _riderDropTimeoutTimer;
 
   late final StartTripUseCase _startTripUseCase;
   late final CompleteTripUseCase _completeTripUseCase;
@@ -259,17 +261,45 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
           event == 'trip.drop_request' ||
           event == 'booking.early_drop_requested' ||
           event == 'drop_requested') {
-        final requestedBy = (data['requested_by'] ?? msg['requested_by'] ?? data['requestedBy'] ?? msg['requestedBy'])?.toString() ?? '';
-        if (requestedBy.toUpperCase() != 'RIDER') {
+        final rawReqBy = (data['requested_by'] ??
+                msg['requested_by'] ??
+                data['requestedBy'] ??
+                msg['requestedBy'] ??
+                data['sender'] ??
+                data['user_type'] ??
+                msg['user_type'] ??
+                data['role'] ??
+                data['drop_requested_by'] ??
+                data['booking']?['requested_by'] ??
+                data['booking']?['drop_requested_by'])
+            ?.toString()
+            .toUpperCase()
+            .trim() ?? '';
+
+        final isRequestedByCustomer = rawReqBy == 'CUSTOMER' ||
+            rawReqBy == 'USER' ||
+            (rawReqBy != 'RIDER' && rawReqBy != 'DRIVER' && !_isRiderDropRequestPending);
+
+        if (isRequestedByCustomer && !_isRiderDropRequestPending) {
           final reason = (data['reason'] ?? msg['reason'] ?? data['drop_reason'] ?? msg['drop_reason'] ?? 'Early drop requested by customer').toString();
           if (mounted) {
             _showCustomerDropRequestModal(reason, widget.bookingId);
           }
         }
+      } else if (event == 'booking.drop_accepted' ||
+          event == 'booking.drop_approved' ||
+          event == 'trip.drop_accepted' ||
+          event == 'trip.drop_approved') {
+        _dismissWaitingCustomerDropDialog();
+        setState(() => _isRiderDropRequestPending = false);
+        _handleCompleteTrip();
       } else if (event == 'booking.drop_rejected') {
-        // Customer rejected — show the rejection reason
+        _dismissWaitingCustomerDropDialog();
+        setState(() {
+          _isDropRequestLoading = false;
+          _isRiderDropRequestPending = false;
+        });
         final reason = (data['reason'] ?? 'No reason given').toString();
-        setState(() => _isDropRequestLoading = false);
         _showDropRejectedDialog(reason);
       }
     });
@@ -647,12 +677,17 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                   Navigator.pop(ctx);
                   _isCustomerDropModalShowing = false;
                   if (sl.isRegistered<WebSocketClient>()) {
+                    final fare = widget.estimatedFare ?? 0.0;
                     sl<WebSocketClient>().sendMessage({
                       'event': 'booking.drop_accepted',
                       'data': {
                         'booking_id': widget.bookingId,
                         'accepted_by': 'RIDER',
                         'is_drop_accepted': true,
+                        'final_fare': fare,
+                        'estimated_fare': fare,
+                        'fare': fare,
+                        'price': fare,
                       },
                     });
                     sl<WebSocketClient>().sendMessage({
@@ -661,6 +696,10 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                         'booking_id': widget.bookingId,
                         'accepted_by': 'RIDER',
                         'is_drop_accepted': true,
+                        'final_fare': fare,
+                        'estimated_fare': fare,
+                        'fare': fare,
+                        'price': fare,
                       },
                     });
                     sl<WebSocketClient>().sendMessage({
@@ -669,6 +708,10 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
                         'booking_id': widget.bookingId,
                         'rider_lat': widget.riderLat,
                         'rider_lng': widget.riderLng,
+                        'final_fare': fare,
+                        'estimated_fare': fare,
+                        'fare': fare,
+                        'price': fare,
                       },
                     });
                   }
@@ -1186,8 +1229,210 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
     );
   }
 
+  void _dismissWaitingCustomerDropDialog() {
+    _riderDropTimeoutTimer?.cancel();
+    _riderDropTimeoutTimer = null;
+    if (_isRiderDropRequestPending && mounted) {
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
+    _isRiderDropRequestPending = false;
+  }
+
+  void _showWaitingCustomerApprovalDialog({required String reason, required dynamic bookingId, required double fare}) {
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        int remainingSeconds = 30;
+
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            _riderDropTimeoutTimer?.cancel();
+            _riderDropTimeoutTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+              if (remainingSeconds > 1) {
+                if (mounted) {
+                  setSheetState(() {
+                    remainingSeconds--;
+                  });
+                }
+              } else {
+                t.cancel();
+                _riderDropTimeoutTimer = null;
+                if (mounted) {
+                  // Auto Accept on 30s timeout
+                  if (Navigator.of(ctx).canPop()) {
+                    Navigator.of(ctx).pop();
+                  }
+                  _isRiderDropRequestPending = false;
+
+                  if (sl.isRegistered<WebSocketClient>()) {
+                    sl<WebSocketClient>().sendMessage({
+                      'event': 'booking.drop_accepted',
+                      'data': {
+                        'booking_id': bookingId,
+                        'accepted_by': 'RIDER',
+                        'is_drop_accepted': true,
+                        'final_fare': fare,
+                        'estimated_fare': fare,
+                        'fare': fare,
+                        'price': fare,
+                      },
+                    });
+                    sl<WebSocketClient>().sendMessage({
+                      'event': 'booking.drop_approved',
+                      'data': {
+                        'booking_id': bookingId,
+                        'accepted_by': 'RIDER',
+                        'is_drop_accepted': true,
+                        'final_fare': fare,
+                        'estimated_fare': fare,
+                        'fare': fare,
+                        'price': fare,
+                      },
+                    });
+                    sl<WebSocketClient>().sendMessage({
+                      'event': 'booking.complete',
+                      'data': {
+                        'booking_id': bookingId,
+                        'rider_lat': widget.riderLat,
+                        'rider_lng': widget.riderLng,
+                        'final_fare': fare,
+                        'estimated_fare': fare,
+                        'fare': fare,
+                        'price': fare,
+                      },
+                    });
+                  }
+                  Future.delayed(const Duration(milliseconds: 300), () {
+                    if (mounted) _handleCompleteTrip();
+                  });
+                }
+              }
+            });
+
+            return Container(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEFF6FF),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.hourglass_top_rounded, color: Colors.orange, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Waiting for Customer Approval',
+                              style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              'Drop request sent to customer',
+                              style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.timer_outlined, size: 14, color: Colors.orange),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${remainingSeconds}s',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Text(
+                      'Reason: "$reason"',
+                      style: GoogleFonts.inter(fontSize: 14, fontStyle: FontStyle.italic, color: const Color(0xFF334155)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Auto-accepting in ${remainingSeconds}s if no action taken by customer.',
+                    style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        _riderDropTimeoutTimer?.cancel();
+                        _riderDropTimeoutTimer = null;
+                        if (Navigator.of(ctx).canPop()) {
+                          Navigator.of(ctx).pop();
+                        }
+                        _isRiderDropRequestPending = false;
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: Text(
+                        'Cancel Request',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: const Color(0xFF64748B)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() {
+      _riderDropTimeoutTimer?.cancel();
+      _riderDropTimeoutTimer = null;
+      _isRiderDropRequestPending = false;
+    });
+  }
+
   Future<void> _sendDropRequest(String reason) async {
-    setState(() => _isDropRequestLoading = true);
+    final fare = widget.estimatedFare ?? 0.0;
+    setState(() {
+      _isDropRequestLoading = true;
+      _isRiderDropRequestPending = true;
+    });
     try {
       if (sl.isRegistered<WebSocketClient>()) {
         sl<WebSocketClient>().sendMessage({
@@ -1195,13 +1440,23 @@ class _ActiveTripPageState extends State<ActiveTripPage> {
           'data': {
             'booking_id': widget.bookingId,
             'requested_by': 'RIDER',
+            'sender': 'RIDER',
+            'user_type': 'RIDER',
+            'role': 'RIDER',
+            'drop_requested_by': 'RIDER',
+            'is_drop_requested': true,
             'reason': reason,
+            'final_fare': fare,
+            'estimated_fare': fare,
+            'fare': fare,
+            'price': fare,
           },
         });
       }
       if (mounted) {
         setState(() => _isDropRequestLoading = false);
       }
+      _showWaitingCustomerApprovalDialog(reason: reason, bookingId: widget.bookingId, fare: fare);
     } catch (e) {
       setState(() => _isDropRequestLoading = false);
     }

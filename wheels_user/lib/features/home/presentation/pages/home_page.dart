@@ -80,6 +80,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     context.read<HomeBloc>().add(const LoadHomeDashboardEvent());
     _getCurrentLocation();
     _startLocationUpdates();
+    _checkActiveBookingOnResume();
   }
 
   @override
@@ -1102,32 +1103,39 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryBlue,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.directions_car_rounded, color: Colors.white, size: 14),
-                    const SizedBox(width: 6),
-                    Text(
-                      'ACTIVE RIDE IN PROGRESS',
-                      style: GoogleFonts.poppins(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 0.5,
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryBlue,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.directions_car_rounded, color: Colors.white, size: 14),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          _getActiveBadgeText(activeData.status),
+                          style: GoogleFonts.poppins(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-              const Spacer(),
-              if (activeData.startOtp != null && activeData.startOtp!.isNotEmpty)
+              if (activeData.startOtp != null && activeData.startOtp!.isNotEmpty) ...[
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -1143,6 +1151,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     ),
                   ),
                 ),
+              ],
             ],
           ),
           const SizedBox(height: 12),
@@ -1215,5 +1224,16 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         ],
       ),
     );
+  }
+
+  String _getActiveBadgeText(String status) {
+    final s = status.toUpperCase();
+    if (s == 'RIDER_ARRIVED' || s == 'DRIVER_ARRIVED') {
+      return 'DRIVER HAS ARRIVED';
+    }
+    if (s == 'RIDER_ACCEPTED' || s == 'DRIVER_ACCEPTED' || s == 'ACCEPTED' || s == 'CONFIRMED') {
+      return 'RIDE CONFIRMED • DRIVER ON THE WAY';
+    }
+    return 'ACTIVE RIDE IN PROGRESS';
   }
 }

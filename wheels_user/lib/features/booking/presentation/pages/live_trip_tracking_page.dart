@@ -22,6 +22,7 @@ import '../../../home/presentation/pages/home_page.dart';
 import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/services/live_journey_notification_service.dart';
+import '../../../../core/services/floating_bubble_service.dart';
 import 'journey_complete_page.dart';
 import '../../../../core/widgets/app_map_widget.dart';
 import '../../../chat/presentation/pages/ride_chat_page.dart';
@@ -63,7 +64,12 @@ class LiveTripTrackingPage extends StatefulWidget {
     this.startOtp,
     this.initialStatus = 'RIDER_ACCEPTED',
     this.isCorporate = false,
+    this.totalAmount,
+    this.estimatedFare,
   });
+
+  final String? totalAmount;
+  final double? estimatedFare;
 
   @override
   State<LiveTripTrackingPage> createState() => _LiveTripTrackingPageState();
@@ -124,6 +130,24 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
     WidgetsBinding.instance.addObserver(this);
     WakelockPlus.enable();
     _dio = sl.isRegistered<Dio>() ? sl<Dio>() : Dio();
+
+    // Initialize saved fare amount from available sources
+    if (widget.estimatedFare != null && widget.estimatedFare! > 0) {
+      _savedFareAmount = widget.estimatedFare!;
+    } else if (widget.totalAmount != null && widget.totalAmount!.isNotEmpty) {
+      final clean = widget.totalAmount!.replaceAll(RegExp(r'[^0-9.]'), '');
+      _savedFareAmount = double.tryParse(clean) ?? 0.0;
+    }
+    if (_savedFareAmount <= 0.0 && sl.isRegistered<ActiveBookingService>()) {
+      final activeB = sl<ActiveBookingService>().activeBooking;
+      if (activeB?.totalAmount != null && activeB!.totalAmount.isNotEmpty) {
+        final clean = activeB.totalAmount.replaceAll(RegExp(r'[^0-9.]'), '');
+        _savedFareAmount = double.tryParse(clean) ?? 0.0;
+      }
+    }
+    if (_savedFareAmount <= 0.0) {
+      _savedFareAmount = 124.0;
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -333,11 +357,35 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
         if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
         }
-      } else if (status == 'COMPLETED' || status == 'TRIP_COMPLETED' || status == 'FINISHED') {
+      } else if (status == 'COMPLETED' ||
+          status == 'TRIP_COMPLETED' ||
+          status == 'FINISHED' ||
+          status == 'PAYMENT_PENDING' ||
+          status == 'AWAITING_PAYMENT') {
+        if (_hasNavigatedToComplete) return;
+        _hasNavigatedToComplete = true;
+        _staleTimer?.cancel();
         if (sl.isRegistered<ActiveBookingService>()) {
           sl<ActiveBookingService>().clearActiveBooking();
         }
+        final bool isCorp = widget.isCorporate ||
+            data['service_mode'] == 'CORPORATE' ||
+            data['payment_method'] == 'CORPORATE_BILLING';
+        final fVal = data['final_fare'] ??
+            data['finalFare'] ??
+            data['price'] ??
+            data['fare'] ??
+            data['final_amount'] ??
+            data['booking']?['final_fare'] ??
+            data['booking']?['estimated_fare'];
+        final double fNum = (fVal is num)
+            ? fVal.toDouble()
+            : (double.tryParse(fVal?.toString() ?? '') ?? _savedFareAmount);
+        final double effFare = fNum > 0 ? fNum : (_savedFareAmount > 0 ? _savedFareAmount : 124.0);
+        final String fareStr = isCorp ? 'Corporate Direct Billing' : '₹${effFare.toStringAsFixed(2)}';
+
         if (mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (_) => JourneyCompletePage(
@@ -345,6 +393,8 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                 vehicleInfo: widget.vehicleInfo,
                 distanceText: _formattedDistance,
                 durationText: _formattedDuration,
+                finalPaymentText: fareStr,
+                isCorporate: isCorp,
               ),
             ),
           );
@@ -587,9 +637,26 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
               event == 'trip.drop_request' ||
               event == 'booking.early_drop_requested' ||
               event == 'drop_requested') {
-            final requestedBy = (data['requested_by'] ?? eventData['requested_by'] ?? data['requestedBy'] ?? eventData['requestedBy'])?.toString() ?? '';
-            // Only show popup to customer if requested by RIDER (not by CUSTOMER themselves)
-            if (requestedBy.toUpperCase() != 'CUSTOMER') {
+            final rawReqBy = (data['requested_by'] ??
+                    eventData['requested_by'] ??
+                    data['requestedBy'] ??
+                    eventData['requestedBy'] ??
+                    data['sender'] ??
+                    data['user_type'] ??
+                    data['role'] ??
+                    data['drop_requested_by'] ??
+                    data['booking']?['requested_by'] ??
+                    data['booking']?['drop_requested_by'])
+                ?.toString()
+                .toUpperCase()
+                .trim() ?? '';
+
+            final isRequestedByRider = rawReqBy == 'RIDER' ||
+                rawReqBy == 'DRIVER' ||
+                (rawReqBy != 'CUSTOMER' && rawReqBy != 'USER' && !_isDropRequested);
+
+            // Strictly ONLY show popup to customer if requested by RIDER, never if customer requested it
+            if (isRequestedByRider && !_isDropRequested) {
               final reason = (data['reason'] ?? data['drop_reason'] ?? eventData['reason'] ?? eventData['drop_reason'] ?? 'Early drop requested by driver').toString();
               _showRiderDropRequestModal(reason: reason);
             }
@@ -981,6 +1048,9 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
         sl<LiveJourneyNotificationService>().dismissJourneyNotification();
       }
     }
+    if (sl.isRegistered<FloatingBubbleService>()) {
+      sl<FloatingBubbleService>().hideBubble();
+    }
     WidgetsBinding.instance.removeObserver(this);
     WakelockPlus.disable();
     _customerPositionStreamSubscription?.cancel();
@@ -997,7 +1067,19 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.hidden) {
       _showLiveJourneyNotification();
+      if (_phase != TripPhase.tripCompleted && sl.isRegistered<FloatingBubbleService>()) {
+        final subText = _phase == TripPhase.inTransit
+            ? 'IN TRANSIT'
+            : (_phase == TripPhase.driverArrived ? 'ARRIVED' : 'PICKUP');
+        sl<FloatingBubbleService>().showBubble(
+          title: 'STRIVE',
+          subText: subText,
+        );
+      }
     } else if (state == AppLifecycleState.resumed) {
+      if (sl.isRegistered<FloatingBubbleService>()) {
+        sl<FloatingBubbleService>().hideBubble();
+      }
       debugPrint('[LiveTripTrackingPage] App resumed (from call/background). Reconnecting socket & checking active booking status...');
       if (sl.isRegistered<CustomerWSController>()) {
         sl<CustomerWSController>().reconnectIfNeeded();
@@ -1382,6 +1464,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
         reason: reason,
         lat: _currentVehiclePos.latitude,
         lng: _currentVehiclePos.longitude,
+        finalFare: _savedFareAmount,
       );
     }
 
@@ -1487,9 +1570,10 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
     final fareVal = data?['final_fare'] ?? data?['finalFare'] ?? data?['price'] ?? data?['fare'] ?? data?['final_amount'] ??
         bookingObj?['final_fare'] ?? bookingObj?['estimated_fare'] ?? bookingObj?['finalFare'];
     final double fare = (fareVal is num) ? fareVal.toDouble() : (double.tryParse(fareVal?.toString() ?? '') ?? _savedFareAmount);
+    final double effFare = fare > 0 ? fare : (_savedFareAmount > 0 ? _savedFareAmount : 124.0);
     final String fareStr = isCorp
         ? 'Corporate Direct Billing'
-        : (fare > 0 ? '₹${fare.toStringAsFixed(2)}' : (_savedFareAmount > 0 ? '₹${_savedFareAmount.toStringAsFixed(2)}' : ''));
+        : '₹${effFare.toStringAsFixed(2)}';
 
     final distVal = data?['distance_km'] ?? data?['distance'] ?? data?['actual_distance_km'] ?? bookingObj?['distance_km'];
     final double? parsedDist = (distVal is num) ? distVal.toDouble() : double.tryParse(distVal?.toString() ?? '');
@@ -1542,9 +1626,14 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                 _isRiderDropModalShowing = false;
                 final bookingId = _effectiveBookingId;
                 if (sl.isRegistered<CustomerWSController>()) {
-                  sl<CustomerWSController>().sendDropApproved(bookingId: bookingId);
+                  sl<CustomerWSController>().sendDropApproved(
+                    bookingId: bookingId,
+                    lat: _currentVehiclePos.latitude,
+                    lng: _currentVehiclePos.longitude,
+                    finalFare: _savedFareAmount,
+                  );
                 }
-                _onRiderApprovedDrop();
+                _onRiderApprovedDrop({'final_fare': _savedFareAmount});
               }
             });
 
@@ -1673,9 +1762,10 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
                                 bookingId: bookingId,
                                 lat: _currentVehiclePos.latitude,
                                 lng: _currentVehiclePos.longitude,
+                                finalFare: _savedFareAmount,
                               );
                             }
-                            _onRiderApprovedDrop();
+                            _onRiderApprovedDrop({'final_fare': _savedFareAmount});
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF10B981),
@@ -1715,6 +1805,7 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
         bookingId: bookingId,
         lat: _currentVehiclePos.latitude,
         lng: _currentVehiclePos.longitude,
+        finalFare: _savedFareAmount,
       );
     }
 
@@ -1724,6 +1815,10 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
 
     ScaffoldMessenger.of(context).clearSnackBars();
 
+    final bool isCorp = widget.isCorporate;
+    final double effFare = _savedFareAmount > 0 ? _savedFareAmount : 124.0;
+    final String fareStr = isCorp ? 'Corporate Direct Billing' : '₹${effFare.toStringAsFixed(2)}';
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => JourneyCompletePage(
@@ -1731,6 +1826,8 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
           vehicleInfo: widget.vehicleInfo,
           distanceText: _formattedDistance,
           durationText: _formattedDuration,
+          finalPaymentText: fareStr,
+          isCorporate: isCorp,
         ),
       ),
     );
@@ -1754,24 +1851,37 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
     return NavigationService.formatLocalArrivalTime(_remainingSecondsVal);
   }
 
+  void _navigateToHome() {
+    Navigator.of(context).pushAndRemoveUntil(
+      HomePage.route(),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? AppColors.onboardingBgDark : const Color(0xFFF8FAFC),
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(50.0),
-        child: AppBar(
-          backgroundColor: isDark ? AppColors.onboardingBgDark : Colors.white,
-          elevation: 0.5,
-          leading: IconButton(
-            icon: Icon(
-              Icons.arrow_back_rounded,
-              color: isDark ? AppColors.textPrimaryDark : AppColors.primaryBlue,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _navigateToHome();
+      },
+      child: Scaffold(
+        backgroundColor: isDark ? AppColors.onboardingBgDark : const Color(0xFFF8FAFC),
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(50.0),
+          child: AppBar(
+            backgroundColor: isDark ? AppColors.onboardingBgDark : Colors.white,
+            elevation: 0.5,
+            leading: IconButton(
+              icon: Icon(
+                Icons.arrow_back_rounded,
+                color: isDark ? AppColors.textPrimaryDark : AppColors.primaryBlue,
+              ),
+              onPressed: _navigateToHome,
             ),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
           title: Row(
             children: [
               Text(
@@ -2808,10 +2918,11 @@ class _LiveTripTrackingPageState extends State<LiveTripTrackingPage>
         selectedIndex: 0,
         onTabSelected: (index) {
           if (index == 0) {
-            Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
+            _navigateToHome();
           }
         },
       ),
-    );
+    ),
+  );
   }
 }

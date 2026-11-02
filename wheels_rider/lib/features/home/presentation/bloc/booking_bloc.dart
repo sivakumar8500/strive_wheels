@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'booking_event.dart';
 import 'booking_state.dart';
 import '../../domain/usecases/booking_usecases.dart';
@@ -17,6 +18,7 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
   final SendLocationPingUseCase sendLocationPing;
   final CancelBookingUseCase? cancelBookingUseCase;
 
+  final Set<int> _declinedBookingIds = <int>{};
   StreamSubscription? _requestsSubscription;
   StreamSubscription? _successSubscription;
   StreamSubscription? _errorSubscription;
@@ -34,6 +36,7 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     required this.sendLocationPing,
     this.cancelBookingUseCase,
   }) : super(BookingInitial()) {
+    _loadDeclinedBookings();
     on<ConnectWebSocketEvent>(_onConnectWebSocket);
     on<DisconnectWebSocketEvent>(_onDisconnectWebSocket);
     on<RideRequestReceivedEvent>(_onRideRequestReceived);
@@ -81,8 +84,30 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     emit(BookingInitial());
   }
 
+  Future<void> _loadDeclinedBookings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('declined_ride_ids') ?? [];
+      final loaded = list.map((e) => int.tryParse(e)).whereType<int>().toSet();
+      _declinedBookingIds.addAll(loaded);
+    } catch (_) {}
+  }
+
+  Future<void> _saveDeclinedBooking(int bookingId) async {
+    _declinedBookingIds.add(bookingId);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = _declinedBookingIds.map((e) => e.toString()).toList();
+      await prefs.setStringList('declined_ride_ids', list);
+    } catch (_) {}
+  }
+
   void _onRideRequestReceived(RideRequestReceivedEvent event, Emitter<BookingState> emit) {
-    emit(NewRideRequestState(event.rideRequest as RideRequestEntity));
+    final req = event.rideRequest as RideRequestEntity;
+    if (_declinedBookingIds.contains(req.id)) {
+      return;
+    }
+    emit(NewRideRequestState(req));
   }
 
   void _onAcceptRide(AcceptRideEvent event, Emitter<BookingState> emit) {
@@ -92,6 +117,7 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
 
   void _onDeclineRide(DeclineRideEvent event, Emitter<BookingState> emit) {
     if (event.bookingId != null) {
+      _saveDeclinedBooking(event.bookingId!);
       declineBookingUseCase?.call(event.bookingId!);
     }
     emit(BookingConnected()); // Return to connected state without showing request

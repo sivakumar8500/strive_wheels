@@ -1,6 +1,7 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wheels_rider/features/home/domain/entities/ride_request_entity.dart';
 import 'package:wheels_rider/features/home/domain/usecases/booking_usecases.dart';
 import 'package:wheels_rider/features/home/presentation/bloc/booking_bloc.dart';
@@ -10,6 +11,7 @@ import 'package:wheels_rider/features/home/presentation/bloc/booking_state.dart'
 class MockConnectToBookingSocketUseCase extends Mock implements ConnectToBookingSocketUseCase {}
 class MockDisconnectBookingSocketUseCase extends Mock implements DisconnectBookingSocketUseCase {}
 class MockAcceptBookingUseCase extends Mock implements AcceptBookingUseCase {}
+class MockDeclineBookingUseCase extends Mock implements DeclineBookingUseCase {}
 class MockGetRideRequestsStreamUseCase extends Mock implements GetRideRequestsStreamUseCase {}
 class MockGetBookingSuccessStreamUseCase extends Mock implements GetBookingSuccessStreamUseCase {}
 class MockGetBookingErrorStreamUseCase extends Mock implements GetBookingErrorStreamUseCase {}
@@ -18,9 +20,12 @@ class MockSendLocationPingUseCase extends Mock implements SendLocationPingUseCas
 class MockCancelBookingUseCase extends Mock implements CancelBookingUseCase {}
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late MockConnectToBookingSocketUseCase mockConnectToBookingSocketUseCase;
   late MockDisconnectBookingSocketUseCase mockDisconnectBookingSocketUseCase;
   late MockAcceptBookingUseCase mockAcceptBookingUseCase;
+  late MockDeclineBookingUseCase mockDeclineBookingUseCase;
   late MockGetRideRequestsStreamUseCase mockGetRideRequestsStreamUseCase;
   late MockGetBookingSuccessStreamUseCase mockGetBookingSuccessStreamUseCase;
   late MockGetBookingErrorStreamUseCase mockGetBookingErrorStreamUseCase;
@@ -29,9 +34,11 @@ void main() {
   late MockCancelBookingUseCase mockCancelBookingUseCase;
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     mockConnectToBookingSocketUseCase = MockConnectToBookingSocketUseCase();
     mockDisconnectBookingSocketUseCase = MockDisconnectBookingSocketUseCase();
     mockAcceptBookingUseCase = MockAcceptBookingUseCase();
+    mockDeclineBookingUseCase = MockDeclineBookingUseCase();
     mockGetRideRequestsStreamUseCase = MockGetRideRequestsStreamUseCase();
     mockGetBookingSuccessStreamUseCase = MockGetBookingSuccessStreamUseCase();
     mockGetBookingErrorStreamUseCase = MockGetBookingErrorStreamUseCase();
@@ -55,6 +62,7 @@ void main() {
         connectToBookingSocket: mockConnectToBookingSocketUseCase,
         disconnectBookingSocket: mockDisconnectBookingSocketUseCase,
         acceptBooking: mockAcceptBookingUseCase,
+        declineBookingUseCase: mockDeclineBookingUseCase,
         getRideRequestsStream: mockGetRideRequestsStreamUseCase,
         getBookingSuccessStream: mockGetBookingSuccessStreamUseCase,
         getBookingErrorStream: mockGetBookingErrorStreamUseCase,
@@ -164,6 +172,43 @@ void main() {
       verify: (_) {
         verify(() => mockCancelBookingUseCase(tBookingId, reason: 'Vehicle issue')).called(1);
       },
+    );
+
+    blocTest<BookingBloc, BookingState>(
+      'emits [BookingConnected] and calls DeclineBookingUseCase when DeclineRideEvent is added',
+      build: () {
+        when(() => mockDeclineBookingUseCase(tBookingId)).thenReturn(null);
+        return buildBloc();
+      },
+      act: (bloc) => bloc.add(DeclineRideEvent(tBookingId)),
+      expect: () => [isA<BookingConnected>()],
+      verify: (_) {
+        verify(() => mockDeclineBookingUseCase(tBookingId)).called(1);
+      },
+    );
+
+    blocTest<BookingBloc, BookingState>(
+      'does NOT emit [NewRideRequestState] if the ride was previously declined',
+      build: () {
+        when(() => mockDeclineBookingUseCase(tBookingId)).thenReturn(null);
+        return buildBloc();
+      },
+      act: (bloc) {
+        bloc.add(DeclineRideEvent(tBookingId));
+        bloc.add(RideRequestReceivedEvent(
+          const RideRequestEntity(
+            id: tBookingId,
+            pickupAddress: 'Hitech City',
+            dropAddress: 'Gachibowli',
+            estimatedFare: 185.0,
+            pickupLat: 17.4126,
+            pickupLng: 78.3498,
+            dropLat: 17.4435,
+            dropLng: 78.3772,
+          ),
+        ));
+      },
+      expect: () => [isA<BookingConnected>()],
     );
   });
 }

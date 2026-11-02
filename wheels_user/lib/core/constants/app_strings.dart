@@ -126,6 +126,7 @@ abstract class AppStrings {
   static const String personalDetailsSub = 'Name, phone number and email';
   static const String walletAndPayments = 'Wallet & payments';
   static const String walletAndPaymentsSub = 'UPI, cards and invoices';
+  static const String striveWallet = 'Strive Wallet';
   static const String corporateProfile = 'Corporate profile';
   static const String corporateProfileSub = 'Mindspace Technologies';
   static const String preferencesCategory = 'Preferences';

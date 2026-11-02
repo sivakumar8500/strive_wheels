@@ -9,6 +9,7 @@ abstract class RiderRemoteDataSource {
   Future<AvailabilityResponse> setAvailability({required String mode, required bool isOnline});
   Future<LocationUpdateResponse> updateLocation({required double lat, required double lng});
   Future<BookingActionResponse> acceptBooking(int bookingId);
+  Future<BookingActionResponse?> declineBooking(int bookingId);
   Future<BookingActionResponse> markArrived(int bookingId);
   Future<BookingActionResponse> startTrip({required int bookingId, required String otp});
   Future<BookingActionResponse> completeTrip({
@@ -70,6 +71,21 @@ class RiderRemoteDataSourceImpl implements RiderRemoteDataSource {
         return BookingActionResponse.fromJson(response.data);
       } catch (_) {
         rethrow;
+      }
+    }
+  }
+
+  @override
+  Future<BookingActionResponse?> declineBooking(int bookingId) async {
+    try {
+      final response = await apiClient.post(ApiEndpoints.declineBooking(bookingId));
+      return BookingActionResponse.fromJson(response.data);
+    } catch (e) {
+      try {
+        final response = await apiClient.post(ApiEndpoints.declineBookingDirect(bookingId));
+        return BookingActionResponse.fromJson(response.data);
+      } catch (_) {
+        return null;
       }
     }
   }

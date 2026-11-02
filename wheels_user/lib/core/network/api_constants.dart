@@ -6,7 +6,10 @@ class ApiConstants {
   /// Returns full image URL by prepending baseUrl if the path is relative.
   static String getImageUrl(String? path) {
     if (path == null || path.trim().isEmpty) return '';
-    final cleanPath = path.trim();
+    var cleanPath = path.trim();
+    if (cleanPath.contains('15.252.129.37:8200')) {
+      cleanPath = cleanPath.replaceAll('15.252.129.37:8200', '13.234.75.204:8200');
+    }
     if (cleanPath.startsWith('http://') ||
         cleanPath.startsWith('https://') ||
         cleanPath.startsWith('blob:') ||

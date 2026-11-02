@@ -13,6 +13,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/customer_ws_controller.dart';
 import '../../../../core/services/active_booking_service.dart';
+import '../../../../core/services/floating_bubble_service.dart';
 import '../../../home/presentation/pages/home_page.dart';
 import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
 import '../../../booking/presentation/pages/booking_confirmed_page.dart';
@@ -503,6 +504,12 @@ class _DriverSearchPageState extends State<DriverSearchPage>
       sl<ActiveBookingService>().updateBookingStatus('TRIP_STARTED');
     }
 
+    final estFare = (booking['estimated_fare'] != null)
+        ? '₹${booking['estimated_fare']}'
+        : (data['estimated_fare'] != null
+            ? '₹${data['estimated_fare']}'
+            : (widget.serviceMode == 'CORPORATE' ? 'Corporate Account' : '₹124.00'));
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => LiveTripTrackingPage(
@@ -516,6 +523,7 @@ class _DriverSearchPageState extends State<DriverSearchPage>
           dropLatLng: LatLng(widget.dropLat, widget.dropLng),
           startOtp: effectiveOtp,
           initialStatus: 'TRIP_STARTED',
+          totalAmount: estFare,
         ),
       ),
     );
@@ -532,12 +540,27 @@ class _DriverSearchPageState extends State<DriverSearchPage>
     if (sl.isRegistered<ActiveBookingService>()) {
       sl<ActiveBookingService>().clearActiveBooking();
     }
+    if (sl.isRegistered<FloatingBubbleService>()) {
+      sl<FloatingBubbleService>().hideBubble();
+    }
     Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
+      if (!_hasNavigated && sl.isRegistered<FloatingBubbleService>()) {
+        sl<FloatingBubbleService>().showBubble(
+          title: 'STRIVE',
+          subText: 'SEARCHING',
+        );
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      if (sl.isRegistered<FloatingBubbleService>()) {
+        sl<FloatingBubbleService>().hideBubble();
+      }
       if (sl.isRegistered<CustomerWSController>()) {
         sl<CustomerWSController>().reconnectIfNeeded();
       }
@@ -552,6 +575,9 @@ class _DriverSearchPageState extends State<DriverSearchPage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    if (sl.isRegistered<FloatingBubbleService>()) {
+      sl<FloatingBubbleService>().hideBubble();
+    }
     _progressController.dispose();
     _searchTimer?.cancel();
     _httpPollTimer?.cancel();

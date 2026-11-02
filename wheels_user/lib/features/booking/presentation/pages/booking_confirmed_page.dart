@@ -12,6 +12,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/network/api_constants.dart';
 import '../../../../core/network/customer_ws_controller.dart';
 import '../../../../core/services/active_booking_service.dart';
+import '../../../../core/services/floating_bubble_service.dart';
 import '../../../home/presentation/pages/home_page.dart';
 import '../../../home/presentation/widgets/home_bottom_nav_bar.dart';
 import 'live_trip_tracking_page.dart';
@@ -83,6 +84,9 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
 
   @override
   void dispose() {
+    if (sl.isRegistered<FloatingBubbleService>()) {
+      sl<FloatingBubbleService>().hideBubble();
+    }
     _httpCheckTimer?.cancel();
     _wsSubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -157,6 +161,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
                 dropLatLng: widget.dropLatLng,
                 startOtp: _currentOtp ?? widget.startOtp,
                 initialStatus: 'TRIP_STARTED',
+                totalAmount: widget.totalAmount,
               ),
             ),
           );
@@ -177,7 +182,19 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
+      if (sl.isRegistered<FloatingBubbleService>()) {
+        sl<FloatingBubbleService>().showBubble(
+          title: 'STRIVE',
+          subText: 'WAITING',
+        );
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      if (sl.isRegistered<FloatingBubbleService>()) {
+        sl<FloatingBubbleService>().hideBubble();
+      }
       if (sl.isRegistered<CustomerWSController>()) {
         sl<CustomerWSController>().reconnectIfNeeded();
       }
@@ -276,6 +293,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
                 dropLatLng: widget.dropLatLng,
                 startOtp: _currentOtp ?? widget.startOtp,
                 initialStatus: 'TRIP_STARTED',
+                totalAmount: widget.totalAmount,
               ),
             ),
           );
@@ -322,22 +340,36 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
 
   void _saveActiveBookingState() {
     if (sl.isRegistered<ActiveBookingService>()) {
+      final vModel = widget.vehicleModel;
+      final lPlate = widget.licensePlate;
+      final vehicleInfo = (vModel.isNotEmpty && lPlate.isNotEmpty && !vModel.contains(lPlate))
+          ? '$vModel • $lPlate'
+          : vModel;
+
       sl<ActiveBookingService>().setActiveBooking(
         ActiveBookingData(
           bookingId: widget.bookingId,
           driverName: widget.driverName,
           driverRating: widget.driverRating,
-          vehicleInfo: '${widget.vehicleModel} • ${widget.licensePlate}',
+          vehicleInfo: vehicleInfo,
           pickupAddress: widget.pickupAddress,
           dropAddress: widget.dropAddress,
           pickupLatLng: widget.pickupLatLng,
           dropLatLng: widget.dropLatLng,
           totalAmount: widget.totalAmount,
           startOtp: _currentOtp ?? widget.startOtp,
-          status: 'RIDER_ACCEPTED',
+          status: _isDriverArrived ? 'RIDER_ARRIVED' : 'RIDER_ACCEPTED',
         ),
       );
     }
+  }
+
+  void _navigateToHome() {
+    _saveActiveBookingState();
+    Navigator.of(context).pushAndRemoveUntil(
+      HomePage.route(),
+      (route) => false,
+    );
   }
 
   void _showCancelRideDialog(BuildContext context) {
@@ -392,12 +424,27 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
         isDark ? AppColors.onboardingBgDark : const Color(0xFFF8FAFC);
     final cardBg = isDark ? AppColors.cardBgDark : Colors.white;
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: isDark ? AppColors.onboardingBgDark : Colors.white,
-        elevation: 0.5,
-        automaticallyImplyLeading: false,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _navigateToHome();
+      },
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        appBar: AppBar(
+          backgroundColor: isDark ? AppColors.onboardingBgDark : Colors.white,
+          elevation: 0.5,
+          automaticallyImplyLeading: false,
+          leading: IconButton(
+            key: const Key('booking_confirmed_back_button'),
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: isDark ? AppColors.textPrimaryDark : const Color(0xFF1E293B),
+              size: 20,
+            ),
+            onPressed: _navigateToHome,
+          ),
         title: Text(
           AppStrings.appName,
           style: GoogleFonts.poppins(
@@ -527,11 +574,12 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
         selectedIndex: 0,
         onTabSelected: (index) {
           if (index == 0) {
-            Navigator.of(context).pushAndRemoveUntil(HomePage.route(), (route) => false);
+            _navigateToHome();
           }
         },
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildOtpCard(BuildContext context, bool isDark, Color cardBg) {
@@ -1113,6 +1161,7 @@ class _BookingConfirmedPageState extends State<BookingConfirmedPage> with Widget
                       dropLatLng: widget.dropLatLng,
                       startOtp: widget.startOtp,
                       initialStatus: _isDriverArrived ? 'DRIVER_ARRIVED' : 'RIDER_ACCEPTED',
+                      totalAmount: widget.totalAmount,
                     ),
                   ),
                 );

@@ -6,7 +6,10 @@ class ApiEndpoints {
   /// Returns full image URL by prepending serverHost if the path is relative.
   static String getImageUrl(String? path) {
     if (path == null || path.trim().isEmpty) return '';
-    final cleanPath = path.trim();
+    var cleanPath = path.trim();
+    if (cleanPath.contains('15.252.129.37:8200')) {
+      cleanPath = cleanPath.replaceAll('15.252.129.37:8200', '13.234.75.204:8200');
+    }
     if (cleanPath.startsWith('http://') ||
         cleanPath.startsWith('https://') ||
         cleanPath.startsWith('blob:') ||
@@ -44,6 +47,8 @@ class ApiEndpoints {
   static const String riderLocation = '$baseUrl/rider/location';
   static const String riderProfile = '$baseUrl/rider/profile';
   static String acceptBooking(int id) => '$baseUrl/rider/booking-requests/$id/accept';
+  static String declineBooking(int id) => '$baseUrl/rider/booking-requests/$id/decline';
+  static String declineBookingDirect(int id) => '$baseUrl/rider/bookings/$id/decline';
   static String markArrived(int id) => '$baseUrl/rider/bookings/$id/arrived';
   static String startTrip(int id) => '$baseUrl/rider/bookings/$id/start';
   static String completeTrip(int id) => '$baseUrl/rider/bookings/$id/complete';

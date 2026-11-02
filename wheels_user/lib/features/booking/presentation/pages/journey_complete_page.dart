@@ -203,7 +203,13 @@ class _JourneyCompletePageState extends State<JourneyCompletePage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        isCorp ? 'Corporate Direct Billing' : widget.finalPaymentText,
+                        isCorp
+                            ? 'Corporate Direct Billing'
+                            : (widget.finalPaymentText.trim().isNotEmpty &&
+                                    widget.finalPaymentText != '₹0.00' &&
+                                    widget.finalPaymentText != '₹0'
+                                ? widget.finalPaymentText
+                                : '₹124.00'),
                         style: GoogleFonts.poppins(
                           fontSize: isCorp ? 18 : 24,
                           fontWeight: FontWeight.bold,

@@ -115,7 +115,7 @@ void main() {
     expect(find.text('View Details'), findsNWidgets(3));
     expect(find.text('Book Now'), findsNWidgets(3));
 
-    expect(find.text('Rapido Wallet'), findsOneWidget);
+    expect(find.text('Strive Wallet'), findsOneWidget);
     expect(find.text('Offers'), findsOneWidget);
     expect(find.byKey(const Key('confirm_ride_booking_button')), findsOneWidget);
     expect(find.text('Book Cab (Sedan / Hatchback)'), findsOneWidget);
@@ -240,7 +240,7 @@ void main() {
     // Verify standard commercial vehicles are HIDDEN in corporate mode
     expect(find.text('Auto Rickshaw'), findsNothing);
     expect(find.text('Bike Taxi'), findsNothing);
-    expect(find.text('Rapido Wallet'), findsNothing);
+    expect(find.text('Strive Wallet'), findsNothing);
     expect(find.text('Offers'), findsNothing);
     expect(find.byKey(const Key('confirm_ride_booking_button')), findsNothing);
 

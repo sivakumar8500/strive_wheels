@@ -2121,7 +2121,7 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
                           ),
                           child: Row(
                             children: [
-                              // Rapido Wallet
+                              // Strive Wallet
                               Expanded(
                                 child: Row(
                                   children: [
@@ -2147,7 +2147,7 @@ class _RideRouteMapPageState extends State<RideRouteMapPage> {
                                           Row(
                                             children: [
                                               Text(
-                                                'Rapido Wallet',
+                                                AppStrings.striveWallet,
                                                 style: GoogleFonts.inter(
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.w600,

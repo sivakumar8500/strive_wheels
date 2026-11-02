@@ -13,6 +13,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.strivewheels/journey_notification"
+    private val BUBBLE_CHANNEL = "com.strivewheels/floating_bubble"
     private val NOTIFICATION_ID = 4032
     private val CHANNEL_ID = "live_journey_channel"
 
@@ -33,6 +34,51 @@ class MainActivity : FlutterActivity() {
                 "dismissJourneyNotification" -> {
                     dismissNotification()
                     result.success(true)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, BUBBLE_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "checkPermission" -> {
+                    val canDraw = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        android.provider.Settings.canDrawOverlays(this)
+                    } else {
+                        true
+                    }
+                    result.success(canDraw)
+                }
+                "requestPermission" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        if (!android.provider.Settings.canDrawOverlays(this)) {
+                            val intent = Intent(
+                                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                android.net.Uri.parse("package:$packageName")
+                            ).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            startActivity(intent)
+                        }
+                    }
+                    result.success(true)
+                }
+                "showBubble" -> {
+                    val title = call.argument<String>("title") ?: "STRIVE"
+                    val subText = call.argument<String>("subText") ?: "CAPTAIN"
+                    val intent = Intent(this, FloatingBubbleService::class.java).apply {
+                        putExtra("title", title)
+                        putExtra("subText", subText)
+                    }
+                    startService(intent)
+                    result.success(true)
+                }
+                "hideBubble" -> {
+                    stopService(Intent(this, FloatingBubbleService::class.java))
+                    result.success(true)
+                }
+                "isBubbleShowing" -> {
+                    result.success(FloatingBubbleService.isShowing)
                 }
                 else -> result.notImplemented()
             }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/network/websocket_client.dart';
 import '../models/ride_request_model.dart';
 
@@ -31,9 +32,30 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
   final _rideCancelledController = StreamController<Map<String, dynamic>>.broadcast();
   final _errorController = StreamController<String>.broadcast();
   
+  final Set<int> _declinedBookingIds = <int>{};
   StreamSubscription? _subscription;
 
-  BookingWebSocketDataSourceImpl({required this.webSocketClient});
+  BookingWebSocketDataSourceImpl({required this.webSocketClient}) {
+    _loadDeclinedBookings();
+  }
+
+  Future<void> _loadDeclinedBookings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('declined_ride_ids') ?? [];
+      final loaded = list.map((e) => int.tryParse(e)).whereType<int>().toSet();
+      _declinedBookingIds.addAll(loaded);
+    } catch (_) {}
+  }
+
+  Future<void> _saveDeclinedBooking(int bookingId) async {
+    _declinedBookingIds.add(bookingId);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = _declinedBookingIds.map((e) => e.toString()).toList();
+      await prefs.setStringList('declined_ride_ids', list);
+    } catch (_) {}
+  }
 
   @override
   void connect(int driverId, String token) {
@@ -161,6 +183,11 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
               return;
             }
 
+            if (_declinedBookingIds.contains(trueBookingId)) {
+              debugPrint('[BookingWebSocket] Skipping ride request because it is in declined list: #$trueBookingId');
+              return;
+            }
+
             final fare = parseDouble(bookingMap['estimated_fare']) ?? 0.0;
             if (fare <= 0.0) {
               debugPrint('[BookingWebSocket] Skipping ride request with missing or zero fare: #$trueBookingId');
@@ -235,6 +262,7 @@ class BookingWebSocketDataSourceImpl implements BookingWebSocketDataSource {
 
   @override
   void declineBooking(int bookingId) {
+    _saveDeclinedBooking(bookingId);
     webSocketClient.sendMessage({
       'event': 'booking.decline',
       'data': {

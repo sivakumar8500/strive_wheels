@@ -13,6 +13,7 @@ import '../services/navigation_service.dart';
 import '../services/active_booking_service.dart';
 import '../services/fcm_token_service.dart';
 import '../services/live_journey_notification_service.dart';
+import '../services/floating_bubble_service.dart';
 
 import '../../features/booking/data/datasources/booking_local_datasource.dart';
 import '../../features/booking/data/datasources/booking_remote_datasource.dart';
@@ -182,6 +183,12 @@ Future<void> initDependencyInjection() async {
   if (!sl.isRegistered<LiveJourneyNotificationService>()) {
     sl.registerLazySingleton<LiveJourneyNotificationService>(
       () => const LiveJourneyNotificationServiceImpl(),
+    );
+  }
+
+  if (!sl.isRegistered<FloatingBubbleService>()) {
+    sl.registerLazySingleton<FloatingBubbleService>(
+      () => const FloatingBubbleServiceImpl(),
     );
   }
 

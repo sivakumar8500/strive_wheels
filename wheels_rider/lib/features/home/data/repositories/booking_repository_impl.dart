@@ -38,8 +38,15 @@ class BookingRepositoryImpl implements BookingRepository {
   }
 
   @override
-  void declineBooking(int bookingId) {
+  void declineBooking(int bookingId) async {
     webSocketDataSource.declineBooking(bookingId);
+    if (remoteDataSource != null) {
+      try {
+        await remoteDataSource!.declineBooking(bookingId);
+      } catch (e) {
+        debugPrint('[BookingRepositoryImpl] REST decline error: $e');
+      }
+    }
   }
 
   @override

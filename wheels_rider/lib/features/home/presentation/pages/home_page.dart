@@ -36,6 +36,7 @@ import '../../domain/entities/ride_request_entity.dart';
 import '../../data/models/ride_request_model.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/utils/geo_utils.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/websocket_client.dart';
 import '../../../../core/services/navigation_service.dart';
@@ -45,6 +46,7 @@ import '../widgets/maneuver_banner_widget.dart';
 import '../widgets/navigation_bottom_panel_widget.dart';
 import '../widgets/moving_car.dart';
 import '../../../../core/services/live_journey_notification_service.dart';
+import '../../../../core/services/floating_bubble_service.dart';
 import '../../../trips/presentation/pages/trip_payment_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -74,6 +76,7 @@ class _HomePageState extends State<HomePage>
   Timer? _locationTimer;
   Timer? _riderHttpCheckTimer;
   RideRequestEntity? _currentRideRequest;
+  final Set<int> _declinedRideIds = {};
   StreamSubscription<Map<String, dynamic>>? _wsDropSubscription;
   bool _isCustomerDropModalShowing = false;
 
@@ -102,6 +105,8 @@ class _HomePageState extends State<HomePage>
   bool _isManualPan = false;
   bool _isLoadingAction = false;
   bool _isDropRequestPending = false;
+  bool _isRiderInitiatedDrop = false;
+  Timer? _riderDropTimeoutTimer;
   bool _isLocationPermissionGranted = false;
   
   BitmapDescriptor? _customMarker;
@@ -125,6 +130,33 @@ class _HomePageState extends State<HomePage>
     _startActiveRideHttpPolling();
     _startIncomingRidesPolling();
     _loadSavedRideTypeAndSchedule();
+    _loadDeclinedRideIds();
+  }
+
+  Future<void> _loadDeclinedRideIds() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('declined_ride_ids') ?? [];
+      final loaded = list.map((e) => int.tryParse(e)).whereType<int>().toSet();
+      if (mounted) {
+        setState(() {
+          _declinedRideIds.addAll(loaded);
+        });
+      } else {
+        _declinedRideIds.addAll(loaded);
+      }
+    } catch (e) {
+      debugPrint('[HomePage] Error loading declined ride IDs: $e');
+    }
+  }
+
+  Future<void> _saveDeclinedRideId(int bookingId) async {
+    _declinedRideIds.add(bookingId);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = _declinedRideIds.map((e) => e.toString()).toList();
+      await prefs.setStringList('declined_ride_ids', list);
+    } catch (_) {}
   }
 
   Future<void> _loadSavedRideTypeAndSchedule() async {
@@ -224,9 +256,27 @@ class _HomePageState extends State<HomePage>
     _isCheckingIncomingRides = true;
 
     try {
+      if (_currentLatLng == null) {
+        try {
+          final pos = await Geolocator.getLastKnownPosition();
+          if (pos != null) {
+            _currentLatLng = LatLng(pos.latitude, pos.longitude);
+          }
+        } catch (_) {}
+      }
+
       final apiClient = sl<ApiClient>();
+
+      // Advance _lastDiscoveredBookingId past any already declined IDs
+      while (_declinedRideIds.contains(_lastDiscoveredBookingId)) {
+        _lastDiscoveredBookingId++;
+      }
+
       for (int bid = _lastDiscoveredBookingId; bid <= _lastDiscoveredBookingId + 5; bid++) {
         if (!mounted || !_isOnDuty || _hasActiveRideRequest || _isTripStarted) break;
+        if (_declinedRideIds.contains(bid)) {
+          continue;
+        }
         try {
           final response = await apiClient.get('${ApiEndpoints.baseUrl}/bookings/$bid');
           if (response.statusCode == 200 && response.data != null) {
@@ -250,8 +300,34 @@ class _HomePageState extends State<HomePage>
               _lastDiscoveredBookingId = bid;
             }
 
+            if (_declinedRideIds.contains(bid)) {
+              continue;
+            }
+
             if ((status == 'RIDER_ASSIGNED' || status == 'SEARCHING_RIDER' || status == 'CREATED') &&
                 (riderId == null || riderId == 14)) {
+              // Strict 5 km radius limit check: rider must be within 5 km of pickup location
+              final pLat = double.tryParse(bookingData['pickup_lat']?.toString() ?? '');
+              final pLng = double.tryParse(bookingData['pickup_lng']?.toString() ?? '');
+              if (_currentLatLng != null && pLat != null && pLng != null && pLat != 0.0 && pLng != 0.0) {
+                final isNearby = GeoUtils.isWithin5KmRadius(
+                  riderLat: _currentLatLng!.latitude,
+                  riderLng: _currentLatLng!.longitude,
+                  pickupLat: pLat,
+                  pickupLng: pLng,
+                );
+                if (!isNearby) {
+                  final distKm = GeoUtils.calculateDistanceKm(
+                    lat1: _currentLatLng!.latitude,
+                    lng1: _currentLatLng!.longitude,
+                    lat2: pLat,
+                    lng2: pLng,
+                  );
+                  debugPrint('🚫 [HomePage] Skipping booking #$bid: pickup distance (${distKm.toStringAsFixed(2)} km) exceeds 5 km radius limit.');
+                  continue;
+                }
+              }
+
               debugPrint('⚡ [HomePage] Found incoming ride request via polling: #$bid (status: $status)');
               _handleIncomingRideRequestData(bookingData);
               break;
@@ -364,6 +440,10 @@ class _HomePageState extends State<HomePage>
       if (trueBookingId != null) {
         bookingMap['id'] = trueBookingId;
         bookingMap['booking_id'] = trueBookingId;
+        if (_declinedRideIds.contains(trueBookingId)) {
+          debugPrint('[HomePage] Dropping ride request #$trueBookingId because it was declined by rider.');
+          return;
+        }
       }
 
       final int? reqId = parseInt(data['request_id']) ?? parseInt(bookingMap['request_id']);
@@ -412,9 +492,33 @@ class _HomePageState extends State<HomePage>
         debugPrint('[HomePage] Dropping ride request with zero fare: #${entity.id}');
         return;
       }
+      if (_declinedRideIds.contains(entity.id)) {
+        debugPrint('[HomePage] Dropping ride request #${entity.id} because it was declined by rider.');
+        return;
+      }
       if (_hasActiveRideRequest && _currentRideRequest?.id == entity.id) {
         debugPrint('[HomePage] Ride request #${entity.id} already active, ignoring duplicate.');
         return;
+      }
+
+      // Enforce strict 5 km radius limit: if rider is > 5 km from user pickup, drop ride request
+      if (_currentLatLng != null && entity.pickupLat != 0.0 && entity.pickupLng != 0.0) {
+        final isNearby = GeoUtils.isWithin5KmRadius(
+          riderLat: _currentLatLng!.latitude,
+          riderLng: _currentLatLng!.longitude,
+          pickupLat: entity.pickupLat,
+          pickupLng: entity.pickupLng,
+        );
+        if (!isNearby) {
+          final distKm = GeoUtils.calculateDistanceKm(
+            lat1: _currentLatLng!.latitude,
+            lng1: _currentLatLng!.longitude,
+            lat2: entity.pickupLat,
+            lng2: entity.pickupLng,
+          );
+          debugPrint('🚫 [HomePage] Dropping ride request #${entity.id} because pickup distance (${distKm.toStringAsFixed(2)} km) exceeds 5 km radius limit.');
+          return;
+        }
       }
 
       if (mounted) {
@@ -467,9 +571,13 @@ class _HomePageState extends State<HomePage>
           );
         } else if (isDropAccepted || status == 'COMPLETED') {
           _stopActiveRideHttpPolling();
-          setState(() => _isDropRequestPending = false);
+          _dismissWaitingCustomerDropDialog();
+          setState(() {
+            _isDropRequestPending = false;
+            _isRiderInitiatedDrop = false;
+          });
           _navigateToPaymentScreen(bookingId: bookingId);
-        } else if (isDropRequested && requestedBy != 'RIDER' && !_isCustomerDropModalShowing) {
+        } else if (isDropRequested && (requestedBy == 'CUSTOMER' || requestedBy == 'USER') && !_isRiderInitiatedDrop && !_isDropRequestPending && !_isCustomerDropModalShowing) {
           final reason = (bookingData['reason'] ?? data['reason'] ?? 'Early drop requested by customer').toString();
           _showCustomerDropRequestModal(reason: reason, bookingId: bookingId);
         } else if (status == 'RIDER_ARRIVED') {
@@ -602,6 +710,21 @@ class _HomePageState extends State<HomePage>
           // Suppress snackbar in booking flow
         }
 
+        final rawReqBy = (data['requested_by'] ??
+                msg['requested_by'] ??
+                data['requestedBy'] ??
+                msg['requestedBy'] ??
+                data['sender'] ??
+                data['user_type'] ??
+                msg['user_type'] ??
+                data['role'] ??
+                data['drop_requested_by'] ??
+                data['booking']?['requested_by'] ??
+                data['booking']?['drop_requested_by'])
+            ?.toString()
+            .toUpperCase()
+            .trim() ?? '';
+
         final isDropRequested =
             event == 'booking.drop_requested' ||
             event == 'booking.drop_request' ||
@@ -611,12 +734,16 @@ class _HomePageState extends State<HomePage>
             event == 'booking.customer_drop_requested' ||
             event == 'ride.drop_requested' ||
             event == 'drop_requested' ||
-            (data['is_drop_requested'] == true && requestedBy.toUpperCase() != 'RIDER') ||
-            (data['status']?.toString().toUpperCase() == 'DROP_REQUESTED' && requestedBy.toUpperCase() != 'RIDER');
+            (data['is_drop_requested'] == true && rawReqBy != 'RIDER' && rawReqBy != 'DRIVER') ||
+            (data['status']?.toString().toUpperCase() == 'DROP_REQUESTED' && rawReqBy != 'RIDER' && rawReqBy != 'DRIVER');
+
+        final isRequestedByCustomer = rawReqBy == 'CUSTOMER' ||
+            rawReqBy == 'USER' ||
+            (rawReqBy != 'RIDER' && rawReqBy != 'DRIVER' && !_isRiderInitiatedDrop && !_isDropRequestPending);
 
         if (isDropRequested) {
-          // Only show popup if requested by the CUSTOMER (not by RIDER themselves)
-          if (requestedBy.toUpperCase() != 'RIDER') {
+          // Strictly ONLY show popup to rider if requested by the CUSTOMER, never if rider requested it
+          if (isRequestedByCustomer && !_isRiderInitiatedDrop && !_isDropRequestPending) {
             final reason = (data['reason'] ?? msg['reason'] ?? data['drop_reason'] ?? msg['drop_reason'] ?? 'Early drop requested by customer').toString();
             final bookingId = data['booking_id'] ?? msg['booking_id'] ?? _currentRideRequest?.id;
             _showCustomerDropRequestModal(reason: reason, bookingId: bookingId);
@@ -627,10 +754,20 @@ class _HomePageState extends State<HomePage>
             event == 'trip.drop_approved' ||
             event == 'booking.completed') {
           _ringtoneService.stopCallingRingtone();
-          setState(() => _isDropRequestPending = false);
+          _dismissWaitingCustomerDropDialog();
+          setState(() {
+            _isDropRequestPending = false;
+            _isRiderInitiatedDrop = false;
+          });
           _navigateToPaymentScreen(bookingId: data['booking_id'] ?? msg['booking_id']);
         } else if (event == 'booking.drop_rejected') {
-          setState(() => _isDropRequestPending = false);
+          _dismissWaitingCustomerDropDialog();
+          setState(() {
+            _isDropRequestPending = false;
+            _isRiderInitiatedDrop = false;
+          });
+          final reason = (data['reason'] ?? 'Customer declined early drop request').toString();
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(reason)));
         } else {
           final isCancelled =
               event == 'booking.cancelled' ||
@@ -717,17 +854,23 @@ class _HomePageState extends State<HomePage>
   void _declineRide([int? rideId]) {
     final bId = rideId ?? _currentRideRequest?.id;
     _ringtoneService.stopCallingRingtone();
-    if (bId != null && sl.isRegistered<WebSocketClient>()) {
-      sl<WebSocketClient>().sendMessage({
-        'event': 'booking.decline',
-        'data': {
-          'booking_id': bId,
-          'id': bId,
-          'rider_id': _driverId,
-        }
-      });
+    if (bId != null) {
+      _saveDeclinedRideId(bId);
+      if (bId >= _lastDiscoveredBookingId) {
+        _lastDiscoveredBookingId = bId + 1;
+      }
+      if (sl.isRegistered<WebSocketClient>()) {
+        sl<WebSocketClient>().sendMessage({
+          'event': 'booking.decline',
+          'data': {
+            'booking_id': bId,
+            'id': bId,
+            'rider_id': _driverId,
+          }
+        });
+      }
+      _bookingBloc.add(DeclineRideEvent(bId));
     }
-    _bookingBloc.add(DeclineRideEvent(bId));
     _clearActiveRideState();
   }
 
@@ -742,6 +885,12 @@ class _HomePageState extends State<HomePage>
         final Map<String, dynamic> jsonMap = jsonDecode(jsonStr);
         final model = RideRequestModel.fromJson(jsonMap);
         final entity = model.toEntity();
+
+        if (_declinedRideIds.contains(entity.id)) {
+          debugPrint('[HomePage] Restored booking ${entity.id} was declined by rider. Clearing stale state.');
+          await _clearActiveRideState();
+          return;
+        }
 
         // Validate with server if restored booking is actually active
         try {
@@ -893,6 +1042,9 @@ class _HomePageState extends State<HomePage>
         sl<LiveJourneyNotificationService>().dismissJourneyNotification();
       }
     }
+    if (sl.isRegistered<FloatingBubbleService>()) {
+      sl<FloatingBubbleService>().hideBubble();
+    }
     _ringtoneService.stopCallingRingtone();
     _locationTimer?.cancel();
     _riderHttpCheckTimer?.cancel();
@@ -913,8 +1065,27 @@ class _HomePageState extends State<HomePage>
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.hidden) {
       _showLiveJourneyNotification();
+      _handleBackgroundFloatingBubble();
     } else if (state == AppLifecycleState.resumed) {
       _showLiveJourneyNotification();
+      if (sl.isRegistered<FloatingBubbleService>()) {
+        sl<FloatingBubbleService>().hideBubble();
+      }
+    }
+  }
+
+  void _handleBackgroundFloatingBubble() {
+    if (!sl.isRegistered<FloatingBubbleService>()) return;
+    if (_isOnDuty || _isTripAccepted || _currentRideRequest != null) {
+      final subText = _isTripAccepted
+          ? 'IN RIDE'
+          : (_hasActiveRideRequest ? 'NEW RIDE' : 'ON DUTY');
+      sl<FloatingBubbleService>().showBubble(
+        title: 'STRIVE',
+        subText: subText,
+      );
+    } else {
+      sl<FloatingBubbleService>().hideBubble();
     }
   }
 
@@ -1135,6 +1306,10 @@ class _HomePageState extends State<HomePage>
                 if (state.rideRequest.id <= 0 || state.rideRequest.estimatedFare <= 0.0) {
                   return;
                 }
+                if (_declinedRideIds.contains(state.rideRequest.id)) {
+                  debugPrint('[HomePage] Dropping NewRideRequestState #${state.rideRequest.id} because rider declined it.');
+                  return;
+                }
                 if (_hasActiveRideRequest && _currentRideRequest?.id == state.rideRequest.id) {
                   return;
                 }
@@ -1144,6 +1319,27 @@ class _HomePageState extends State<HomePage>
                 }
                 if (_rideType == 'Corporate' && !isCorp) {
                   return;
+                }
+                // Enforce strict 5 km radius limit: if rider is > 5 km from user pickup, drop ride request
+                if (_currentLatLng != null &&
+                    state.rideRequest.pickupLat != 0.0 &&
+                    state.rideRequest.pickupLng != 0.0) {
+                  final isNearby = GeoUtils.isWithin5KmRadius(
+                    riderLat: _currentLatLng!.latitude,
+                    riderLng: _currentLatLng!.longitude,
+                    pickupLat: state.rideRequest.pickupLat,
+                    pickupLng: state.rideRequest.pickupLng,
+                  );
+                  if (!isNearby) {
+                    final distKm = GeoUtils.calculateDistanceKm(
+                      lat1: _currentLatLng!.latitude,
+                      lng1: _currentLatLng!.longitude,
+                      lat2: state.rideRequest.pickupLat,
+                      lng2: state.rideRequest.pickupLng,
+                    );
+                    debugPrint('🚫 [HomePage] Dropping NewRideRequestState #${state.rideRequest.id} because pickup distance (${distKm.toStringAsFixed(2)} km) exceeds 5 km radius limit.');
+                    return;
+                  }
                 }
                 setState(() {
                   _hasActiveRideRequest = true;
@@ -1472,6 +1668,13 @@ class _HomePageState extends State<HomePage>
                                   _homeBloc.add(HomeEvent.updateAvailability(availabilityMode: mode, isOnline: _isOnDuty));
 
                                   if (_isOnDuty) {
+                                    if (sl.isRegistered<FloatingBubbleService>()) {
+                                      sl<FloatingBubbleService>().checkPermission().then((granted) {
+                                        if (!granted) {
+                                          sl<FloatingBubbleService>().requestPermission();
+                                        }
+                                      });
+                                    }
                                     _startLocationTracking();
                                     if (_driverId != null) {
                                       _bookingBloc.add(ConnectWebSocketEvent(
@@ -1480,6 +1683,9 @@ class _HomePageState extends State<HomePage>
                                       ));
                                     }
                                   } else {
+                                    if (sl.isRegistered<FloatingBubbleService>()) {
+                                      sl<FloatingBubbleService>().hideBubble();
+                                    }
                                     _stopLocationTracking();
                                     _bookingBloc.add(DisconnectWebSocketEvent());
                                   }
@@ -2804,9 +3010,19 @@ class _HomePageState extends State<HomePage>
         );
       }
       if (sl.isRegistered<WebSocketClient>()) {
+        final currentFare = _currentRideRequest?.estimatedFare ?? 0.0;
         sl<WebSocketClient>().sendMessage({
           'event': 'booking.completed',
-          'data': {'booking_id': bookingId, 'status': 'COMPLETED'},
+          'data': {
+            'booking_id': bookingId,
+            'status': 'COMPLETED',
+            'final_fare': currentFare,
+            'estimated_fare': currentFare,
+            'fare': currentFare,
+            'price': currentFare,
+            'distance_km': _remainingDistanceKm > 0 ? _remainingDistanceKm : 2.5,
+            'duration_mins': _remainingDurationMins > 0 ? _remainingDurationMins : 10,
+          },
         });
       }
     } catch (e) {
@@ -2899,18 +3115,33 @@ class _HomePageState extends State<HomePage>
                   return;
                 }
                 Navigator.pop(dialogCtx);
-                setState(() => _isDropRequestPending = true);
+                final currentFare = _currentRideRequest?.estimatedFare ?? 0.0;
+                final bId = _currentRideRequest?.id ?? 0;
+                setState(() {
+                  _isRiderInitiatedDrop = true;
+                  _isDropRequestPending = true;
+                });
                 // Send booking.drop_requested via WebSocket
                 if (sl.isRegistered<WebSocketClient>()) {
                   sl<WebSocketClient>().sendMessage({
                     'event': 'booking.drop_requested',
                     'data': {
-                      'booking_id': _currentRideRequest?.id ?? 0,
+                      'booking_id': bId,
                       'requested_by': 'RIDER',
+                      'sender': 'RIDER',
+                      'user_type': 'RIDER',
+                      'role': 'RIDER',
+                      'drop_requested_by': 'RIDER',
+                      'is_drop_requested': true,
                       'reason': reason,
+                      'final_fare': currentFare,
+                      'estimated_fare': currentFare,
+                      'fare': currentFare,
+                      'price': currentFare,
                     },
                   });
                 }
+                _showWaitingCustomerApprovalDialog(bookingId: bId, fare: currentFare, reason: reason);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
@@ -3035,6 +3266,208 @@ class _HomePageState extends State<HomePage>
         );
       },
     );
+  }
+
+  void _dismissWaitingCustomerDropDialog() {
+    _riderDropTimeoutTimer?.cancel();
+    _riderDropTimeoutTimer = null;
+    if (_isRiderInitiatedDrop && mounted) {
+      if (Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
+    _isRiderInitiatedDrop = false;
+    _isDropRequestPending = false;
+  }
+
+  void _showWaitingCustomerApprovalDialog({required dynamic bookingId, required double fare, required String reason}) {
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        int remainingSeconds = 30;
+
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            _riderDropTimeoutTimer?.cancel();
+            _riderDropTimeoutTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+              if (remainingSeconds > 1) {
+                if (mounted) {
+                  setSheetState(() {
+                    remainingSeconds--;
+                  });
+                }
+              } else {
+                t.cancel();
+                _riderDropTimeoutTimer = null;
+                if (mounted) {
+                  // 30s auto-accept on timeout
+                  if (Navigator.of(ctx).canPop()) {
+                    Navigator.of(ctx).pop();
+                  }
+                  _isRiderInitiatedDrop = false;
+                  setState(() => _isDropRequestPending = false);
+
+                  if (sl.isRegistered<WebSocketClient>()) {
+                    final bIdInt = bookingId is String ? int.tryParse(bookingId.replaceAll(RegExp(r'[^0-9]'), '')) : bookingId;
+                    sl<WebSocketClient>().sendMessage({
+                      'event': 'booking.drop_accepted',
+                      'data': {
+                        'booking_id': bIdInt ?? bookingId,
+                        'accepted_by': 'RIDER',
+                        'is_drop_accepted': true,
+                        'final_fare': fare,
+                        'estimated_fare': fare,
+                        'fare': fare,
+                        'price': fare,
+                      },
+                    });
+                    sl<WebSocketClient>().sendMessage({
+                      'event': 'booking.drop_approved',
+                      'data': {
+                        'booking_id': bIdInt ?? bookingId,
+                        'accepted_by': 'RIDER',
+                        'is_drop_accepted': true,
+                        'final_fare': fare,
+                        'estimated_fare': fare,
+                        'fare': fare,
+                        'price': fare,
+                      },
+                    });
+                    sl<WebSocketClient>().sendMessage({
+                      'event': 'booking.complete',
+                      'data': {
+                        'booking_id': bIdInt ?? bookingId,
+                        'rider_lat': _currentLatLng?.latitude,
+                        'rider_lng': _currentLatLng?.longitude,
+                        'final_fare': fare,
+                        'estimated_fare': fare,
+                        'fare': fare,
+                        'price': fare,
+                      },
+                    });
+                  }
+                  Future.delayed(const Duration(milliseconds: 300), () {
+                    if (mounted) _navigateToPaymentScreen(bookingId: bookingId);
+                  });
+                }
+              }
+            });
+
+            return Container(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEFF6FF),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.hourglass_top_rounded, color: Colors.orange, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Waiting for Customer Approval',
+                              style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              'Drop request sent to customer',
+                              style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.timer_outlined, size: 14, color: Colors.orange),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${remainingSeconds}s',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Text(
+                      'Reason: "$reason"',
+                      style: GoogleFonts.inter(fontSize: 14, fontStyle: FontStyle.italic, color: const Color(0xFF334155)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Auto-accepting in ${remainingSeconds}s if no action taken by customer.',
+                    style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        _riderDropTimeoutTimer?.cancel();
+                        _riderDropTimeoutTimer = null;
+                        if (Navigator.of(ctx).canPop()) {
+                          Navigator.of(ctx).pop();
+                        }
+                        _isRiderInitiatedDrop = false;
+                        setState(() => _isDropRequestPending = false);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: Text(
+                        'Cancel Request',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: const Color(0xFF64748B)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() {
+      _riderDropTimeoutTimer?.cancel();
+      _riderDropTimeoutTimer = null;
+      _isRiderInitiatedDrop = false;
+    });
   }
 
   void _showCustomerDropRequestModal({required String reason, dynamic bookingId}) {
@@ -3234,6 +3667,21 @@ class _HomePageState extends State<HomePage>
                                   'rider_lng': curLng,
                                 },
                               });
+                              final currentFare = _currentRideRequest?.estimatedFare ?? 0.0;
+                              sl<WebSocketClient>().sendMessage({
+                                'event': 'booking.drop_accepted',
+                                'data': {
+                                  'booking_id': bIdInt ?? bId,
+                                  'accepted_by': 'RIDER',
+                                  'is_drop_accepted': true,
+                                  'lat': curLat,
+                                  'lng': curLng,
+                                  'final_fare': currentFare,
+                                  'estimated_fare': currentFare,
+                                  'fare': currentFare,
+                                  'price': currentFare,
+                                },
+                              });
                               sl<WebSocketClient>().sendMessage({
                                 'event': 'booking.drop_approved',
                                 'data': {
@@ -3242,14 +3690,23 @@ class _HomePageState extends State<HomePage>
                                   'is_drop_accepted': true,
                                   'lat': curLat,
                                   'lng': curLng,
+                                  'final_fare': currentFare,
+                                  'estimated_fare': currentFare,
+                                  'fare': currentFare,
+                                  'price': currentFare,
                                 },
                               });
                               sl<WebSocketClient>().sendMessage({
-                                'event': 'booking.complete',
+                                'event': 'booking.completed',
                                 'data': {
                                   'booking_id': bIdInt ?? bId,
+                                  'status': 'COMPLETED',
                                   'rider_lat': curLat,
                                   'rider_lng': curLng,
+                                  'final_fare': currentFare,
+                                  'estimated_fare': currentFare,
+                                  'fare': currentFare,
+                                  'price': currentFare,
                                 },
                               });
                             }

@@ -103,6 +103,7 @@ import '../../features/notifications/presentation/bloc/notification_bloc.dart';
 import '../services/navigation_service.dart';
 import '../services/ride_ringtone_service.dart';
 import '../services/live_journey_notification_service.dart';
+import '../services/floating_bubble_service.dart';
 
 final sl = GetIt.instance;
 
@@ -116,6 +117,9 @@ Future<void> initDependencyInjection() async {
   }
   if (!sl.isRegistered<LiveJourneyNotificationService>()) {
     sl.registerLazySingleton<LiveJourneyNotificationService>(() => const LiveJourneyNotificationServiceImpl());
+  }
+  if (!sl.isRegistered<FloatingBubbleService>()) {
+    sl.registerLazySingleton<FloatingBubbleService>(() => const FloatingBubbleServiceImpl());
   }
 
   // External
