@@ -11,3 +11,5 @@
 release_bundles/
 *.apk
 *.aab
+config.bat
+node_modules
